@@ -41,6 +41,7 @@ export default function OrdersPage() {
       key: "userName",
       label: "User",
       sortable: true,
+      hideOnMobile: true,
       render: (row) => (
         <div className="flex items-center gap-2.5">
           <div className="size-8 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">

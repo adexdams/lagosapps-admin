@@ -43,6 +43,7 @@ export default function MembershipAdmin() {
       label: "Billing",
       align: "right",
       sortable: true,
+      hideOnMobile: true,
       render: (row) => <span className="text-sm font-semibold text-[#0F172A]">{formatNaira(row.amount as number)}/mo</span>,
     },
     {

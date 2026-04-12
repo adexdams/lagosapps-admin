@@ -55,6 +55,7 @@ export default function UsersPage() {
       label: "Tier",
       width: "10%",
       sortable: true,
+      hideOnMobile: true,
       render: (row) => <StatusBadge status={row.membershipTier} />,
     },
     {
@@ -75,6 +76,7 @@ export default function UsersPage() {
       width: "8%",
       align: "center",
       sortable: true,
+      hideOnMobile: true,
       render: (row) => <span className="text-sm text-[#334155]">{row.totalOrders}</span>,
     },
     {

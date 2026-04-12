@@ -121,7 +121,7 @@ export default function DataTable<T extends Record<string, unknown>>({
                 <th
                   key={col.key}
                   className={`px-2.5 sm:px-4 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider ${getAlign(col.align)} ${
-                    col.hideOnMobile ? "hidden md:table-cell" : ""
+                    col.hideOnMobile ? "hidden sm:table-cell" : ""
                   } ${col.sortable ? "cursor-pointer select-none hover:text-[#334155]" : ""}`}
                   style={col.width ? { width: col.width } : undefined}
                   onClick={col.sortable ? () => handleSort(col.key) : undefined}
@@ -182,7 +182,7 @@ export default function DataTable<T extends Record<string, unknown>>({
                       <td
                         key={col.key}
                         className={`px-2.5 sm:px-4 py-3 sm:py-3.5 text-[#334155] ${getAlign(col.align)} ${
-                          col.hideOnMobile ? "hidden md:table-cell" : ""
+                          col.hideOnMobile ? "hidden sm:table-cell" : ""
                         }`}
                       >
                         {col.render ? col.render(row) : String(row[col.key] ?? "")}

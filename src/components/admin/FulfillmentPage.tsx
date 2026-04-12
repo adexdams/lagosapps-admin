@@ -110,15 +110,15 @@ export default function FulfillmentPage() {
       {/* Fulfillment table */}
       <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-xs sm:text-sm">
             <thead>
               <tr className="bg-[#F8FAFC]">
-                <th className="px-5 py-3.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left">Order</th>
-                <th className="px-5 py-3.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left">Customer</th>
-                <th className="px-5 py-3.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left hidden md:table-cell">Portal</th>
-                <th className="px-5 py-3.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left hidden sm:table-cell">Assigned To</th>
-                <th className="px-5 py-3.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-center">Status</th>
-                <th className="px-5 py-3.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left hidden md:table-cell">Due Date</th>
+                <th className="px-2.5 sm:px-4 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left">Order</th>
+                <th className="px-2.5 sm:px-4 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left hidden sm:table-cell">Customer</th>
+                <th className="px-2.5 sm:px-4 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left hidden md:table-cell">Portal</th>
+                <th className="px-2.5 sm:px-4 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left hidden sm:table-cell">Assigned To</th>
+                <th className="px-2.5 sm:px-4 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-center">Status</th>
+                <th className="px-2.5 sm:px-4 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left hidden md:table-cell">Due Date</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#F1F5F9]">
@@ -126,7 +126,7 @@ export default function FulfillmentPage() {
                 const assignee = TEAM_MEMBERS.find((m) => m.id === assignments[item.orderId]);
                 return (
                   <tr key={item.orderId} className="hover:bg-[#F8FAFC] transition-colors">
-                    <td className="px-5 py-3.5">
+                    <td className="px-2.5 sm:px-4 py-3">
                       <button
                         onClick={() => navigate(`/fulfillment/${item.orderId}`)}
                         className="font-semibold text-primary cursor-pointer hover:underline"
@@ -134,22 +134,22 @@ export default function FulfillmentPage() {
                         {item.orderId}
                       </button>
                     </td>
-                    <td className="px-5 py-3.5 text-[#334155]">{item.customer}</td>
-                    <td className="px-5 py-3.5 text-[#64748B] hidden md:table-cell">{PORTAL_LABELS[item.portal]}</td>
-                    <td className="px-5 py-3.5 hidden sm:table-cell">
+                    <td className="px-2.5 sm:px-4 py-3 text-[#334155] hidden sm:table-cell">{item.customer}</td>
+                    <td className="px-2.5 sm:px-4 py-3 text-[#64748B] hidden md:table-cell">{PORTAL_LABELS[item.portal]}</td>
+                    <td className="px-2.5 sm:px-4 py-3 hidden sm:table-cell">
                       {assignee ? (
                         <span className="text-sm text-[#334155]">{assignee.name}</span>
                       ) : (
                         <StatusBadge status="pending" />
                       )}
                     </td>
-                    <td className="px-5 py-3.5 text-center">
+                    <td className="px-2.5 sm:px-4 py-3 text-center">
                       <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold capitalize">
                         <span className="size-2 rounded-full" style={{ backgroundColor: STATUS_DOT[item.status] }} />
                         {item.status.replace("_", " ")}
                       </span>
                     </td>
-                    <td className="px-5 py-3.5 text-[#64748B] hidden md:table-cell whitespace-nowrap">{formatDate(item.dueDate)}</td>
+                    <td className="px-2.5 sm:px-4 py-3 text-[#64748B] hidden md:table-cell whitespace-nowrap">{formatDate(item.dueDate)}</td>
                   </tr>
                 );
               })}

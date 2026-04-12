@@ -47,6 +47,7 @@ export default function WalletAdmin() {
     {
       key: "id",
       label: "ID",
+      hideOnMobile: true,
       render: (row) => <span className="text-[13px] font-mono text-[#64748B]">{row.id}</span>,
     },
     {

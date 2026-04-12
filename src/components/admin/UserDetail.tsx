@@ -46,8 +46,8 @@ export default function UserDetail() {
         <div className="lg:col-span-3 space-y-6">
           {/* Profile card */}
           <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-3.5 sm:p-5 md:p-7">
-            <div className="flex items-start gap-4">
-              <div className="size-16 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white text-xl font-bold flex-shrink-0">
+            <div className="flex items-start gap-3 sm:gap-4">
+              <div className="size-12 sm:size-16 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white text-base sm:text-xl font-bold flex-shrink-0">
                 {user.avatar}
               </div>
               <div className="flex-1 min-w-0">
@@ -80,14 +80,14 @@ export default function UserDetail() {
               <h3 className="text-sm font-bold text-[#0F172A]">Order History</h3>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-xs sm:text-sm">
                 <thead>
                   <tr className="bg-[#F8FAFC]">
-                    <th className="px-5 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left">Order</th>
-                    <th className="px-5 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left hidden sm:table-cell">Portal</th>
-                    <th className="px-5 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-right">Amount</th>
-                    <th className="px-5 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-center">Status</th>
-                    <th className="px-5 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left hidden md:table-cell">Date</th>
+                    <th className="px-2.5 sm:px-4 py-2.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left">Order</th>
+                    <th className="px-2.5 sm:px-4 py-2.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left hidden sm:table-cell">Portal</th>
+                    <th className="px-2.5 sm:px-4 py-2.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-right">Amount</th>
+                    <th className="px-2.5 sm:px-4 py-2.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-center">Status</th>
+                    <th className="px-2.5 sm:px-4 py-2.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left hidden md:table-cell">Date</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#F1F5F9]">
@@ -100,11 +100,11 @@ export default function UserDetail() {
                         onClick={() => navigate(`/orders/${o.id}`)}
                         className="hover:bg-[#F8FAFC] cursor-pointer transition-colors"
                       >
-                        <td className="px-5 py-3.5 font-semibold text-primary">{o.id}</td>
-                        <td className="px-5 py-3.5 text-[#334155] hidden sm:table-cell">{PORTAL_LABELS[o.portal]}</td>
-                        <td className="px-5 py-3.5 text-right font-semibold text-[#0F172A]">{formatNaira(o.amount)}</td>
-                        <td className="px-5 py-3.5 text-center"><StatusBadge status={o.status} /></td>
-                        <td className="px-5 py-3.5 text-[#64748B] hidden md:table-cell whitespace-nowrap">{formatDate(o.createdAt)}</td>
+                        <td className="px-2.5 sm:px-4 py-3 font-semibold text-primary">{o.id}</td>
+                        <td className="px-2.5 sm:px-4 py-3 text-[#334155] hidden sm:table-cell">{PORTAL_LABELS[o.portal]}</td>
+                        <td className="px-2.5 sm:px-4 py-3 text-right font-semibold text-[#0F172A]">{formatNaira(o.amount)}</td>
+                        <td className="px-2.5 sm:px-4 py-3 text-center"><StatusBadge status={o.status} /></td>
+                        <td className="px-2.5 sm:px-4 py-3 text-[#64748B] hidden md:table-cell whitespace-nowrap">{formatDate(o.createdAt)}</td>
                       </tr>
                     ))
                   )}
@@ -119,13 +119,13 @@ export default function UserDetail() {
               <h3 className="text-sm font-bold text-[#0F172A]">Wallet Transactions</h3>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-xs sm:text-sm">
                 <thead>
                   <tr className="bg-[#F8FAFC]">
-                    <th className="px-5 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left">Description</th>
-                    <th className="px-5 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-center">Type</th>
-                    <th className="px-5 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-right">Amount</th>
-                    <th className="px-5 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left hidden md:table-cell">Date</th>
+                    <th className="px-2.5 sm:px-4 py-2.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left">Description</th>
+                    <th className="px-2.5 sm:px-4 py-2.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-center">Type</th>
+                    <th className="px-2.5 sm:px-4 py-2.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-right">Amount</th>
+                    <th className="px-2.5 sm:px-4 py-2.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left hidden md:table-cell">Date</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#F1F5F9]">
@@ -134,12 +134,12 @@ export default function UserDetail() {
                   ) : (
                     userTxns.map((t) => (
                       <tr key={t.id} className="hover:bg-[#F8FAFC] transition-colors">
-                        <td className="px-5 py-3.5 text-[#334155]">{t.description}</td>
-                        <td className="px-5 py-3.5 text-center"><StatusBadge status={t.type} /></td>
-                        <td className={`px-5 py-3.5 text-right font-semibold ${t.type === "credit" ? "text-[#059669]" : "text-[#DC2626]"}`}>
+                        <td className="px-2.5 sm:px-4 py-3 text-[#334155]">{t.description}</td>
+                        <td className="px-2.5 sm:px-4 py-3 text-center"><StatusBadge status={t.type} /></td>
+                        <td className={`px-2.5 sm:px-4 py-3 text-right font-semibold ${t.type === "credit" ? "text-[#059669]" : "text-[#DC2626]"}`}>
                           {t.type === "credit" ? "+" : "-"}{formatNaira(t.amount)}
                         </td>
-                        <td className="px-5 py-3.5 text-[#64748B] hidden md:table-cell whitespace-nowrap">{formatDate(t.createdAt)}</td>
+                        <td className="px-2.5 sm:px-4 py-3 text-[#64748B] hidden md:table-cell whitespace-nowrap">{formatDate(t.createdAt)}</td>
                       </tr>
                     ))
                   )}

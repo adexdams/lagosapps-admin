@@ -71,14 +71,14 @@ export default function AuditLog() {
       {/* Custom expandable table */}
       <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-xs sm:text-sm">
             <thead>
               <tr className="bg-[#F8FAFC]">
-                <th className="px-5 py-3.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left">Timestamp</th>
-                <th className="px-5 py-3.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left">Admin</th>
-                <th className="px-5 py-3.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left">Action</th>
-                <th className="px-5 py-3.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left hidden md:table-cell">Entity</th>
-                <th className="px-5 py-3.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-center">Details</th>
+                <th className="px-2.5 sm:px-4 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left">Timestamp</th>
+                <th className="px-2.5 sm:px-4 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left hidden sm:table-cell">Admin</th>
+                <th className="px-2.5 sm:px-4 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left">Action</th>
+                <th className="px-2.5 sm:px-4 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left hidden md:table-cell">Entity</th>
+                <th className="px-2.5 sm:px-4 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-center">Details</th>
               </tr>
             </thead>
             <tbody>
@@ -94,15 +94,15 @@ export default function AuditLog() {
                     <tr key={entry.id} className="group">
                       <td colSpan={5} className="p-0">
                         <div
-                          className={`flex items-center px-5 py-3.5 border-b border-[#F1F5F9] hover:bg-[#F8FAFC] transition-colors ${isExpanded ? "bg-[#F8FAFC]" : ""}`}
+                          className={`flex items-center px-2.5 sm:px-4 py-3 border-b border-[#F1F5F9] hover:bg-[#F8FAFC] transition-colors ${isExpanded ? "bg-[#F8FAFC]" : ""}`}
                         >
-                          <div className="flex-1 grid grid-cols-5 items-center gap-2" style={{ gridTemplateColumns: "auto 1fr 1fr 1fr auto" }}>
+                          <div className="flex-1 flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3 min-w-0">
                             {/* Timestamp */}
-                            <span className="text-[13px] text-[#64748B] whitespace-nowrap">
+                            <span className="text-[11px] sm:text-[13px] text-[#64748B] whitespace-nowrap flex-shrink-0">
                               {formatDate(entry.createdAt)}
                             </span>
                             {/* Admin */}
-                            <span className="text-sm font-semibold text-[#0F172A]">{entry.adminName}</span>
+                            <span className="text-sm font-semibold text-[#0F172A] hidden sm:block flex-shrink-0">{entry.adminName}</span>
                             {/* Action badge */}
                             <span
                               className="inline-block px-2.5 py-1 rounded-lg text-[11px] font-semibold tracking-wide w-fit"
