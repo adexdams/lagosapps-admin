@@ -239,7 +239,7 @@ export default function CreateOrderAdmin() {
           </div>
 
           {/* Cart sidebar */}
-          <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5 h-fit sticky top-24">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5 h-fit sticky top-24">
             <h3 className="text-sm font-bold text-[#0F172A] mb-4">Cart ({cart.length} items)</h3>
             {cart.length === 0 ? (
               <p className="text-sm text-[#94A3B8]">Add products to get started</p>
@@ -277,7 +277,7 @@ export default function CreateOrderAdmin() {
         <div className="space-y-5 max-w-2xl">
           {/* Customer */}
           {selectedUser && (
-            <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
               <h3 className="text-sm font-bold text-[#0F172A] mb-3">Customer</h3>
               <div className="flex items-center gap-3">
                 <div className="size-10 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white text-sm font-bold">
@@ -292,7 +292,7 @@ export default function CreateOrderAdmin() {
           )}
 
           {/* Items */}
-          <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
             <h3 className="text-sm font-bold text-[#0F172A] mb-3">Items</h3>
             <div className="space-y-2">
               {cart.map((item) => (
@@ -305,9 +305,9 @@ export default function CreateOrderAdmin() {
           </div>
 
           {/* Payment method */}
-          <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
             <h3 className="text-sm font-bold text-[#0F172A] mb-3">Payment Method</h3>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
               {["wallet", "card", "bank_transfer"].map((m) => (
                 <button
                   key={m}
@@ -329,7 +329,7 @@ export default function CreateOrderAdmin() {
           </div>
 
           {/* Total + Submit */}
-          <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5 flex items-center justify-between">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5 flex items-center justify-between">
             <div>
               <p className="text-[13px] text-[#64748B]">Total</p>
               <p className="text-2xl font-extrabold text-[#0F172A]">{formatNaira(subtotal)}</p>

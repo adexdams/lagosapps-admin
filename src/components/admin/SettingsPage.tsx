@@ -191,11 +191,11 @@ export default function SettingsPage() {
       </div>
 
       {/* ── Your Profile ── */}
-      <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden">
+      <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden">
         <div className="px-5 py-3 border-b border-[#E8ECF1]/60">
           <h2 className="text-base font-bold text-[#0F172A]">Your Profile</h2>
         </div>
-        <div className="p-5 sm:p-7 space-y-5">
+        <div className="p-3.5 sm:p-5 md:p-7 space-y-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>Full Name</label>
@@ -241,11 +241,11 @@ export default function SettingsPage() {
       </div>
 
       {/* ── Platform Settings ── */}
-      <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden">
+      <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden">
         <div className="px-5 py-3 border-b border-[#E8ECF1]/60">
           <h2 className="text-base font-bold text-[#0F172A]">Platform Settings</h2>
         </div>
-        <div className="p-5 sm:p-7 space-y-5">
+        <div className="p-3.5 sm:p-5 md:p-7 space-y-5">
           <div>
             <label className={labelClass}>Site Name</label>
             <input
@@ -296,7 +296,7 @@ export default function SettingsPage() {
       </div>
 
       {/* ── Team Members ── */}
-      <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden">
+      <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden">
         <div className="px-5 py-3 border-b border-[#E8ECF1]/60 flex items-center justify-between">
           <div>
             <h2 className="text-base font-bold text-[#0F172A]">Team Members</h2>
@@ -531,14 +531,14 @@ export default function SettingsPage() {
       </div>
 
       {/* ── Service Portal Toggles ── */}
-      <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden">
+      <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden">
         <div className="px-5 py-3 border-b border-[#E8ECF1]/60">
           <h2 className="text-base font-bold text-[#0F172A]">Service Portal Toggles</h2>
           <p className="text-xs text-[#64748B] mt-0.5">
             Disabled portals are hidden from the user dashboard
           </p>
         </div>
-        <div className="p-5 sm:p-7 space-y-3">
+        <div className="p-3.5 sm:p-5 md:p-7 space-y-3">
           {PORTALS.map((portal) => (
             <div key={portal} className="flex items-center justify-between py-2">
               <div className="flex items-center gap-3">
@@ -576,11 +576,11 @@ export default function SettingsPage() {
       </div>
 
       {/* ── Payment Settings ── */}
-      <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden">
+      <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden">
         <div className="px-5 py-3 border-b border-[#E8ECF1]/60">
           <h2 className="text-base font-bold text-[#0F172A]">Payment Settings</h2>
         </div>
-        <div className="p-5 sm:p-7 space-y-5">
+        <div className="p-3.5 sm:p-5 md:p-7 space-y-5">
           <div>
             <label className={labelClass}>Paystack Public Key</label>
             <input

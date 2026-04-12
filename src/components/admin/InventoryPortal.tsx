@@ -76,7 +76,7 @@ export default function InventoryPortal({ portal }: InventoryPortalProps) {
             <div
               key={product.id}
               onClick={() => handleOpenForm(product)}
-              className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all"
+              className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all"
             >
               {/* Image placeholder */}
               <div className="h-36 bg-[#F1F5F9] flex items-center justify-center">

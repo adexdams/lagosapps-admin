@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Read(//Users/damolaadediran/VSCodeProjects/**)",
+      "Bash(cp /Users/damolaadediran/VSCodeProjects/Lagosapps/public/favicon.svg /Users/damolaadediran/VSCodeProjects/lagosapps-admin/public/)",
+      "Bash(cp /Users/damolaadediran/VSCodeProjects/Lagosapps/public/lagosapp-favicon.png /Users/damolaadediran/VSCodeProjects/lagosapps-admin/public/)",
+      "Bash(ls /Users/damolaadediran/VSCodeProjects/Lagosapps/public/lagosapp-logo*)",
+      "WebFetch(domain:ai.studio)",
+      "WebFetch(domain:aistudio.google.com)",
+      "Bash(ls -la /Users/damolaadediran/VSCodeProjects/lagosapps-admin/src/components/admin/*.tsx)",
+      "Bash(ls /Users/damolaadediran/VSCodeProjects/lagosapps-admin/src/components/admin/*.tsx)",
+      "Bash(ls /Users/damolaadediran/VSCodeProjects/lagosapps-admin/src/data/*.ts)",
+      "Bash(ls -1 /Users/damolaadediran/VSCodeProjects/lagosapps-admin/src/components/admin/*.tsx)",
+      "Bash(xargs -I{} basename {})",
+      "Bash(ls -1 /Users/damolaadediran/VSCodeProjects/lagosapps-admin/src/components/admin/shared/*.tsx)",
+      "Bash(gh auth:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git push:*)"
+    ],
+    "additionalDirectories": [
+      "/Users/damolaadediran/VSCodeProjects/Lagosapps/public"
+    ]
+  }
+}

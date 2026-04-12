@@ -77,7 +77,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         <StatCard label="Total Revenue" value={formatNaira(totalRevenue)} icon="payments" color="#1B5E20" />
         <StatCard label="Total Users" value={totalUsers.toLocaleString()} icon="group" color="#0D47A1" />
         <StatCard label="Active Members" value={String(activeMembers)} icon="card_membership" color="#4A148C" />
@@ -85,9 +85,9 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Charts row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
         {/* Revenue by Portal */}
-        <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5 sm:p-6">
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5 sm:p-6">
           <h3 className="text-[15px] font-bold text-[#0F172A] mb-5">Revenue by Portal</h3>
           <div className="space-y-4">
             {revenueByPortal.map((item) => {
@@ -117,9 +117,9 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Monthly Revenue Trend */}
-        <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5 sm:p-6">
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5 sm:p-6">
           <h3 className="text-[15px] font-bold text-[#0F172A] mb-5">Monthly Revenue Trend</h3>
-          <div className="flex items-end gap-3 h-48">
+          <div className="flex items-end gap-1 sm:gap-2 md:gap-3 h-40 sm:h-48">
             {monthlyRevenue.map((m) => (
               <div key={m.label} className="flex-1 flex flex-col items-center gap-1">
                 <span className="text-[10px] font-semibold text-[#64748B]">
@@ -139,9 +139,9 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Second row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
         {/* Orders by Status */}
-        <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5 sm:p-6">
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5 sm:p-6">
           <h3 className="text-[15px] font-bold text-[#0F172A] mb-5">Orders by Status</h3>
           <div className="space-y-3">
             {ordersByStatus.map(([status, count]) => {
@@ -165,7 +165,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Transaction Volume */}
-        <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5 sm:p-6">
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5 sm:p-6">
           <h3 className="text-[15px] font-bold text-[#0F172A] mb-5">Transaction Volume</h3>
           <div className="flex items-center justify-center mb-6">
             <div className="relative size-40">
@@ -186,7 +186,7 @@ export default function AnalyticsPage() {
               </div>
             </div>
           </div>
-          <div className="flex items-center justify-center gap-6">
+          <div className="flex items-center justify-center gap-4 sm:gap-6">
             <div className="flex items-center gap-2">
               <span className="size-3 rounded-full bg-[#059669]" />
               <span className="text-[13px] text-[#334155]">Credits: {formatNaira(creditVolume)}</span>

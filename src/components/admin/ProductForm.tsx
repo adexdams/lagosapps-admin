@@ -116,7 +116,7 @@ export default function ProductForm({ portal, product, onClose }: ProductFormPro
         </div>
 
         {/* Price + Category row */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <div>
             <label className={labelClass}>Price</label>
             <div className="relative">
@@ -141,7 +141,7 @@ export default function ProductForm({ portal, product, onClose }: ProductFormPro
         </div>
 
         {/* Quantity + Threshold */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <div>
             <label className={labelClass}>
               Quantity Available

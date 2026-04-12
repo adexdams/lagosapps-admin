@@ -82,9 +82,9 @@ export default function FulfillmentPage() {
       {unassigned.length > 0 && (
         <div>
           <h2 className="text-sm font-bold text-[#0F172A] mb-3">Unassigned Orders ({unassigned.length})</h2>
-          <div className="flex gap-4 overflow-x-auto pb-2">
+          <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-2">
             {unassigned.map((item) => (
-              <div key={item.orderId} className="min-w-[260px] bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-4 flex-shrink-0">
+              <div key={item.orderId} className="min-w-[220px] sm:min-w-[260px] bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-3 sm:p-4 flex-shrink-0">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-bold text-primary">{item.orderId}</span>
                   <span className="text-[12px] text-[#64748B]">{formatNaira(item.amount)}</span>

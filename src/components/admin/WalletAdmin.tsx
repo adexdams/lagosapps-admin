@@ -136,7 +136,7 @@ export default function WalletAdmin() {
 
       {/* Collapsible adjustment form */}
       {showAdjust && (
-        <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
           <h3 className="text-sm font-bold text-[#0F172A] mb-4">Manual Wallet Adjustment</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>

@@ -51,9 +51,9 @@ const quickActions = [
 
 export default function AdminOverview() {
   return (
-    <div className="space-y-6 sm:space-y-8">
+    <div className="space-y-4 sm:space-y-6 md:space-y-8">
       {/* Stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-6">
         {stats.map((stat, i) => (
           <StatCard
             key={stat.label}
@@ -67,10 +67,10 @@ export default function AdminOverview() {
       </div>
 
       {/* Orders + Revenue row */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
         {/* Recent Orders */}
-        <div className="lg:col-span-3 bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden">
-          <div className="flex items-center justify-between px-4 sm:px-5 py-4 border-b border-[#E8ECF1]/60">
+        <div className="lg:col-span-3 bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden">
+          <div className="flex items-center justify-between px-2.5 sm:px-4 py-4 border-b border-[#E8ECF1]/60">
             <h2 className="text-sm sm:text-[15px] font-bold text-[#0F172A]">Recent Orders</h2>
             <a
               href="/orders"
@@ -80,22 +80,22 @@ export default function AdminOverview() {
             </a>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-xs sm:text-sm">
               <thead>
                 <tr className="bg-[#F8FAFC]">
-                  <th className="text-left px-4 sm:px-5 py-3.5 font-semibold text-[11px] uppercase tracking-wider text-[#64748B]">
+                  <th className="text-left px-2.5 sm:px-4 py-3.5 font-semibold text-[11px] uppercase tracking-wider text-[#64748B]">
                     Order
                   </th>
-                  <th className="text-left px-4 sm:px-5 py-3.5 font-semibold text-[11px] uppercase tracking-wider text-[#64748B] hidden sm:table-cell">
+                  <th className="text-left px-2.5 sm:px-4 py-3.5 font-semibold text-[11px] uppercase tracking-wider text-[#64748B] hidden sm:table-cell">
                     User
                   </th>
-                  <th className="text-left px-4 sm:px-5 py-3.5 font-semibold text-[11px] uppercase tracking-wider text-[#64748B] hidden md:table-cell">
+                  <th className="text-left px-2.5 sm:px-4 py-3.5 font-semibold text-[11px] uppercase tracking-wider text-[#64748B] hidden md:table-cell">
                     Service
                   </th>
-                  <th className="text-right px-4 sm:px-5 py-3.5 font-semibold text-[11px] uppercase tracking-wider text-[#64748B]">
+                  <th className="text-right px-2.5 sm:px-4 py-3.5 font-semibold text-[11px] uppercase tracking-wider text-[#64748B]">
                     Amount
                   </th>
-                  <th className="text-center px-4 sm:px-5 py-3.5 font-semibold text-[11px] uppercase tracking-wider text-[#64748B]">
+                  <th className="text-center px-2.5 sm:px-4 py-3.5 font-semibold text-[11px] uppercase tracking-wider text-[#64748B]">
                     Status
                   </th>
                 </tr>
@@ -106,19 +106,19 @@ export default function AdminOverview() {
                     key={order.id}
                     className="hover:bg-[#F8FAFC]/60 transition-colors cursor-pointer"
                   >
-                    <td className="px-4 sm:px-5 py-3.5 font-semibold text-[#057a55]">
+                    <td className="px-2.5 sm:px-4 py-3.5 font-semibold text-[#057a55]">
                       {order.id}
                     </td>
-                    <td className="px-4 sm:px-5 py-3.5 text-[#334155] hidden sm:table-cell">
+                    <td className="px-2.5 sm:px-4 py-3.5 text-[#334155] hidden sm:table-cell">
                       {order.user}
                     </td>
-                    <td className="px-4 sm:px-5 py-3.5 text-[#64748B] hidden md:table-cell">
+                    <td className="px-2.5 sm:px-4 py-3.5 text-[#64748B] hidden md:table-cell">
                       {order.service}
                     </td>
-                    <td className="px-4 sm:px-5 py-3.5 text-right font-semibold text-[#0F172A]">
+                    <td className="px-2.5 sm:px-4 py-3.5 text-right font-semibold text-[#0F172A]">
                       {order.amount === 0 ? "Free" : formatNaira(order.amount)}
                     </td>
-                    <td className="px-4 sm:px-5 py-3.5 text-center">
+                    <td className="px-2.5 sm:px-4 py-3.5 text-center">
                       <span
                         className={`inline-block text-[11px] font-semibold px-2.5 py-1 rounded-full capitalize ${
                           statusStyles[order.status] ?? "bg-[#F1F5F9] text-[#64748B]"
@@ -135,7 +135,7 @@ export default function AdminOverview() {
         </div>
 
         {/* Revenue by Portal */}
-        <div className="lg:col-span-2 bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-4 sm:p-6">
+        <div className="lg:col-span-2 bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-4 sm:p-6">
           <div className="flex items-start justify-between mb-6">
             <div>
               <h2 className="text-sm sm:text-[15px] font-bold text-[#0F172A]">Revenue by Portal</h2>
@@ -189,11 +189,11 @@ export default function AdminOverview() {
         <h2 className="text-sm sm:text-[15px] font-bold text-[#0F172A] mb-3 sm:mb-4">
           Quick Actions
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4 md:gap-6">
           {quickActions.map((action) => (
             <button
               key={action.label}
-              className="flex flex-col items-center gap-3 bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5 sm:p-6 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all text-center"
+              className="flex flex-col items-center gap-2 sm:gap-3 bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-3.5 sm:p-5 md:p-6 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all text-center"
             >
               <div
                 className="size-11 sm:size-12 rounded-xl flex items-center justify-center"

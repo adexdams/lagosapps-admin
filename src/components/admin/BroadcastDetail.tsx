@@ -43,7 +43,7 @@ export default function BroadcastDetail() {
         {/* Left — 2/3 */}
         <div className="lg:col-span-2 space-y-6">
           {/* Content card */}
-          <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5 sm:p-7">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-3.5 sm:p-5 md:p-7">
             <div className="flex items-start justify-between mb-4">
               <h2 className="text-lg font-bold text-[#0F172A]">{notif.title}</h2>
               <span
@@ -57,7 +57,7 @@ export default function BroadcastDetail() {
           </div>
 
           {/* Delivery stats */}
-          <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5 sm:p-7">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-3.5 sm:p-5 md:p-7">
             <h3 className="text-sm font-bold text-[#0F172A] mb-4">Delivery Stats</h3>
             <div className="space-y-4">
               {/* Read rate progress */}
@@ -70,7 +70,7 @@ export default function BroadcastDetail() {
                   <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${readPct}%` }} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4 pt-2">
+              <div className="grid grid-cols-2 gap-2 sm:gap-4 pt-2">
                 <div className="text-center p-3 bg-[#F8FAFC] rounded-xl">
                   <p className="text-lg font-extrabold text-[#0F172A]">{readPct}%</p>
                   <p className="text-[12px] text-[#64748B]">Open Rate</p>
@@ -87,7 +87,7 @@ export default function BroadcastDetail() {
         {/* Right — 1/3 */}
         <div className="space-y-6">
           {/* Config card */}
-          <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
             <h3 className="text-sm font-bold text-[#0F172A] mb-4">Configuration</h3>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -115,7 +115,7 @@ export default function BroadcastDetail() {
           </div>
 
           {/* Audience breakdown */}
-          <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
             <h3 className="text-sm font-bold text-[#0F172A] mb-4">Audience Breakdown</h3>
             <div className="space-y-3">
               <div className="flex items-center justify-between">

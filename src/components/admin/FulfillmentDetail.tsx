@@ -92,7 +92,7 @@ export default function FulfillmentDetail() {
         {/* Left — 2/3 */}
         <div className="lg:col-span-2 space-y-6">
           {/* Order summary */}
-          <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
             <div className="flex items-start justify-between mb-3">
               <div>
                 <h2 className="text-lg font-bold text-[#0F172A]">{order.id}</h2>
@@ -110,7 +110,7 @@ export default function FulfillmentDetail() {
           </div>
 
           {/* Timeline */}
-          <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
             <h3 className="text-sm font-bold text-[#0F172A] mb-4">Timeline</h3>
             <div className="space-y-4">
               {timeline.map((step, i) => (
@@ -130,7 +130,7 @@ export default function FulfillmentDetail() {
           </div>
 
           {/* Notes */}
-          <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
             <h3 className="text-sm font-bold text-[#0F172A] mb-4">Notes</h3>
             <div className="flex gap-2 mb-4">
               <input
@@ -165,7 +165,7 @@ export default function FulfillmentDetail() {
         {/* Right — 1/3 */}
         <div className="space-y-6">
           {/* Assignment */}
-          <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
             <h3 className="text-sm font-bold text-[#0F172A] mb-3">Assignment</h3>
             <select
               value={assignee}
@@ -179,7 +179,7 @@ export default function FulfillmentDetail() {
           </div>
 
           {/* SLA */}
-          <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5 space-y-4">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-[#0F172A]">SLA Settings</h3>
               <span
@@ -214,7 +214,7 @@ export default function FulfillmentDetail() {
           </div>
 
           {/* Progress */}
-          <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
             <h3 className="text-sm font-bold text-[#0F172A] mb-3">Progress</h3>
             <div className="mb-3">
               <div className="flex items-center justify-between mb-1.5">

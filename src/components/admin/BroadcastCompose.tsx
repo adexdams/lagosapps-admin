@@ -56,7 +56,7 @@ export default function BroadcastCompose() {
 
       <h1 className="text-xl font-bold text-[#0F172A]">New Broadcast</h1>
 
-      <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5 sm:p-7 space-y-6">
+      <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-3.5 sm:p-5 md:p-7 space-y-6">
         {/* Recipients */}
         <div>
           <label className="text-[13px] font-semibold text-[#0F172A] mb-3 block">Recipients</label>

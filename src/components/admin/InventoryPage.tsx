@@ -25,7 +25,7 @@ export default function InventoryPage() {
       </div>
 
       {/* Portal tab bar */}
-      <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden">
+      <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden">
         <div className="flex overflow-x-auto">
           {PORTALS.map((portal) => {
             const isActive = portal === activePortal;

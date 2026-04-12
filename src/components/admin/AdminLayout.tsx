@@ -158,7 +158,7 @@ export default function AdminLayout() {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 px-4 md:px-8 lg:px-10 py-6 md:py-8 pb-24 md:pb-10">
+        <main className="flex-1 px-3 sm:px-4 md:px-8 lg:px-10 py-4 sm:py-6 md:py-8 pb-12 md:pb-10">
           <Routes>
             <Route index element={<AdminOverview />} />
             <Route path="users" element={<UsersPage />} />

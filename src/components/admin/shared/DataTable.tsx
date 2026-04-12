@@ -104,11 +104,11 @@ export default function DataTable<T extends Record<string, unknown>>({
     <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden">
       {/* Table */}
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-xs sm:text-sm">
           <thead>
             <tr className="bg-[#F8FAFC]">
               {selectable && (
-                <th className="px-4 sm:px-5 py-3.5 w-10">
+                <th className="px-2.5 sm:px-4 py-3 w-10">
                   <input
                     type="checkbox"
                     checked={pageData.length > 0 && selected.size === pageData.length}
@@ -120,7 +120,7 @@ export default function DataTable<T extends Record<string, unknown>>({
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className={`px-4 sm:px-5 py-3.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider ${getAlign(col.align)} ${
+                  className={`px-2.5 sm:px-4 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider ${getAlign(col.align)} ${
                     col.hideOnMobile ? "hidden md:table-cell" : ""
                   } ${col.sortable ? "cursor-pointer select-none hover:text-[#334155]" : ""}`}
                   style={col.width ? { width: col.width } : undefined}
@@ -137,7 +137,7 @@ export default function DataTable<T extends Record<string, unknown>>({
                 </th>
               ))}
               {actions && (
-                <th className="px-4 sm:px-5 py-3.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-right">
+                <th className="px-2.5 sm:px-4 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-right">
                   Actions
                 </th>
               )}
@@ -165,7 +165,7 @@ export default function DataTable<T extends Record<string, unknown>>({
                     } ${selected.has(rowId) ? "bg-primary/[0.03]" : ""}`}
                   >
                     {selectable && (
-                      <td className="px-4 sm:px-5 py-3.5 sm:py-4">
+                      <td className="px-2.5 sm:px-4 py-3 sm:py-3.5">
                         <input
                           type="checkbox"
                           checked={selected.has(rowId)}
@@ -181,7 +181,7 @@ export default function DataTable<T extends Record<string, unknown>>({
                     {columns.map((col) => (
                       <td
                         key={col.key}
-                        className={`px-4 sm:px-5 py-3.5 sm:py-4 text-[#334155] ${getAlign(col.align)} ${
+                        className={`px-2.5 sm:px-4 py-3 sm:py-3.5 text-[#334155] ${getAlign(col.align)} ${
                           col.hideOnMobile ? "hidden md:table-cell" : ""
                         }`}
                       >
@@ -189,7 +189,7 @@ export default function DataTable<T extends Record<string, unknown>>({
                       </td>
                     ))}
                     {actions && (
-                      <td className="px-4 sm:px-5 py-3.5 sm:py-4 text-right">
+                      <td className="px-2.5 sm:px-4 py-3 sm:py-3.5 text-right">
                         <div onClick={(e) => e.stopPropagation()}>{actions(row)}</div>
                       </td>
                     )}

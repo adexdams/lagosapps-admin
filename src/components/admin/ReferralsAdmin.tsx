@@ -119,7 +119,7 @@ export default function ReferralsAdmin() {
       </div>
 
       {/* Generate Referral Code */}
-      <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
+      <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
         <h3 className="text-sm font-bold text-[#0F172A] mb-3">Generate Referral Code</h3>
         <div className="flex flex-wrap items-end gap-3">
           <div>

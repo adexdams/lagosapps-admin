@@ -45,7 +45,7 @@ export default function UserDetail() {
         {/* Left column — 3/5 */}
         <div className="lg:col-span-3 space-y-6">
           {/* Profile card */}
-          <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5 sm:p-7">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-3.5 sm:p-5 md:p-7">
             <div className="flex items-start gap-4">
               <div className="size-16 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white text-xl font-bold flex-shrink-0">
                 {user.avatar}
@@ -75,7 +75,7 @@ export default function UserDetail() {
           </div>
 
           {/* Order History */}
-          <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden">
             <div className="px-5 py-4 border-b border-[#E8ECF1]/60">
               <h3 className="text-sm font-bold text-[#0F172A]">Order History</h3>
             </div>
@@ -114,7 +114,7 @@ export default function UserDetail() {
           </div>
 
           {/* Wallet Transactions */}
-          <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden">
             <div className="px-5 py-4 border-b border-[#E8ECF1]/60">
               <h3 className="text-sm font-bold text-[#0F172A]">Wallet Transactions</h3>
             </div>
@@ -152,7 +152,7 @@ export default function UserDetail() {
         {/* Right column — 2/5 */}
         <div className="lg:col-span-2 space-y-6">
           {/* Quick Stats */}
-          <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
             <h3 className="text-sm font-bold text-[#0F172A] mb-4">Quick Stats</h3>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -179,7 +179,7 @@ export default function UserDetail() {
           </div>
 
           {/* Referrals */}
-          <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
             <h3 className="text-sm font-bold text-[#0F172A] mb-4">
               Referrals ({userReferrals.length})
             </h3>

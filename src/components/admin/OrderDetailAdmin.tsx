@@ -60,10 +60,10 @@ export default function OrderDetailAdmin() {
 
       {/* Header card */}
       <div
-        className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden"
+        className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden"
         style={{ borderTop: `4px solid ${portalColor}` }}
       >
-        <div className="p-5 sm:p-7">
+        <div className="p-3.5 sm:p-5 md:p-7">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <h1 className="text-xl font-bold text-[#0F172A]">{order.id}</h1>
@@ -78,7 +78,7 @@ export default function OrderDetailAdmin() {
       </div>
 
       {/* Admin actions bar */}
-      <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-4 flex flex-wrap items-center gap-3">
+      <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-4 flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
           <label className="text-[13px] font-semibold text-[#0F172A]">Status:</label>
           <select
@@ -109,7 +109,7 @@ export default function OrderDetailAdmin() {
         {/* Left — 2/3 */}
         <div className="lg:col-span-2 space-y-6">
           {/* Items */}
-          <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden">
             <div className="px-5 py-4 border-b border-[#E8ECF1]/60">
               <h3 className="text-sm font-bold text-[#0F172A]">Order Items</h3>
             </div>
@@ -125,7 +125,7 @@ export default function OrderDetailAdmin() {
           </div>
 
           {/* Payment breakdown */}
-          <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
             <h3 className="text-sm font-bold text-[#0F172A] mb-4">Payment Breakdown</h3>
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
@@ -148,7 +148,7 @@ export default function OrderDetailAdmin() {
           </div>
 
           {/* Timeline */}
-          <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
             <h3 className="text-sm font-bold text-[#0F172A] mb-4">Timeline</h3>
             <div className="space-y-4">
               {[
@@ -176,7 +176,7 @@ export default function OrderDetailAdmin() {
         {/* Right — 1/3 */}
         <div className="space-y-6">
           {/* Customer card */}
-          <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
             <h3 className="text-sm font-bold text-[#0F172A] mb-4">Customer</h3>
             {user ? (
               <div>

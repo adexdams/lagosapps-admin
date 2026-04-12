@@ -136,7 +136,7 @@ export default function MembershipTierConfig() {
       {tiers.map((tier) => {
         const isEditing = editingTier === tier.id;
         return (
-          <div key={tier.id} className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden">
+          <div key={tier.id} className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden">
             {/* Colored header */}
             <div className="px-5 py-3 flex items-center justify-between" style={{ backgroundColor: `${tier.color}15` }}>
               <h3 className="text-base font-bold" style={{ color: tier.color }}>{tier.name}</h3>
@@ -151,7 +151,7 @@ export default function MembershipTierConfig() {
 
             <div className="p-5 space-y-5">
               {/* Pricing inputs */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <label className="text-[13px] font-semibold text-[#0F172A] mb-1.5 block">Annual Price</label>
                   <div className="relative">
@@ -183,7 +183,7 @@ export default function MembershipTierConfig() {
                 <label className="text-[13px] font-semibold text-[#0F172A] mb-2 block">Benefits</label>
                 <div className="space-y-2">
                   {tier.benefits.map((benefit) => (
-                    <div key={benefit.id} className="flex items-center gap-2">
+                    <div key={benefit.id} className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2">
                       {isEditing ? (
                         <>
                           <input
