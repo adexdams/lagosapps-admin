@@ -22,7 +22,7 @@ export default function NotificationPanel() {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-12 z-50 w-[calc(100vw-2rem)] sm:w-80 max-w-80 bg-white rounded-2xl shadow-lg border border-[#E8ECF1]/60 overflow-hidden">
+          <div className="fixed left-3 right-3 top-16 z-50 sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:w-80 bg-white rounded-2xl shadow-xl border border-[#E8ECF1]/60 overflow-hidden">
             <div className="px-4 py-3 border-b border-[#E8ECF1]/60 flex items-center justify-between">
               <h3 className="text-sm font-bold text-[#0F172A]">Notifications</h3>
               <span className="text-[11px] font-semibold text-primary">{unreadCount} unread</span>

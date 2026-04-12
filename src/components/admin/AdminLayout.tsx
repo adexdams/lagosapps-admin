@@ -121,7 +121,7 @@ export default function AdminLayout() {
       )}
 
       {/* Main content */}
-      <div className="flex-1 md:ml-[260px] flex flex-col min-h-screen">
+      <div className="flex-1 md:ml-[260px] flex flex-col min-h-screen overflow-x-hidden">
         {/* Top bar */}
         <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-[#E8ECF1] px-4 md:px-8 h-16 flex items-center gap-4">
           <button onClick={() => setSidebarOpen(true)} className="md:hidden cursor-pointer">
@@ -141,9 +141,7 @@ export default function AdminLayout() {
           <div className="flex-1 hidden sm:block" />
 
           {/* Notifications */}
-          <div className="hidden sm:block">
-            <NotificationPanel />
-          </div>
+          <NotificationPanel />
 
           {/* Admin avatar */}
           <div className="flex items-center gap-3">

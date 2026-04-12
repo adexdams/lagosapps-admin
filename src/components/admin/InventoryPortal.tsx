@@ -42,7 +42,7 @@ export default function InventoryPortal({ portal }: InventoryPortalProps) {
   return (
     <div className="space-y-4">
       {/* Filter pills + Add button */}
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto pb-1">
         {categories.map((cat) => (
           <button
             key={cat}
@@ -71,7 +71,7 @@ export default function InventoryPortal({ portal }: InventoryPortalProps) {
       {filtered.length === 0 ? (
         <div className="text-center py-16 text-[#94A3B8]">No products in this category</div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-4">
           {filtered.map((product) => (
             <div
               key={product.id}

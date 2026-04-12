@@ -71,7 +71,7 @@ export default function FulfillmentPage() {
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         <StatCard label="Total Active" value={String(items.length)} icon="assignment" color="#0D47A1" />
         <StatCard label="On Track" value={String(onTrack)} icon="check_circle" color="#1B5E20" />
         <StatCard label="At Risk" value={String(atRisk)} icon="warning" color="#E65100" />

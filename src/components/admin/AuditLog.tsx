@@ -105,7 +105,7 @@ export default function AuditLog() {
                             <span className="text-sm font-semibold text-[#0F172A] hidden sm:block flex-shrink-0">{entry.adminName}</span>
                             {/* Action badge */}
                             <span
-                              className="inline-block px-2.5 py-1 rounded-lg text-[11px] font-semibold tracking-wide w-fit"
+                              className="inline-block px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md sm:rounded-lg text-[9px] sm:text-[11px] font-semibold tracking-wide w-fit flex-shrink-0"
                               style={{ backgroundColor: colors.bg, color: colors.text }}
                             >
                               {entry.action}
@@ -125,7 +125,7 @@ export default function AuditLog() {
                         </div>
                         {/* Expanded details */}
                         {isExpanded && (
-                          <div className="px-5 py-3 bg-[#F8FAFC] border-b border-[#E8ECF1]/60">
+                          <div className="px-2.5 sm:px-5 py-3 bg-[#F8FAFC] border-b border-[#E8ECF1]/60">
                             <div className="flex flex-wrap gap-4 text-[13px]">
                               <div>
                                 <span className="text-[#94A3B8]">Details: </span>
