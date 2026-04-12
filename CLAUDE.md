@@ -88,27 +88,27 @@ The `src/index.css` contains the full Tailwind theme from the main LagosApps app
 - [x] AdminOverview with stat cards, orders table, revenue chart, quick actions
 - [x] Placeholder pages for all 11 routes
 
-### Done (continued)
-- [x] `src/components/admin/shared/DataTable.tsx` — Reusable sortable/paginated table
-- [x] `src/components/admin/shared/StatCard.tsx` — Metric card component
-- [x] `src/components/admin/shared/StatusBadge.tsx` — Colored status pill
-- [x] `src/components/admin/shared/FilterBar.tsx` — Search + filter controls
-- [x] `src/components/admin/shared/EmptyState.tsx` — Empty state component
-- [x] `src/data/adminMockData.ts` — 50 users, 100 orders, 200 transactions, etc.
-- [x] `src/components/admin/UsersPage.tsx` — Users table with search/filter
-- [x] `src/components/admin/UserDetail.tsx` — Single user view
-- [x] `src/components/admin/OrdersPage.tsx` — Orders management
-- [x] `src/components/admin/OrderDetailAdmin.tsx` — Order detail with admin actions
-- [x] `src/components/admin/InventoryPage.tsx` — Portal-tabbed product management
-- [x] `src/components/admin/InventoryPortal.tsx` — Per-portal product grid
-- [x] `src/components/admin/ProductForm.tsx` — Add/edit product modal
-- [x] `src/components/admin/MembershipAdmin.tsx` — Tier config + subscriptions
-- [x] `src/components/admin/WalletAdmin.tsx` — Transaction log + adjustments
-- [x] `src/components/admin/ReferralsAdmin.tsx` — Referral tracking
-- [x] `src/components/admin/NotificationsAdmin.tsx` — Broadcast + log
-- [x] `src/components/admin/AnalyticsPage.tsx` — Charts + reports
-- [x] `src/components/admin/AuditLog.tsx` — Admin action history
-- [x] `src/components/admin/SettingsPage.tsx` — Platform config
+### To Build (in order)
+- [ ] `src/components/admin/shared/DataTable.tsx` — Reusable sortable/paginated table
+- [ ] `src/components/admin/shared/StatCard.tsx` — Metric card component
+- [ ] `src/components/admin/shared/StatusBadge.tsx` — Colored status pill
+- [ ] `src/components/admin/shared/FilterBar.tsx` — Search + filter controls
+- [ ] `src/components/admin/shared/EmptyState.tsx` — Empty state component
+- [ ] `src/data/adminMockData.ts` — 50 users, 100 orders, 200 transactions, etc.
+- [ ] `src/components/admin/UsersPage.tsx` — Users table with search/filter
+- [ ] `src/components/admin/UserDetail.tsx` — Single user view
+- [ ] `src/components/admin/OrdersPage.tsx` — Orders management
+- [ ] `src/components/admin/OrderDetailAdmin.tsx` — Order detail with admin actions
+- [ ] `src/components/admin/InventoryPage.tsx` — Portal-tabbed product management
+- [ ] `src/components/admin/InventoryPortal.tsx` — Per-portal product grid
+- [ ] `src/components/admin/ProductForm.tsx` — Add/edit product modal
+- [ ] `src/components/admin/MembershipAdmin.tsx` — Tier config + subscriptions
+- [ ] `src/components/admin/WalletAdmin.tsx` — Transaction log + adjustments
+- [ ] `src/components/admin/ReferralsAdmin.tsx` — Referral tracking
+- [ ] `src/components/admin/NotificationsAdmin.tsx` — Broadcast + log
+- [ ] `src/components/admin/AnalyticsPage.tsx` — Charts + reports
+- [ ] `src/components/admin/AuditLog.tsx` — Admin action history
+- [ ] `src/components/admin/SettingsPage.tsx` — Platform config
 
 ## Important Patterns
 

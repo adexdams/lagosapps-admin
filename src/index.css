@@ -61,9 +61,9 @@
   --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.12);
   --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.25);
 
-  --font-family-headline: "Inter", system-ui, sans-serif;
-  --font-family-body: "Inter", system-ui, sans-serif;
-  --font-family-label: "Inter", system-ui, sans-serif;
+  --font-family-headline: "Manrope", sans-serif;
+  --font-family-body: "Manrope", sans-serif;
+  --font-family-label: "Manrope", sans-serif;
 }
 
 @layer base {
