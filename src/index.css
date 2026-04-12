@@ -1,0 +1,267 @@
+@import "tailwindcss";
+
+@theme {
+  --color-on-error: #ffffff;
+  --color-secondary-container: #cce5dc;
+  --color-secondary-fixed-dim: #b3ccc3;
+  --color-on-secondary-fixed-variant: #354b45;
+  --color-primary-fixed-dim: #94d3c1;
+  --color-surface-container: #eeeeee;
+  --color-on-secondary-container: #506760;
+  --color-primary-fixed: #afefdd;
+  --color-on-error-container: #93000a;
+  --color-on-secondary-fixed: #081f1a;
+  --color-inverse-on-surface: #f1f1f1;
+  --color-secondary-fixed: #cfe8df;
+  --color-tertiary-fixed-dim: #ffb5a1;
+  --color-background: #f9f9f9;
+  --color-on-surface-variant: #3f4945;
+  --color-on-secondary: #ffffff;
+  --color-on-tertiary: #ffffff;
+  --color-on-background: #1a1c1c;
+  --color-surface-container-high: #e8e8e8;
+  --color-inverse-surface: #2f3131;
+  --color-on-surface: #1a1c1c;
+  --color-outline: #707975;
+  --color-secondary: #4c635c;
+  --color-surface-container-lowest: #ffffff;
+  --color-tertiary-container: #693527;
+  --color-on-tertiary-fixed: #370e04;
+  --color-primary-container: #004d40;
+  --color-on-tertiary-fixed-variant: #6d382a;
+  --color-surface: #f9f9f9;
+  --color-surface-bright: #f9f9f9;
+  --color-tertiary-fixed: #ffdbd1;
+  --color-surface-variant: #e2e2e2;
+  --color-error: #ba1a1a;
+  --color-on-primary-fixed: #00201a;
+  --color-primary: #057a55;
+  --color-on-primary: #ffffff;
+  --color-on-tertiary-container: #e89f8c;
+  --color-on-primary-fixed-variant: #065043;
+  --color-surface-container-highest: #e2e2e2;
+  --color-surface-tint: #29695b;
+  --color-on-primary-container: #7ebdac;
+  --color-surface-container-low: #f3f3f3;
+  --color-surface-dim: #dadada;
+  --color-error-container: #ffdad6;
+  --color-tertiary: #4e2013;
+  --color-inverse-primary: #94d3c1;
+  --color-outline-variant: #bfc9c4;
+
+  /* Additional PRD tokens */
+  --color-warning: #E65100;
+  --color-info: #0D47A1;
+  --color-whatsapp: #25D366;
+
+  /* Shadows */
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.10);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.12);
+  --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.25);
+
+  --font-family-headline: "Manrope", sans-serif;
+  --font-family-body: "Manrope", sans-serif;
+  --font-family-label: "Manrope", sans-serif;
+}
+
+@layer base {
+  body {
+    margin: 0;
+    font-family: var(--font-family-body);
+    background-color: var(--color-background);
+    color: var(--color-on-background);
+  }
+
+  /* Global focus indicator */
+  :focus-visible {
+    outline: 3px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+}
+
+/* Skip to content link */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 16px;
+  z-index: 100;
+  padding: 8px 16px;
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 700;
+  border-radius: 0 0 8px 8px;
+  text-decoration: none;
+}
+.skip-link:focus {
+  top: 0;
+}
+
+.material-symbols-outlined {
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+  vertical-align: middle;
+}
+
+.material-symbols-outlined.filled {
+  font-variation-settings: "FILL" 1;
+}
+
+.bg-primary-gradient {
+  background: linear-gradient(135deg, #057a55 0%, #06956a 100%);
+}
+
+.glass-nav {
+  background: rgba(249, 249, 249, 0.8);
+  backdrop-filter: blur(20px);
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Toast animations */
+@keyframes toast-slide-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Mobile menu animations */
+@keyframes slide-in-right {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slide-in-left {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+/* Modal animations */
+@keyframes modal-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modal-scale-in {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes sheet-slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+/* WhatsApp FAB pulse */
+@keyframes fab-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.5); }
+  70% { box-shadow: 0 0 0 12px rgba(37, 211, 102, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0); }
+}
+
+/* Form controls — keep native behavior, only style borders and accent */
+select,
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"],
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+input[type="number"],
+input[type="password"],
+textarea {
+  font-size: 16px;
+}
+
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"] {
+  color-scheme: light;
+  accent-color: var(--color-primary);
+}
+
+select:focus,
+input[type="date"]:focus,
+input[type="datetime-local"]:focus,
+input[type="time"]:focus {
+  border-color: var(--color-primary);
+  outline: none;
+}
+
+/* Mobile form controls — smaller padding, native behavior */
+@media (max-width: 767px) {
+  select,
+  input[type="date"],
+  input[type="datetime-local"],
+  input[type="time"],
+  input[type="text"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="number"],
+  input[type="password"],
+  textarea {
+    padding: 12px !important;
+    border-radius: 8px !important;
+    border-width: 1px !important;
+  }
+}
+
+/* Custom select arrow on desktop only — mobile keeps native */
+@media (min-width: 768px) {
+  select {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='%23707975'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    background-size: 20px;
+    padding-right: 42px;
+    cursor: pointer;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f9f9f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #bfc9c4;
+  border-radius: 4px;
+}
