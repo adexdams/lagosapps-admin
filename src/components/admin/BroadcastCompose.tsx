@@ -1,0 +1,187 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useToast } from "../../hooks/useToast";
+import { mockUsers } from "../../data/adminMockData";
+
+type RecipientType = "all" | "tier" | "specific";
+type NotifType = "info" | "promo" | "alert" | "update";
+
+const TYPE_CONFIG: { value: NotifType; label: string; color: string }[] = [
+  { value: "info", label: "Info", color: "#0D47A1" },
+  { value: "promo", label: "Promo", color: "#1B5E20" },
+  { value: "alert", label: "Alert", color: "#B71C1C" },
+  { value: "update", label: "Update", color: "#4A148C" },
+];
+
+const TIER_PILLS = [
+  { value: "bronze", label: "Bronze", color: "#CD7F32" },
+  { value: "silver", label: "Silver", color: "#94A3B8" },
+  { value: "gold", label: "Gold", color: "#D97706" },
+];
+
+export default function BroadcastCompose() {
+  const navigate = useNavigate();
+  const toast = useToast();
+
+  const [recipientType, setRecipientType] = useState<RecipientType>("all");
+  const [selectedTiers, setSelectedTiers] = useState<string[]>([]);
+  const [selectedUser, setSelectedUser] = useState("");
+  const [notifType, setNotifType] = useState<NotifType>("info");
+  const [title, setTitle] = useState("");
+  const [message, setMessage] = useState("");
+
+  const toggleTier = (tier: string) => {
+    setSelectedTiers((prev) => prev.includes(tier) ? prev.filter((t) => t !== tier) : [...prev, tier]);
+  };
+
+  const handleSend = () => {
+    if (!title.trim()) { toast.error("Title is required"); return; }
+    if (!message.trim()) { toast.error("Message is required"); return; }
+    toast.success("Broadcast sent successfully");
+    navigate("/broadcast");
+  };
+
+  const inputClass = "w-full border border-[#E2E8F0] rounded-xl px-3 py-2.5 text-sm text-[#0F172A] outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all";
+
+  return (
+    <div className="space-y-6 max-w-2xl mx-auto">
+      {/* Back */}
+      <button
+        onClick={() => navigate("/broadcast")}
+        className="inline-flex items-center gap-1 text-sm font-semibold text-[#64748B] hover:text-[#0F172A] cursor-pointer transition-colors"
+      >
+        <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+        Back to Broadcast
+      </button>
+
+      <h1 className="text-xl font-bold text-[#0F172A]">New Broadcast</h1>
+
+      <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5 sm:p-7 space-y-6">
+        {/* Recipients */}
+        <div>
+          <label className="text-[13px] font-semibold text-[#0F172A] mb-3 block">Recipients</label>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {([
+              { type: "all" as RecipientType, icon: "groups", title: "All Users", desc: "Send to everyone" },
+              { type: "tier" as RecipientType, icon: "card_membership", title: "By Tier", desc: "Select membership tiers" },
+              { type: "specific" as RecipientType, icon: "person", title: "Specific User", desc: "Choose a single user" },
+            ]).map((opt) => (
+              <button
+                key={opt.type}
+                onClick={() => setRecipientType(opt.type)}
+                className={`p-4 rounded-xl border-2 text-left cursor-pointer transition-all ${
+                  recipientType === opt.type ? "border-primary bg-primary/5" : "border-[#E2E8F0] hover:border-[#94A3B8]"
+                }`}
+              >
+                <span className={`material-symbols-outlined text-[22px] ${recipientType === opt.type ? "text-primary" : "text-[#64748B]"}`}>{opt.icon}</span>
+                <p className="text-sm font-bold text-[#0F172A] mt-1">{opt.title}</p>
+                <p className="text-[12px] text-[#64748B]">{opt.desc}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Tier selection */}
+        {recipientType === "tier" && (
+          <div>
+            <label className="text-[13px] font-semibold text-[#0F172A] mb-2 block">Select Tiers</label>
+            <div className="flex gap-2">
+              {TIER_PILLS.map((t) => (
+                <button
+                  key={t.value}
+                  onClick={() => toggleTier(t.value)}
+                  className={`px-4 py-2 rounded-full text-[13px] font-semibold cursor-pointer transition-all ${
+                    selectedTiers.includes(t.value) ? "text-white" : "bg-[#F1F5F9] text-[#64748B]"
+                  }`}
+                  style={selectedTiers.includes(t.value) ? { backgroundColor: t.color } : undefined}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Specific user */}
+        {recipientType === "specific" && (
+          <div>
+            <label className="text-[13px] font-semibold text-[#0F172A] mb-1.5 block">Select User</label>
+            <select value={selectedUser} onChange={(e) => setSelectedUser(e.target.value)} className={`${inputClass} cursor-pointer`}>
+              <option value="">Choose a user...</option>
+              {mockUsers.map((u) => (
+                <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Type */}
+        <div>
+          <label className="text-[13px] font-semibold text-[#0F172A] mb-2 block">Type</label>
+          <div className="flex gap-2 flex-wrap">
+            {TYPE_CONFIG.map((t) => (
+              <button
+                key={t.value}
+                onClick={() => setNotifType(t.value)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-semibold cursor-pointer transition-all border-2 ${
+                  notifType === t.value ? "bg-white" : "border-transparent bg-[#F1F5F9] text-[#64748B]"
+                }`}
+                style={notifType === t.value ? { borderColor: t.color, color: t.color } : undefined}
+              >
+                <span className="w-1 h-4 rounded-full" style={{ backgroundColor: notifType === t.value ? t.color : "#94A3B8" }} />
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Title */}
+        <div>
+          <label className="text-[13px] font-semibold text-[#0F172A] mb-1.5 block">Title</label>
+          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className={inputClass} placeholder="Notification title..." />
+        </div>
+
+        {/* Message */}
+        <div>
+          <label className="text-[13px] font-semibold text-[#0F172A] mb-1.5 block">Message</label>
+          <textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            className={`${inputClass} min-h-[120px] resize-y`}
+            placeholder="Write your message..."
+            maxLength={500}
+          />
+          <p className="text-[11px] text-[#94A3B8] mt-1 text-right">{message.length}/500</p>
+        </div>
+
+        {/* Live preview */}
+        {(title || message) && (
+          <div>
+            <label className="text-[13px] font-semibold text-[#0F172A] mb-2 block">Preview</label>
+            <div className="bg-[#F8FAFC] rounded-xl p-4 border border-[#E8ECF1]/60">
+              <div className="flex items-start gap-3">
+                <div className="size-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <span className="material-symbols-outlined text-[16px] text-primary">campaign</span>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-[#0F172A]">{title || "Notification Title"}</p>
+                  <p className="text-[13px] text-[#334155] mt-0.5">{message || "Your message will appear here..."}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Send button */}
+        <div className="flex justify-end pt-3 border-t border-[#E8ECF1]/60">
+          <button
+            onClick={handleSend}
+            className="px-6 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl cursor-pointer hover:brightness-[0.92] active:scale-[0.98] transition-all"
+          >
+            Send Broadcast
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

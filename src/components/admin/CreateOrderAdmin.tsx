@@ -1,0 +1,371 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useToast } from "../../hooks/useToast";
+import {
+  mockUsers,
+  mockProducts,
+  formatNaira,
+  PORTAL_LABELS,
+  PORTAL_COLORS,
+  type Portal,
+  type MockProduct,
+  type MockUser,
+} from "../../data/adminMockData";
+
+type Step = 1 | 2 | 3;
+
+const CHANNELS = [
+  { value: "whatsapp", label: "WhatsApp", icon: "chat", desc: "Order received via WhatsApp" },
+  { value: "phone", label: "Phone", icon: "call", desc: "Order received via phone call" },
+  { value: "walkin", label: "Walk-in", icon: "storefront", desc: "Customer walked in" },
+];
+
+const PORTALS: Portal[] = ["solar", "transport", "groceries", "health", "events", "community", "logistics"];
+
+interface CartItem {
+  product: MockProduct;
+  qty: number;
+}
+
+const inputClass = "w-full border border-[#E2E8F0] rounded-xl px-3 py-2.5 text-sm text-[#0F172A] outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all";
+
+export default function CreateOrderAdmin() {
+  const navigate = useNavigate();
+  const toast = useToast();
+
+  const [step, setStep] = useState<Step>(1);
+  const [channel, setChannel] = useState("");
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [selectedUser, setSelectedUser] = useState<MockUser | null>(null);
+  const [showResults, setShowResults] = useState(false);
+
+  const [activePortal, setActivePortal] = useState<Portal>("solar");
+  const [cart, setCart] = useState<CartItem[]>([]);
+
+  const [paymentMethod, setPaymentMethod] = useState("wallet");
+  const [adminNotes, setAdminNotes] = useState("");
+
+  // Step 1 helpers
+  const searchResults = customerSearch.length >= 2
+    ? mockUsers.filter((u) =>
+        u.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+        u.phone.includes(customerSearch)
+      ).slice(0, 5)
+    : [];
+
+  const selectUser = (user: MockUser) => {
+    setSelectedUser(user);
+    setCustomerSearch("");
+    setShowResults(false);
+  };
+
+  // Step 2 helpers
+  const portalProducts = mockProducts.filter((p) => p.portal === activePortal && p.status === "active");
+
+  const addToCart = (product: MockProduct) => {
+    setCart((prev) => {
+      const existing = prev.find((c) => c.product.id === product.id);
+      if (existing) return prev.map((c) => c.product.id === product.id ? { ...c, qty: c.qty + 1 } : c);
+      return [...prev, { product, qty: 1 }];
+    });
+  };
+
+  const updateQty = (productId: string, delta: number) => {
+    setCart((prev) =>
+      prev.map((c) => c.product.id === productId ? { ...c, qty: Math.max(0, c.qty + delta) } : c).filter((c) => c.qty > 0)
+    );
+  };
+
+  const subtotal = cart.reduce((sum, c) => sum + c.product.price * c.qty, 0);
+
+  const handleSubmit = () => {
+    toast.success("Order created successfully");
+    navigate("/orders");
+  };
+
+  const canProceed = () => {
+    if (step === 1) return !!channel && !!selectedUser;
+    if (step === 2) return cart.length > 0;
+    return true;
+  };
+
+  return (
+    <div className="space-y-6 max-w-4xl">
+      {/* Back */}
+      <button
+        onClick={() => navigate("/orders")}
+        className="inline-flex items-center gap-1 text-sm font-semibold text-[#64748B] hover:text-[#0F172A] cursor-pointer transition-colors"
+      >
+        <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+        Back to Orders
+      </button>
+
+      <h1 className="text-xl font-bold text-[#0F172A]">Create Order</h1>
+
+      {/* Step indicator */}
+      <div className="flex items-center gap-2">
+        {[1, 2, 3].map((s) => (
+          <div key={s} className="flex items-center gap-2">
+            <div className={`size-8 rounded-full flex items-center justify-center text-xs font-bold ${
+              step >= s ? "bg-primary text-white" : "bg-[#F1F5F9] text-[#94A3B8]"
+            }`}>
+              {s}
+            </div>
+            <span className={`text-[13px] font-semibold ${step >= s ? "text-[#0F172A]" : "text-[#94A3B8]"}`}>
+              {s === 1 ? "Customer" : s === 2 ? "Products" : "Review"}
+            </span>
+            {s < 3 && <div className={`w-8 h-0.5 ${step > s ? "bg-primary" : "bg-[#E2E8F0]"}`} />}
+          </div>
+        ))}
+      </div>
+
+      {/* Step 1: Customer */}
+      {step === 1 && (
+        <div className="space-y-5">
+          {/* Channel selection */}
+          <div>
+            <label className="text-[13px] font-semibold text-[#0F172A] mb-3 block">Order Channel</label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {CHANNELS.map((ch) => (
+                <button
+                  key={ch.value}
+                  onClick={() => setChannel(ch.value)}
+                  className={`p-4 rounded-xl border-2 text-left cursor-pointer transition-all ${
+                    channel === ch.value ? "border-primary bg-primary/5" : "border-[#E2E8F0] hover:border-[#94A3B8]"
+                  }`}
+                >
+                  <span className={`material-symbols-outlined text-[22px] ${channel === ch.value ? "text-primary" : "text-[#64748B]"}`}>{ch.icon}</span>
+                  <p className="text-sm font-bold text-[#0F172A] mt-1">{ch.label}</p>
+                  <p className="text-[12px] text-[#64748B]">{ch.desc}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Customer search */}
+          <div className="relative">
+            <label className="text-[13px] font-semibold text-[#0F172A] mb-1.5 block">Customer</label>
+            <input
+              type="text"
+              value={customerSearch}
+              onChange={(e) => { setCustomerSearch(e.target.value); setShowResults(true); }}
+              onFocus={() => setShowResults(true)}
+              className={inputClass}
+              placeholder="Search by name or phone..."
+            />
+            {showResults && searchResults.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-lg border border-[#E8ECF1] z-10 max-h-60 overflow-y-auto">
+                {searchResults.map((user) => (
+                  <button
+                    key={user.id}
+                    onClick={() => selectUser(user)}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#F8FAFC] cursor-pointer transition-colors text-left"
+                  >
+                    <div className="size-8 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white text-[10px] font-bold">
+                      {user.avatar}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-[#0F172A]">{user.name}</p>
+                      <p className="text-[12px] text-[#64748B]">{user.phone}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Selected user preview */}
+          {selectedUser && (
+            <div className="bg-[#F8FAFC] rounded-xl p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="size-10 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white text-sm font-bold">
+                  {selectedUser.avatar}
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-[#0F172A]">{selectedUser.name}</p>
+                  <p className="text-[12px] text-[#64748B]">{selectedUser.email} | {selectedUser.phone}</p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedUser(null)} className="text-[#DC2626] cursor-pointer">
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Step 2: Products */}
+      {step === 2 && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-4">
+            {/* Portal tabs */}
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {PORTALS.map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setActivePortal(p)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-all ${
+                    activePortal === p ? "text-white" : "bg-[#F1F5F9] text-[#64748B]"
+                  }`}
+                  style={activePortal === p ? { backgroundColor: PORTAL_COLORS[p] } : undefined}
+                >
+                  {PORTAL_LABELS[p].split(",")[0]}
+                </button>
+              ))}
+            </div>
+
+            {/* Product grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {portalProducts.map((product) => {
+                const inCart = cart.find((c) => c.product.id === product.id);
+                return (
+                  <button
+                    key={product.id}
+                    onClick={() => addToCart(product)}
+                    className={`p-3 rounded-xl border-2 text-left cursor-pointer transition-all ${
+                      inCart ? "border-primary bg-primary/5" : "border-[#E2E8F0] hover:border-[#94A3B8]"
+                    }`}
+                  >
+                    <p className="text-sm font-semibold text-[#0F172A] truncate">{product.name}</p>
+                    <p className="text-[12px] text-[#64748B] truncate">{product.description}</p>
+                    <p className="text-sm font-bold text-[#0F172A] mt-1">{formatNaira(product.price)}</p>
+                    {inCart && (
+                      <span className="inline-block mt-1 text-[11px] font-semibold text-primary">x{inCart.qty} in cart</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Cart sidebar */}
+          <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5 h-fit sticky top-24">
+            <h3 className="text-sm font-bold text-[#0F172A] mb-4">Cart ({cart.length} items)</h3>
+            {cart.length === 0 ? (
+              <p className="text-sm text-[#94A3B8]">Add products to get started</p>
+            ) : (
+              <div className="space-y-3">
+                {cart.map((item) => (
+                  <div key={item.product.id} className="flex items-center justify-between py-2 border-b border-[#F1F5F9]">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-[#0F172A] truncate">{item.product.name}</p>
+                      <p className="text-[12px] text-[#64748B]">{formatNaira(item.product.price)} each</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => updateQty(item.product.id, -1)} className="size-7 bg-[#F1F5F9] rounded-lg flex items-center justify-center cursor-pointer hover:bg-[#E2E8F0]">
+                        <span className="material-symbols-outlined text-[14px]">remove</span>
+                      </button>
+                      <span className="text-sm font-bold w-6 text-center">{item.qty}</span>
+                      <button onClick={() => updateQty(item.product.id, 1)} className="size-7 bg-[#F1F5F9] rounded-lg flex items-center justify-center cursor-pointer hover:bg-[#E2E8F0]">
+                        <span className="material-symbols-outlined text-[14px]">add</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                <div className="flex justify-between pt-2 text-sm">
+                  <span className="font-bold text-[#0F172A]">Subtotal</span>
+                  <span className="font-extrabold text-[#0F172A]">{formatNaira(subtotal)}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Step 3: Review */}
+      {step === 3 && (
+        <div className="space-y-5 max-w-2xl">
+          {/* Customer */}
+          {selectedUser && (
+            <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
+              <h3 className="text-sm font-bold text-[#0F172A] mb-3">Customer</h3>
+              <div className="flex items-center gap-3">
+                <div className="size-10 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white text-sm font-bold">
+                  {selectedUser.avatar}
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-[#0F172A]">{selectedUser.name}</p>
+                  <p className="text-[12px] text-[#64748B]">{selectedUser.email} | Channel: {channel}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Items */}
+          <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
+            <h3 className="text-sm font-bold text-[#0F172A] mb-3">Items</h3>
+            <div className="space-y-2">
+              {cart.map((item) => (
+                <div key={item.product.id} className="flex justify-between py-2 border-b border-[#F1F5F9] last:border-0">
+                  <span className="text-sm text-[#334155]">{item.product.name} x{item.qty}</span>
+                  <span className="text-sm font-semibold text-[#0F172A]">{formatNaira(item.product.price * item.qty)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Payment method */}
+          <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
+            <h3 className="text-sm font-bold text-[#0F172A] mb-3">Payment Method</h3>
+            <div className="grid grid-cols-3 gap-3">
+              {["wallet", "card", "bank_transfer"].map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setPaymentMethod(m)}
+                  className={`p-3 rounded-xl border-2 text-center text-sm font-semibold cursor-pointer transition-all capitalize ${
+                    paymentMethod === m ? "border-primary bg-primary/5 text-primary" : "border-[#E2E8F0] text-[#64748B]"
+                  }`}
+                >
+                  {m.replace("_", " ")}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Admin notes */}
+          <div>
+            <label className="text-[13px] font-semibold text-[#0F172A] mb-1.5 block">Admin Notes</label>
+            <textarea value={adminNotes} onChange={(e) => setAdminNotes(e.target.value)} className={`${inputClass} min-h-[80px]`} placeholder="Internal notes..." />
+          </div>
+
+          {/* Total + Submit */}
+          <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5 flex items-center justify-between">
+            <div>
+              <p className="text-[13px] text-[#64748B]">Total</p>
+              <p className="text-2xl font-extrabold text-[#0F172A]">{formatNaira(subtotal)}</p>
+            </div>
+            <button
+              onClick={handleSubmit}
+              className="px-6 py-3 bg-primary text-white text-sm font-semibold rounded-xl cursor-pointer hover:brightness-[0.92] active:scale-[0.98] transition-all"
+            >
+              Submit Order
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Navigation buttons */}
+      <div className="flex items-center justify-between pt-4 border-t border-[#E8ECF1]/60">
+        {step > 1 ? (
+          <button
+            onClick={() => setStep((s) => (s - 1) as Step)}
+            className="inline-flex items-center gap-1 px-5 py-2.5 border border-[#E2E8F0] text-sm font-semibold text-[#334155] rounded-xl cursor-pointer hover:bg-[#F8FAFC] transition-all"
+          >
+            <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+            Back
+          </button>
+        ) : <div />}
+        {step < 3 && (
+          <button
+            onClick={() => setStep((s) => (s + 1) as Step)}
+            disabled={!canProceed()}
+            className="inline-flex items-center gap-1 px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl cursor-pointer hover:brightness-[0.92] active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Next
+            <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}

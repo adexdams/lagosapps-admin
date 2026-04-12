@@ -1,16 +1,37 @@
 import { useState } from "react";
 import { Routes, Route, NavLink, useLocation } from "react-router-dom";
+
 import AdminOverview from "./AdminOverview";
+import UsersPage from "./UsersPage";
+import UserDetail from "./UserDetail";
+import OrdersPage from "./OrdersPage";
+import OrderDetailAdmin from "./OrderDetailAdmin";
+import InventoryPage from "./InventoryPage";
+import MembershipAdmin from "./MembershipAdmin";
+import WalletAdmin from "./WalletAdmin";
+import ReferralsAdmin from "./ReferralsAdmin";
+import NotificationsAdmin from "./NotificationsAdmin";
+import BroadcastCompose from "./BroadcastCompose";
+import BroadcastDetail from "./BroadcastDetail";
+import AnalyticsPage from "./AnalyticsPage";
+import AuditLog from "./AuditLog";
+import SettingsPage from "./SettingsPage";
+import CreateOrderAdmin from "./CreateOrderAdmin";
+import FulfillmentPage from "./FulfillmentPage";
+import FulfillmentDetail from "./FulfillmentDetail";
+import MembershipTierConfig from "./MembershipTierConfig";
+import NotificationPanel from "./shared/NotificationPanel";
 
 const navItems = [
-  { path: "/", label: "Overview", icon: "dashboard" },
+  { path: "/", label: "Overview", icon: "space_dashboard" },
   { path: "/users", label: "Users", icon: "group" },
   { path: "/orders", label: "Orders", icon: "receipt_long" },
+  { path: "/fulfillment", label: "Fulfillment", icon: "assignment" },
   { path: "/inventory", label: "Inventory", icon: "inventory_2" },
   { path: "/membership", label: "Membership", icon: "card_membership" },
   { path: "/wallet", label: "Wallet", icon: "account_balance_wallet" },
   { path: "/referrals", label: "Referrals", icon: "group_add" },
-  { path: "/notifications", label: "Notifications", icon: "campaign" },
+  { path: "/broadcast", label: "Broadcast", icon: "campaign" },
   { path: "/analytics", label: "Analytics", icon: "analytics" },
   { path: "/audit", label: "Audit Log", icon: "history" },
   { path: "/settings", label: "Settings", icon: "settings" },
@@ -19,34 +40,32 @@ const navItems = [
 export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const initials = "AD";
 
   const currentPage = navItems.find((item) => item.path === location.pathname)?.label || "Overview";
 
   return (
-    <div className="min-h-screen bg-background flex">
-      {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col w-60 bg-[#0A2540] text-white flex-shrink-0 fixed inset-y-0 left-0 z-40">
+    <div className="min-h-screen bg-[#F5F6FA] flex">
+      {/* Desktop sidebar — light grey */}
+      <aside className="hidden md:flex flex-col w-[260px] bg-white border-r border-[#E8ECF1] flex-shrink-0 fixed inset-y-0 left-0 z-40">
         {/* Logo */}
-        <div className="px-5 py-4 border-b border-white/10 flex items-center gap-2">
-          <div className="size-8 rounded-lg bg-[#00C3F7]/20 flex items-center justify-center">
-            <span className="text-[#00C3F7] font-extrabold text-sm">L</span>
-          </div>
-          <span className="font-bold text-base">LagosApps</span>
-          <span className="text-[10px] font-bold bg-primary/30 text-primary-fixed px-2 py-0.5 rounded-full ml-1">Admin</span>
+        <div className="px-6 py-5 flex items-center gap-2.5">
+          <img src="/lagosapp-logo.webp" alt="LagosApps" className="h-8 w-auto" />
+          <span className="text-[10px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-md tracking-wide uppercase">Admin</span>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 py-3 overflow-y-auto">
+        <nav className="flex-1 px-3 py-2 overflow-y-auto">
           {navItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
               end={item.path === "/"}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-5 py-2.5 text-sm transition-colors ${
+                `flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all mb-0.5 ${
                   isActive
-                    ? "bg-white/10 text-white font-bold border-l-3 border-[#00C3F7]"
-                    : "text-white/60 hover:bg-white/5 hover:text-white/90 border-l-3 border-transparent"
+                    ? "bg-primary/8 text-primary font-semibold"
+                    : "text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#334155]"
                 }`
               }
             >
@@ -57,8 +76,8 @@ export default function AdminLayout() {
         </nav>
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-white/10">
-          <a href="http://localhost:5173" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-white/50 hover:text-white/80 transition-colors">
+        <div className="px-6 py-4 border-t border-[#E8ECF1] space-y-2">
+          <a href="/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-[13px] text-[#94A3B8] hover:text-[#64748B] transition-colors">
             <span className="material-symbols-outlined text-[18px]">open_in_new</span>
             Back to Site
           </a>
@@ -68,18 +87,18 @@ export default function AdminLayout() {
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div className="md:hidden fixed inset-0 z-50 flex">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
-          <aside className="relative w-64 bg-[#0A2540] text-white flex flex-col h-full shadow-2xl" style={{ animation: "slide-in-left 200ms ease-out" }}>
-            <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between">
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
+          <aside className="relative w-[280px] bg-white flex flex-col h-full shadow-2xl" style={{ animation: "slide-in-left 200ms ease-out" }}>
+            <div className="px-5 py-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="font-bold text-base">LagosApps</span>
-                <span className="text-[10px] font-bold bg-primary/30 text-primary-fixed px-2 py-0.5 rounded-full">Admin</span>
+                <img src="/lagosapp-logo.webp" alt="LagosApps" className="h-7 w-auto" />
+                <span className="text-[10px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-md uppercase">Admin</span>
               </div>
-              <button onClick={() => setSidebarOpen(false)} className="text-white/60 cursor-pointer">
+              <button onClick={() => setSidebarOpen(false)} className="text-[#94A3B8] cursor-pointer hover:text-[#64748B]">
                 <span className="material-symbols-outlined text-[22px]">close</span>
               </button>
             </div>
-            <nav className="flex-1 py-3 overflow-y-auto">
+            <nav className="flex-1 px-3 py-2 overflow-y-auto">
               {navItems.map((item) => (
                 <NavLink
                   key={item.path}
@@ -87,8 +106,8 @@ export default function AdminLayout() {
                   end={item.path === "/"}
                   onClick={() => setSidebarOpen(false)}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 px-5 py-3 text-sm transition-colors ${
-                      isActive ? "bg-white/10 text-white font-bold" : "text-white/60 hover:bg-white/5"
+                    `flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all mb-0.5 ${
+                      isActive ? "bg-primary/8 text-primary font-semibold" : "text-[#64748B] hover:bg-[#F1F5F9]"
                     }`
                   }
                 >
@@ -102,65 +121,67 @@ export default function AdminLayout() {
       )}
 
       {/* Main content */}
-      <div className="flex-1 md:ml-60 flex flex-col min-h-screen">
+      <div className="flex-1 md:ml-[260px] flex flex-col min-h-screen">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 bg-white border-b border-outline-variant/15 px-4 md:px-6 py-3 flex items-center gap-4">
+        <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-[#E8ECF1] px-4 md:px-8 h-16 flex items-center gap-4">
           <button onClick={() => setSidebarOpen(true)} className="md:hidden cursor-pointer">
-            <span className="material-symbols-outlined text-[24px] text-on-surface">menu</span>
+            <span className="material-symbols-outlined text-[24px] text-[#334155]">menu</span>
           </button>
 
-          <h1 className="text-base md:text-lg font-bold text-on-surface">{currentPage}</h1>
+          <h1 className="text-base md:text-lg font-semibold text-[#0F172A] tracking-tight">{currentPage}</h1>
 
           <div className="flex-1" />
 
           {/* Search */}
-          <div className="hidden sm:flex items-center gap-2 bg-surface-container rounded-lg px-3 py-2 max-w-xs flex-1">
-            <span className="material-symbols-outlined text-outline text-[18px]">search</span>
-            <input type="text" placeholder="Search..." className="bg-transparent text-sm outline-none flex-1 text-on-surface" />
+          <div className="hidden sm:flex items-center gap-2 bg-[#F1F5F9] rounded-xl px-4 py-2.5 max-w-xs flex-1">
+            <span className="material-symbols-outlined text-[#94A3B8] text-[18px]">search</span>
+            <input type="text" placeholder="Search anything..." className="bg-transparent text-sm outline-none flex-1 text-[#0F172A] placeholder:text-[#94A3B8]" />
           </div>
 
           <div className="flex-1 hidden sm:block" />
 
+          {/* Notifications */}
+          <div className="hidden sm:block">
+            <NotificationPanel />
+          </div>
+
           {/* Admin avatar */}
-          <div className="flex items-center gap-2">
-            <div className="size-8 rounded-full bg-primary flex items-center justify-center text-on-primary font-bold text-xs">
-              AD
+          <div className="flex items-center gap-3">
+            <div className="size-9 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white font-bold text-xs shadow-sm">
+              {initials}
             </div>
-            <span className="hidden sm:inline text-sm font-medium text-on-surface">Admin</span>
+            <div className="hidden sm:block">
+              <p className="text-sm font-semibold text-[#0F172A] leading-tight">Admin</p>
+              <p className="text-[11px] text-[#94A3B8]">Super Admin</p>
+            </div>
           </div>
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-4 md:p-6 lg:p-8">
+        <main className="flex-1 px-4 md:px-8 lg:px-10 py-6 md:py-8 pb-24 md:pb-10">
           <Routes>
             <Route index element={<AdminOverview />} />
-            <Route path="users" element={<Placeholder page="Users" />} />
-            <Route path="users/:id" element={<Placeholder page="User Detail" />} />
-            <Route path="orders" element={<Placeholder page="Orders" />} />
-            <Route path="orders/:id" element={<Placeholder page="Order Detail" />} />
-            <Route path="inventory" element={<Placeholder page="Inventory" />} />
-            <Route path="membership" element={<Placeholder page="Membership" />} />
-            <Route path="wallet" element={<Placeholder page="Wallet" />} />
-            <Route path="referrals" element={<Placeholder page="Referrals" />} />
-            <Route path="notifications" element={<Placeholder page="Notifications" />} />
-            <Route path="analytics" element={<Placeholder page="Analytics" />} />
-            <Route path="audit" element={<Placeholder page="Audit Log" />} />
-            <Route path="settings" element={<Placeholder page="Settings" />} />
+            <Route path="users" element={<UsersPage />} />
+            <Route path="users/:id" element={<UserDetail />} />
+            <Route path="orders" element={<OrdersPage />} />
+            <Route path="orders/create" element={<CreateOrderAdmin />} />
+            <Route path="orders/:id" element={<OrderDetailAdmin />} />
+            <Route path="fulfillment" element={<FulfillmentPage />} />
+            <Route path="fulfillment/:id" element={<FulfillmentDetail />} />
+            <Route path="inventory" element={<InventoryPage />} />
+            <Route path="membership" element={<MembershipAdmin />} />
+            <Route path="membership/tiers" element={<MembershipTierConfig />} />
+            <Route path="wallet" element={<WalletAdmin />} />
+            <Route path="referrals" element={<ReferralsAdmin />} />
+            <Route path="broadcast" element={<NotificationsAdmin />} />
+            <Route path="broadcast/compose" element={<BroadcastCompose />} />
+            <Route path="broadcast/:id" element={<BroadcastDetail />} />
+            <Route path="analytics" element={<AnalyticsPage />} />
+            <Route path="audit" element={<AuditLog />} />
+            <Route path="settings" element={<SettingsPage />} />
           </Routes>
         </main>
       </div>
-    </div>
-  );
-}
-
-function Placeholder({ page }: { page: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-20 space-y-4">
-      <div className="size-20 rounded-full bg-surface-container flex items-center justify-center">
-        <span className="material-symbols-outlined text-outline/30 text-[40px]">construction</span>
-      </div>
-      <h2 className="text-xl font-bold text-on-surface">{page}</h2>
-      <p className="text-sm text-on-surface-variant">This page is under construction.</p>
     </div>
   );
 }
