@@ -121,10 +121,10 @@ export default function WalletAdmin() {
         </div>
         <button
           onClick={() => setShowAdjust(!showAdjust)}
-          className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl cursor-pointer hover:brightness-[0.92] active:scale-[0.98] transition-all"
+          className="inline-flex items-center gap-1.5 px-2.5 sm:px-4 py-2 sm:py-2.5 bg-primary text-white text-sm font-semibold rounded-xl cursor-pointer hover:brightness-[0.92] active:scale-[0.98] transition-all"
         >
           <span className="material-symbols-outlined text-[18px]">{showAdjust ? "expand_less" : "add_card"}</span>
-          {showAdjust ? "Hide" : "Manual Adjustment"}
+          <span className="hidden sm:inline">{showAdjust ? "Hide" : "Manual Adjustment"}</span>
         </button>
       </div>
 

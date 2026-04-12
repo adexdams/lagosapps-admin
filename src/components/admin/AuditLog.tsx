@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import FilterBar, { type FilterConfig } from "./shared/FilterBar";
 import { mockAuditLog, formatDate } from "../../data/adminMockData";
 
@@ -91,59 +91,59 @@ export default function AuditLog() {
                   const isExpanded = expandedRow === entry.id;
                   const colors = ACTION_COLORS[entry.action] ?? FALLBACK_COLOR;
                   return (
-                    <tr key={entry.id} className="group">
-                      <td colSpan={5} className="p-0">
-                        <div
-                          className={`flex items-center px-2.5 sm:px-4 py-3 border-b border-[#F1F5F9] hover:bg-[#F8FAFC] transition-colors ${isExpanded ? "bg-[#F8FAFC]" : ""}`}
+                    <React.Fragment key={entry.id}>
+                    <tr
+                      className={`border-b border-[#F1F5F9] hover:bg-[#F8FAFC] transition-colors ${isExpanded ? "bg-[#F8FAFC]" : ""}`}
+                    >
+                      <td className="px-2.5 sm:px-4 py-3 text-[11px] sm:text-[13px] text-[#64748B] whitespace-nowrap">
+                        {formatDate(entry.createdAt)}
+                      </td>
+                      <td className="px-2.5 sm:px-4 py-3 text-sm font-semibold text-[#0F172A] hidden sm:table-cell">
+                        {entry.adminName}
+                      </td>
+                      <td className="px-2.5 sm:px-4 py-3">
+                        <span
+                          className="inline-block px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md sm:rounded-lg text-[9px] sm:text-[11px] font-semibold tracking-wide"
+                          style={{ backgroundColor: colors.bg, color: colors.text }}
                         >
-                          <div className="flex-1 flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3 min-w-0">
-                            {/* Timestamp */}
-                            <span className="text-[11px] sm:text-[13px] text-[#64748B] whitespace-nowrap flex-shrink-0">
-                              {formatDate(entry.createdAt)}
-                            </span>
-                            {/* Admin */}
-                            <span className="text-sm font-semibold text-[#0F172A] hidden sm:block flex-shrink-0">{entry.adminName}</span>
-                            {/* Action badge */}
-                            <span
-                              className="inline-block px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md sm:rounded-lg text-[9px] sm:text-[11px] font-semibold tracking-wide w-fit flex-shrink-0"
-                              style={{ backgroundColor: colors.bg, color: colors.text }}
-                            >
-                              {entry.action}
-                            </span>
-                            {/* Entity */}
-                            <span className="text-[13px] text-[#334155] hidden md:block">{entry.target}</span>
-                            {/* Toggle */}
-                            <button
-                              onClick={() => setExpandedRow(isExpanded ? null : entry.id)}
-                              className="size-8 flex items-center justify-center rounded-lg hover:bg-white cursor-pointer transition-colors"
-                            >
-                              <span className="material-symbols-outlined text-[18px] text-[#64748B]">
-                                {isExpanded ? "visibility_off" : "visibility"}
-                              </span>
-                            </button>
-                          </div>
-                        </div>
-                        {/* Expanded details */}
-                        {isExpanded && (
-                          <div className="px-2.5 sm:px-5 py-3 bg-[#F8FAFC] border-b border-[#E8ECF1]/60">
-                            <div className="flex flex-wrap gap-4 text-[13px]">
-                              <div>
-                                <span className="text-[#94A3B8]">Details: </span>
-                                <span className="text-[#334155]">{entry.details}</span>
-                              </div>
-                              <div>
-                                <span className="text-[#94A3B8]">IP: </span>
-                                <span className="text-[#334155] font-mono">{entry.ipAddress}</span>
-                              </div>
-                              <div>
-                                <span className="text-[#94A3B8]">ID: </span>
-                                <span className="text-[#334155] font-mono">{entry.id}</span>
-                              </div>
-                            </div>
-                          </div>
-                        )}
+                          {entry.action}
+                        </span>
+                      </td>
+                      <td className="px-2.5 sm:px-4 py-3 text-[13px] text-[#334155] hidden md:table-cell">
+                        {entry.target}
+                      </td>
+                      <td className="px-2.5 sm:px-4 py-3 text-center">
+                        <button
+                          onClick={() => setExpandedRow(isExpanded ? null : entry.id)}
+                          className="size-8 flex items-center justify-center rounded-lg hover:bg-white cursor-pointer transition-colors mx-auto"
+                        >
+                          <span className="material-symbols-outlined text-[18px] text-[#64748B]">
+                            {isExpanded ? "visibility_off" : "visibility"}
+                          </span>
+                        </button>
                       </td>
                     </tr>
+                    {isExpanded && (
+                      <tr className="bg-[#F8FAFC]">
+                        <td colSpan={5} className="px-2.5 sm:px-5 py-3 border-b border-[#E8ECF1]/60">
+                          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-4 text-[12px] sm:text-[13px]">
+                            <div>
+                              <span className="text-[#94A3B8]">Details: </span>
+                              <span className="text-[#334155]">{entry.details}</span>
+                            </div>
+                            <div>
+                              <span className="text-[#94A3B8]">IP: </span>
+                              <span className="text-[#334155] font-mono">{entry.ipAddress}</span>
+                            </div>
+                            <div>
+                              <span className="text-[#94A3B8]">ID: </span>
+                              <span className="text-[#334155] font-mono">{entry.id}</span>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </React.Fragment>
                   );
                 })
               )}

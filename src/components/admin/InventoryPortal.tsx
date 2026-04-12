@@ -41,29 +41,44 @@ export default function InventoryPortal({ portal }: InventoryPortalProps) {
 
   return (
     <div className="space-y-4">
-      {/* Filter pills + Add button */}
-      <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto pb-1">
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setSelectedCategory(cat)}
-            className={`px-3.5 py-1.5 rounded-full text-[13px] font-semibold cursor-pointer transition-all ${
-              selectedCategory === cat
-                ? "text-white"
-                : "bg-[#F1F5F9] text-[#64748B] hover:bg-[#E2E8F0]"
-            }`}
-            style={selectedCategory === cat ? { backgroundColor: portalColor } : undefined}
-          >
-            {cat === "all" ? "All" : cat.charAt(0).toUpperCase() + cat.slice(1)}
-          </button>
-        ))}
-        <div className="flex-1" />
+      {/* Filter + Add button */}
+      <div className="flex items-center gap-2 sm:gap-3">
+        {/* Mobile: dropdown */}
+        <select
+          value={selectedCategory}
+          onChange={(e) => setSelectedCategory(e.target.value)}
+          className="sm:hidden border border-[#E2E8F0] rounded-xl px-3 py-2 text-sm text-[#0F172A] bg-white outline-none focus:border-primary cursor-pointer flex-1"
+        >
+          {categories.map((cat) => (
+            <option key={cat} value={cat}>{cat === "all" ? "All Categories" : cat}</option>
+          ))}
+        </select>
+
+        {/* Desktop: pill buttons */}
+        <div className="hidden sm:flex items-center gap-2 flex-wrap">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`px-3.5 py-1.5 rounded-full text-[13px] font-semibold cursor-pointer transition-all flex-shrink-0 ${
+                selectedCategory === cat
+                  ? "text-white"
+                  : "bg-[#F1F5F9] text-[#64748B] hover:bg-[#E2E8F0]"
+              }`}
+              style={selectedCategory === cat ? { backgroundColor: portalColor } : undefined}
+            >
+              {cat === "all" ? "All" : cat}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex-1 hidden sm:block" />
         <button
           onClick={() => handleOpenForm()}
-          className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-white text-[13px] font-semibold rounded-xl cursor-pointer hover:brightness-[0.92] active:scale-[0.98] transition-all"
+          className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-primary text-white text-[13px] font-semibold rounded-xl cursor-pointer hover:brightness-[0.92] active:scale-[0.98] transition-all flex-shrink-0"
         >
           <span className="material-symbols-outlined text-[16px]">add</span>
-          Add Product
+          <span className="hidden sm:inline">Add Product</span>
         </button>
       </div>
 

@@ -102,10 +102,10 @@ export default function MembershipAdmin() {
         </div>
         <button
           onClick={() => navigate("/membership/tiers")}
-          className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-[#0F172A] text-white text-sm font-semibold rounded-xl cursor-pointer hover:bg-[#1E293B] active:scale-[0.98] transition-all"
+          className="inline-flex items-center gap-1.5 px-2.5 sm:px-4 py-2 sm:py-2.5 bg-[#0F172A] text-white text-sm font-semibold rounded-xl cursor-pointer hover:bg-[#1E293B] active:scale-[0.98] transition-all"
         >
           <span className="material-symbols-outlined text-[18px]">tune</span>
-          Manage Tiers
+          <span className="hidden sm:inline">Manage Tiers</span>
         </button>
       </div>
 

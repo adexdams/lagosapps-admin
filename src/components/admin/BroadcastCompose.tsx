@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../../hooks/useToast";
 import { mockUsers } from "../../data/adminMockData";
@@ -29,6 +29,16 @@ export default function BroadcastCompose() {
   const [notifType, setNotifType] = useState<NotifType>("info");
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleImageSelect = (file: File) => {
+    if (!file.type.startsWith("image/")) { toast.error("Only image files allowed"); return; }
+    if (file.size > 2 * 1024 * 1024) { toast.error("Max 2MB file size"); return; }
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
 
   const toggleTier = (tier: string) => {
     setSelectedTiers((prev) => prev.includes(tier) ? prev.filter((t) => t !== tier) : [...prev, tier]);
@@ -152,6 +162,41 @@ export default function BroadcastCompose() {
             maxLength={500}
           />
           <p className="text-[11px] text-[#94A3B8] mt-1 text-right">{message.length}/500</p>
+        </div>
+
+        {/* Image attachment */}
+        <div>
+          <label className="text-[13px] font-semibold text-[#0F172A] mb-1.5 block">Image (optional)</label>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => e.target.files?.[0] && handleImageSelect(e.target.files[0])}
+          />
+          {imagePreview ? (
+            <div className="flex items-center gap-3 p-3 bg-[#F8FAFC] rounded-xl border border-[#E8ECF1]/60">
+              <img src={imagePreview} alt="Preview" className="size-16 sm:size-20 rounded-lg object-cover flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] font-medium text-[#0F172A] truncate">{imageFile?.name}</p>
+                <p className="text-[11px] text-[#94A3B8]">{imageFile ? `${(imageFile.size / 1024).toFixed(0)} KB` : ""}</p>
+              </div>
+              <button
+                onClick={() => { setImagePreview(null); setImageFile(null); }}
+                className="size-8 flex items-center justify-center rounded-lg hover:bg-[#FEF2F2] text-[#DC2626] cursor-pointer transition-colors flex-shrink-0"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="w-full flex items-center justify-center gap-2 py-4 border-2 border-dashed border-[#E2E8F0] rounded-xl text-[13px] text-[#94A3B8] hover:border-primary hover:text-primary cursor-pointer transition-colors"
+            >
+              <span className="material-symbols-outlined text-[20px]">add_photo_alternate</span>
+              Click to upload image
+            </button>
+          )}
         </div>
 
         {/* Live preview */}

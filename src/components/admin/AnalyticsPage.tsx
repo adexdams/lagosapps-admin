@@ -178,22 +178,22 @@ export default function AnalyticsPage() {
                     : "#F1F5F9",
                 }}
               />
-              <div className="absolute inset-4 bg-white rounded-full flex items-center justify-center">
-                <div className="text-center">
-                  <p className="text-lg font-extrabold text-[#0F172A]">{formatNaira(totalVolume)}</p>
-                  <p className="text-[11px] text-[#64748B]">Total</p>
+              <div className="absolute inset-3 sm:inset-4 bg-white rounded-full flex items-center justify-center">
+                <div className="text-center px-1">
+                  <p className="text-xs sm:text-lg font-extrabold text-[#0F172A] leading-tight">{formatNaira(totalVolume)}</p>
+                  <p className="text-[9px] sm:text-[11px] text-[#64748B]">Total</p>
                 </div>
               </div>
             </div>
           </div>
-          <div className="flex items-center justify-center gap-4 sm:gap-6">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-6">
             <div className="flex items-center gap-2">
               <span className="size-3 rounded-full bg-[#059669]" />
-              <span className="text-[13px] text-[#334155]">Credits: {formatNaira(creditVolume)}</span>
+              <span className="text-[11px] sm:text-[13px] text-[#334155]">Credits: {formatNaira(creditVolume)}</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="size-3 rounded-full bg-[#DC2626]" />
-              <span className="text-[13px] text-[#334155]">Debits: {formatNaira(debitVolume)}</span>
+              <span className="text-[11px] sm:text-[13px] text-[#334155]">Debits: {formatNaira(debitVolume)}</span>
             </div>
           </div>
         </div>
