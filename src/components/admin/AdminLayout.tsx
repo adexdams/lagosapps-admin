@@ -16,6 +16,7 @@ import BroadcastDetail from "./BroadcastDetail";
 import AnalyticsPage from "./AnalyticsPage";
 import AuditLog from "./AuditLog";
 import SettingsPage from "./SettingsPage";
+import FinancePage from "./FinancePage";
 import TeamPage from "./TeamPage";
 import CreateOrderAdmin from "./CreateOrderAdmin";
 import FulfillmentPage from "./FulfillmentPage";
@@ -33,6 +34,7 @@ const navItems = [
   { path: "/wallet", label: "Wallet", icon: "account_balance_wallet" },
   { path: "/referrals", label: "Referrals", icon: "group_add" },
   { path: "/broadcast", label: "Broadcast", icon: "campaign" },
+  { path: "/finance", label: "Finance", icon: "payments" },
   { path: "/analytics", label: "Analytics", icon: "analytics" },
   { path: "/team", label: "Team", icon: "people" },
   { path: "/audit", label: "Audit Log", icon: "history" },
@@ -176,6 +178,7 @@ export default function AdminLayout() {
             <Route path="broadcast" element={<NotificationsAdmin />} />
             <Route path="broadcast/compose" element={<BroadcastCompose />} />
             <Route path="broadcast/:id" element={<BroadcastDetail />} />
+            <Route path="finance" element={<FinancePage />} />
             <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="team" element={<TeamPage />} />
             <Route path="audit" element={<AuditLog />} />
