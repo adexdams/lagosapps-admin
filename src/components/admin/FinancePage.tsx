@@ -159,7 +159,7 @@ export default function FinancePage() {
   const maxPortal = portalRevenue.length > 0 ? portalRevenue[0][1] : 1;
 
   const txnColumns: Column<PaystackTxn>[] = [
-    { key: "reference", label: "Reference", render: (row) => <span className="font-mono text-[12px] text-[#0F172A] font-semibold">{row.reference}</span> },
+    { key: "reference", label: "Reference", render: (row) => <span className="font-mono text-[11px] sm:text-[12px] text-[#0F172A] font-semibold truncate block max-w-[120px] sm:max-w-none">{row.reference}</span> },
     { key: "customerName", label: "Customer", hideOnMobile: true, render: (row) => <span className="text-[#334155]">{row.customerName}</span> },
     { key: "amount", label: "Amount", align: "right", sortable: true, render: (row) => <span className="font-semibold text-[#0F172A]">{formatNaira(row.amount)}</span> },
     { key: "fee", label: "Fee", align: "right", hideOnMobile: true, render: (row) => <span className="text-[#94A3B8]">{row.fee > 0 ? formatNaira(row.fee) : "-"}</span> },
@@ -177,9 +177,9 @@ export default function FinancePage() {
   ];
 
   const settlementColumns: Column<Settlement>[] = [
-    { key: "id", label: "Settlement ID", render: (row) => <span className="font-mono text-[12px] font-semibold text-[#0F172A]">{row.id}</span> },
-    { key: "txnCount", label: "Transactions", align: "center", render: (row) => <span className="text-[#334155]">{row.txnCount}</span> },
-    { key: "amount", label: "Gross", align: "right", sortable: true, render: (row) => <span className="font-semibold text-[#0F172A]">{formatNaira(row.amount)}</span> },
+    { key: "id", label: "ID", render: (row) => <span className="font-mono text-[12px] font-semibold text-[#0F172A]">{row.id}</span> },
+    { key: "txnCount", label: "Txns", align: "center", hideOnMobile: true, render: (row) => <span className="text-[#334155]">{row.txnCount}</span> },
+    { key: "amount", label: "Gross", align: "right", hideOnMobile: true, sortable: true, render: (row) => <span className="font-semibold text-[#0F172A]">{formatNaira(row.amount)}</span> },
     { key: "fee", label: "Fees", align: "right", hideOnMobile: true, render: (row) => <span className="text-[#DC2626]">-{formatNaira(row.fee)}</span> },
     { key: "net", label: "Net", align: "right", render: (row) => <span className="font-semibold text-[#059669]">{formatNaira(row.net)}</span> },
     { key: "status", label: "Status", align: "center", render: (row) => <StatusBadge status={row.status} /> },
@@ -396,7 +396,7 @@ export default function FinancePage() {
       {/* ── Reports Tab ──────────────────────────────────────────────────── */}
       {tab === "reports" && (
         <div className="space-y-4 sm:space-y-6">
-          <div className={`${card} p-4 sm:p-6`}>
+          <div className={`${card} p-3.5 sm:p-5 md:p-6`}>
             <h3 className="text-sm font-semibold text-[#0F172A] mb-4">Generate Report</h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
               <div>

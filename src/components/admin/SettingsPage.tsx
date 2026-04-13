@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useToast } from "../../hooks/useToast";
 import { PORTAL_LABELS, PORTAL_COLORS, type Portal } from "../../data/adminMockData";
 
@@ -19,14 +19,62 @@ export default function SettingsPage() {
     events: true, community: false, logistics: true,
   });
   const [testMode, setTestMode] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const avatarRef = useRef<HTMLInputElement>(null);
 
   const handleSave = (section: string) => toast.success(`${section} saved successfully`);
+
+  const handleAvatarChange = (file: File) => {
+    if (!file.type.startsWith("image/")) { toast.error("Only image files allowed"); return; }
+    if (file.size > 2 * 1024 * 1024) { toast.error("Max 2MB file size"); return; }
+    setAvatarPreview(URL.createObjectURL(file));
+    toast.success("Profile picture updated");
+  };
 
   return (
     <div className="space-y-4 sm:space-y-6 max-w-3xl">
       <div>
         <h1 className="text-xl font-bold text-[#0F172A]">Settings</h1>
         <p className="text-sm text-[#64748B] mt-0.5">Platform configuration</p>
+      </div>
+
+      {/* Profile */}
+      <div className={`${card} overflow-hidden`}>
+        <div className="px-4 sm:px-5 py-3 border-b border-[#E8ECF1]/60">
+          <h2 className="text-base font-bold text-[#0F172A]">Your Profile</h2>
+        </div>
+        <div className="p-3.5 sm:p-5 md:p-7">
+          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+            {/* Avatar */}
+            <div className="relative group">
+              <input ref={avatarRef} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleAvatarChange(e.target.files[0])} />
+              {avatarPreview ? (
+                <img src={avatarPreview} alt="Profile" className="size-20 sm:size-24 rounded-full object-cover" />
+              ) : (
+                <div className="size-20 sm:size-24 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white text-2xl sm:text-3xl font-bold">
+                  AD
+                </div>
+              )}
+              <button
+                onClick={() => avatarRef.current?.click()}
+                className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-white text-[24px]">photo_camera</span>
+              </button>
+            </div>
+            {/* Info */}
+            <div className="text-center sm:text-left">
+              <p className="text-lg font-bold text-[#0F172A]">Admin</p>
+              <p className="text-[13px] text-[#64748B]">admin@lagosapps.com</p>
+              <button
+                onClick={() => avatarRef.current?.click()}
+                className="mt-2 text-[13px] font-semibold text-primary cursor-pointer hover:underline"
+              >
+                Change photo
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Platform Settings */}
