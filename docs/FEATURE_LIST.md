@@ -37,16 +37,13 @@ A comprehensive list of every feature and action available in the admin dashboar
 
 ## Overview / Dashboard Home
 
-- View total users count with weekly trend
-- View month-to-date revenue with daily trend
-- View active orders count with pending payment count
-- View active members count with retention rate
-- View 5 most recent orders (order ID, user, service, amount, status)
-- "View Analytics" link card directing to the Analytics page for revenue breakdowns and trends
-- Quick action: Add Product
-- Quick action: Send Broadcast
-- Quick action: Adjust Wallet
-- Quick action: Export Data
+- View 4 stat cards: Total Users (with member count trend), Active Orders (with pending count), Completed Orders (with completion rate), New Requests (awaiting review)
+- View 5 most recent orders from live data (order ID, user, portal, amount, status)
+- Fulfillment Snapshot panel showing orders in progress, pending service requests, completion rate, cancellation rate, active members
+- Quick action: Add Product (links to Inventory)
+- Quick action: Broadcast (links to Broadcast Compose)
+- Quick action: Create Order (links to Create Order)
+- Quick action: View Analytics (links to Analytics)
 
 ---
 
@@ -72,9 +69,9 @@ A comprehensive list of every feature and action available in the admin dashboar
 - Change user's membership tier
 - Suspend or reactivate user account
 - View user's current cart contents, quantities, and total value
-- View user's membership benefit usage with progress bars per benefit
+- View user's membership benefit usage with progress bars per benefit (green/orange/red based on consumption)
 - Reset individual benefit usage counters (admin override, logged to audit)
-- View user's notification inbox with read/unread status
+- View user's notification inbox with read/unread status (unread shown with dot + bold title)
 - Mark individual notifications as read/unread for the user
 - Delete a notification from the user's inbox
 - Filter user's notifications by type (Order, Wallet, Membership, System, Broadcast)
@@ -155,9 +152,9 @@ A unified work management page with 3 tabs for all assigned tasks.
 ### Custom Orders Tab
 
 - View 3 stat cards: Total Requests, Awaiting Review, Converted to Orders
-- View all freeform/custom submissions as expandable cards (ID, customer, portal, date, status)
+- View all freeform/custom submissions in a table with columns: ID, Customer, Portal, Description, Date, Status
 - Filter by status (New, Under Review, Converted, Declined)
-- Expand to see full customer description, internal notes, decline reason
+- Click any row to expand full customer description, internal notes, decline reason
 - Convert a custom request to a real order (navigates to Create Order)
 - Decline a request with a reason
 - View customer profile
@@ -296,9 +293,9 @@ A unified work management page with 3 tabs for all assigned tasks.
 ### Overview Tab
 
 - View 4 stat cards: Total Revenue, Net Income, Success Rate, Avg Transaction Value
-- View revenue trend chart (last 14 days)
-- View payment channel breakdown (Card, Bank Transfer, USSD, Wallet) with percentages
-- View wallet activity summary (credits, debits, net flow, fee rate)
+- View revenue trend chart (last 14 days, bar chart with hover amounts)
+- View payment channel breakdown (Card, Bank Transfer, USSD, Wallet) with percentages and transaction counts
+- View wallet activity summary (total credits, total debits, net flow, total transactions, Paystack fee rate)
 
 ### Transactions Tab
 
@@ -332,9 +329,10 @@ A unified work management page with 3 tabs for all assigned tasks.
 
 ## Broadcast (Notification List)
 
-- View all sent broadcasts in a searchable table (title, type badge, read status, date)
+- View all sent broadcasts in a searchable table (title, message preview, type badge, user read rate, date)
 - Filter by notification type (Order, Wallet, Membership, System)
-- Filter by status: Sent, Retracted, Draft
+- View user read rate per broadcast as a progress bar with percentage (green >= 70%, orange >= 40%, red < 40%)
+- Subtitle shows total broadcasts, read count, and unread count by users
 - Navigate to compose a new broadcast
 - Click any broadcast to view its detail
 
@@ -359,7 +357,7 @@ A unified work management page with 3 tabs for all assigned tasks.
 - View delivery stats (read rate progress bar with percentages)
 - View configuration (recipients, sent by, date, type)
 - View audience breakdown (delivered, bounced, pending counts)
-- Retract a sent broadcast (hides from unread inboxes, marks as retracted)
+- Retract a sent broadcast (confirmation required; hides from unread inboxes, marks as retracted)
 - Resend a broadcast (opens Broadcast Compose pre-filled with original content)
 - Delete a retracted broadcast from the sent log
 
@@ -380,29 +378,40 @@ A unified work management page with 3 tabs for all assigned tasks.
 
 ## Analytics
 
-- View 4 stat cards: Total Revenue, Total Users, Active Members, Average Order Value
-- View revenue by portal breakdown (horizontal bar chart with percentages)
-- View monthly revenue trend (last 6 months bar chart)
-- View orders by status breakdown (horizontal bar chart with percentages)
-- View transaction volume split (credit vs debit donut/pie chart)
+User activity, fulfillment performance, and staff metrics — no financial data (that lives in Finance).
+
+- View 4 stat cards: Total Users (with new-this-month trend), Active Users (with % of total), Order Completion Rate, Active Carts (with abandoned count)
+- New Users per Month bar chart (last 6 months, growth trend)
+- Membership Distribution pie chart (Gold, Silver, Bronze, No Tier with counts)
+- Fulfillment Performance: order completion %, in-progress orders, cancelled orders, service request resolution rate, custom order conversion rate (all with progress bars)
+- Staff Workload: stacked bar per team member showing orders vs requests assigned, with task counts
+- Orders by Portal: horizontal bar chart showing order counts per portal (not revenue)
+- Cart & Engagement: active carts, abandoned carts, average cart value, pending requests, declined requests, active members
 
 ---
 
 ## Team
 
-- View 4 role overview cards: Super Admin, Operations, Support, Finance (with descriptions)
-- Expand/collapse new team member form
-- Add team member: name, email, phone, role
-- View team table (name, role, status, last active, privilege count)
-- Change a member's role via dropdown
+- View 5 role overview cards: Super Admin, Operations, Support, Finance, Tech (each with icon, description, active member count)
+- "Edit Group Privileges" button on each role card (except Super Admin) to edit permissions for all members of that role at once
+- Info banner: all team members can access their own profile settings regardless of role
+- Expand/collapse new team member form (name, email, phone, role)
+- View team table (name/email, role badge with icon, status, last active, privilege count, actions)
+- Change a member's role via dropdown (resets privileges to role defaults)
 - Toggle member status (Active / Inactive)
-- Open privileges modal for any member
-- **Privileges modal (22 permissions across 4 groups)**:
+- Open individual privileges modal for any member
+- **Individual Privileges modal (34 permissions across 8 groups)**:
   - Users & Orders (7): view users, edit users, deactivate users, view orders, create orders, update order status, issue refunds
+  - Fulfillment & Requests (5): view fulfillment queue, assign tasks/update progress, view service requests, manage requests, view carts
   - Inventory & Products (4): view inventory, add/edit products, remove products, manage stock levels
-  - Finance & Wallet (4): view transactions, manual wallet adjustments, view analytics/reports, export data
-  - Communication & System (7): view broadcasts, send broadcasts, view memberships, configure tiers, view settings, edit platform settings, manage team members
+  - Membership & Referrals (5): view memberships, configure tiers, view benefit usage, view referrals, manage referrals
+  - Finance & Wallet (4): view wallet transactions, manual wallet adjustments, view finance dashboard, generate financial reports
+  - Communication (3): view broadcasts, send broadcasts, retract broadcasts
+  - Analytics & Audit (4): view analytics, export data, view audit log, export audit log
+  - System (2): edit platform settings/portal toggles, manage team members
+- Per-group "Enable all" / "Disable all" toggle with progress bar
 - Save or cancel privilege changes
+- **Group Privileges modal**: edit permissions for an entire role, shows affected members, "Apply to All [Role] Members" button
 
 ---
 
@@ -417,7 +426,7 @@ A unified work management page with 3 tabs for all assigned tasks.
 
 ## Settings
 
-- **Your Profile**: Upload avatar (with camera overlay), edit display name, view email
+- **Your Profile**: Upload avatar (with camera overlay), edit display name, view email — accessible to all team members regardless of role
 - **Platform Settings**: Edit site name, support email, support phone, WhatsApp number
 - **Service Portal Toggles**: Enable/disable each of the 7 portals (Solar, Transport, Groceries, Health, Events, Community, Logistics) with colored indicators
 - **Payment Settings**: Edit Paystack public key (masked input), toggle Test Mode on/off
@@ -430,6 +439,7 @@ These span multiple pages throughout the dashboard:
 
 - Sidebar navigation with 15 sections + mobile hamburger menu
 - Top bar with page title, global search, and notification panel
+- **Notification panel** (topbar bell icon): shows unread count badge, dropdown with latest 10 notifications, type icons (order/wallet/membership/system), read/unread visual distinction (dot + bold), per-notification mark read/unread button, "Mark all read" button, link to full broadcast page
 - Toast notifications for all admin actions (success/error feedback)
 - Responsive design — all pages work on desktop and mobile
 - Data tables with sorting, pagination (10 items per page), and row click navigation
@@ -439,4 +449,4 @@ These span multiple pages throughout the dashboard:
 
 ---
 
-**Total: ~200+ distinct features and actions across 15 main pages and their sub-views.**
+**Total: ~220+ distinct features and actions across 15 main pages and their sub-views.**
