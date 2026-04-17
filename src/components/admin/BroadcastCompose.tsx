@@ -217,8 +217,14 @@ export default function BroadcastCompose() {
           </div>
         )}
 
-        {/* Send button */}
-        <div className="flex justify-end pt-3 border-t border-[#E8ECF1]/60">
+        {/* Send + Draft buttons */}
+        <div className="flex justify-end gap-3 pt-3 border-t border-[#E8ECF1]/60">
+          <button
+            onClick={() => { toast.success("Draft saved"); navigate("/broadcast"); }}
+            className="px-6 py-2.5 border border-[#E2E8F0] text-[#334155] text-sm font-semibold rounded-xl cursor-pointer hover:bg-[#F1F5F9] active:scale-[0.98] transition-all"
+          >
+            Save Draft
+          </button>
           <button
             onClick={handleSend}
             className="px-6 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl cursor-pointer hover:brightness-[0.92] active:scale-[0.98] transition-all"

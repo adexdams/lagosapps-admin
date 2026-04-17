@@ -575,6 +575,304 @@ function generateProducts(): MockProduct[] {
   return products;
 }
 
+// ── Types: Service Requests ─────────────────────
+
+export type ServiceRequestType =
+  | "solar_audit" | "solar_installation" | "solar_maintenance"
+  | "health_home_visit" | "health_check_booking" | "health_consultation"
+  | "event_venue_booking" | "event_training_room" | "event_coverage"
+  | "volunteer" | "sponsorship" | "donation"
+  | "logistics_forwarding";
+
+export type ServiceRequestStatus = "new" | "reviewing" | "scheduled" | "in_progress" | "completed" | "declined";
+
+export interface MockServiceRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  portal: Portal;
+  type: ServiceRequestType;
+  typeLabel: string;
+  status: ServiceRequestStatus;
+  assignedTo: string | null;
+  details: Record<string, string>;
+  declineReason: string | null;
+  notes: { author: string; text: string; date: string }[];
+  createdAt: string;
+  updatedAt: string;
+  [key: string]: unknown;
+}
+
+const SERVICE_REQUEST_TEMPLATES: { type: ServiceRequestType; portal: Portal; label: string; detailsFn: () => Record<string, string> }[] = [
+  { type: "solar_audit", portal: "solar", label: "Free Solar Audit", detailsFn: () => ({ buildingType: randPick(["Standalone", "Duplex", "Flat", "Bungalow", "Factory"]), address: `${randInt(1, 99)} ${randPick(["Allen Ave, Ikeja", "Admiralty Way, Lekki", "Herbert Macaulay, Yaba", "Adeola Odeku, VI", "Ikorodu Road, Maryland"])}`, preferredDate: randDate() }) },
+  { type: "solar_installation", portal: "solar", label: "Installation Request", detailsFn: () => ({ address: `${randInt(1, 99)} ${randPick(["Awolowo Road, Ikoyi", "Bode Thomas, Surulere", "Opebi Road, Ikeja", "Ozumba Mbadiwe, VI"])}`, packageType: randPick(["3.5KW Gel", "5KW Lithium", "7.5KW Lithium", "10KW Lithium", "12KW Lithium"]), preferredDate: randDate(), notes: randPick(["Need to install before rainy season", "Please call before coming", "Gate code: 1234"]) }) },
+  { type: "solar_maintenance", portal: "solar", label: "Maintenance Request", detailsFn: () => ({ address: `${randInt(1, 99)} ${randPick(["Admiralty Way, Lekki", "Allen Ave, Ikeja", "Adeola Odeku, VI"])}`, issue: randPick(["Inverter showing error code", "Battery not holding charge", "Panel output dropped", "Charge controller fault"]), preferredDate: randDate() }) },
+  { type: "health_home_visit", portal: "health", label: "Home Visit", detailsFn: () => ({ address: `${randInt(1, 99)} ${randPick(["Bode Thomas, Surulere", "Allen Ave, Ikeja", "Opebi Road, Ikeja", "Lekki Phase 1"])}`, date: randDate(), people: String(randInt(1, 5)), symptoms: randPick(["Persistent headache and fever for 3 days", "Annual family health screening", "Blood sugar monitoring", "Post-surgery follow-up check"]) }) },
+  { type: "health_check_booking", portal: "health", label: "Free Health Check Booking", detailsFn: () => ({ preferredDate: randDate(), people: String(randInt(1, 4)), tests: randPick(["Full blood count, Malaria", "Blood pressure, Genotype", "Hepatitis B, Blood group", "Pregnancy test, Urinalysis"]) }) },
+  { type: "health_consultation", portal: "health", label: "Wellness Consultation", detailsFn: () => ({ consultationType: randPick(["General wellness", "Nutrition advice", "Fitness assessment", "Mental health"]), preferredDate: randDate(), notes: randPick(["First time visit", "Follow-up from last month", "Referred by Dr. Eze"]) }) },
+  { type: "event_venue_booking", portal: "events", label: "Venue Booking", detailsFn: () => ({ venue: randPick(["Studio", "Conference Room", "Training Room"]), eventDate: randDate(), guests: String(randInt(10, 200)), eventType: randPick(["Wedding reception", "Corporate meeting", "Birthday party", "Product launch", "Networking event"]) }) },
+  { type: "event_training_room", portal: "events", label: "Training Room Booking", detailsFn: () => ({ date: randDate(), duration: randPick(["Half day", "Full day", "2 days", "1 week"]), attendees: String(randInt(10, 50)), purpose: randPick(["Tech workshop", "Team building", "Board meeting", "Certification training"]) }) },
+  { type: "event_coverage", portal: "events", label: "Event Coverage Request", detailsFn: () => ({ services: randPick(["Video + Photography", "Photography only", "Live streaming + Audio", "Full coverage package"]), eventType: randPick(["Wedding", "Conference", "Concert", "Funeral", "Graduation"]), eventDate: randDate(), location: randPick(["Lagos Island", "Lekki", "Ikeja", "Surulere", "Victoria Island"]) }) },
+  { type: "volunteer", portal: "community", label: "Volunteer Application", detailsFn: () => ({ area: randPick(["Community Cleanup", "Tree Planting", "Teaching", "Health Outreach", "Mentoring"]), availability: randPick(["Weekends only", "Flexible", "Mornings only", "Evenings"]), details: randPick(["I'm a medical student and want to help", "Experienced teacher looking to volunteer", "Want to give back to the community", "Available for the next 3 months"]) }) },
+  { type: "sponsorship", portal: "community", label: "Sponsorship Submission", detailsFn: () => ({ sponsorshipType: randPick(["Student Tuition", "Health Screening", "Youth Empowerment", "School Supplies"]), amount: `₦${randInt(10, 500) * 1000}`, frequency: randPick(["One-time", "Monthly", "Quarterly", "Annually"]) }) },
+  { type: "donation", portal: "community", label: "Donation", detailsFn: () => ({ cause: randPick(["Education & Schools", "Youth Empowerment", "Health Interventions", "Community Development"]), amount: `₦${randInt(5, 200) * 1000}`, frequency: randPick(["One-time", "Monthly", "Weekly"]), notes: randPick(["In memory of my father", "Want to sponsor a child", "Anonymous please", ""]) }) },
+  { type: "logistics_forwarding", portal: "logistics", label: "Forwarding Request", detailsFn: () => ({ store: randPick(["Amazon", "AliExpress", "Shein", "Temu", "eBay", "Other"]), itemDescription: randPick(["Laptop and accessories", "3 boxes of clothing", "Phone cases (bulk)", "Kitchen appliances", "Electronics — fragile"]), trackingNumber: `TRK-${randInt(100000, 999999)}`, deliveryAddress: `${randInt(1, 99)} ${randPick(["Allen Ave, Ikeja", "Admiralty Way, Lekki", "Herbert Macaulay, Yaba", "Bode Thomas, Surulere"])}` }) },
+];
+
+const TEAM_NAMES = ["Damola A.", "Chioma E.", "Kunle A.", "Fatima B.", "Emeka E."];
+
+function generateServiceRequests(count: number, users: MockUser[]): MockServiceRequest[] {
+  const statuses: ServiceRequestStatus[] = ["new", "new", "reviewing", "scheduled", "in_progress", "completed", "declined"];
+  const requests: MockServiceRequest[] = [];
+
+  for (let i = 1; i <= count; i++) {
+    const user = randPick(users);
+    const tpl = SERVICE_REQUEST_TEMPLATES[(i - 1) % SERVICE_REQUEST_TEMPLATES.length];
+    const status = randPick(statuses);
+    const created = randDate();
+
+    requests.push({
+      id: padId("REQ", i),
+      userId: user.id,
+      userName: user.name,
+      portal: tpl.portal,
+      type: tpl.type,
+      typeLabel: tpl.label,
+      status,
+      assignedTo: status !== "new" ? randPick(TEAM_NAMES) : null,
+      details: tpl.detailsFn(),
+      declineReason: status === "declined" ? randPick(["Service not available in this area", "Date unavailable", "Duplicate request", "Customer unreachable"]) : null,
+      notes: status !== "new" ? [{ author: randPick(TEAM_NAMES), text: randPick(["Customer confirmed via phone", "Vendor notified", "Parts ordered, awaiting delivery", "Scheduled for next available slot"]), date: randDate() }] : [],
+      createdAt: created,
+      updatedAt: created,
+    });
+  }
+  return requests;
+}
+
+// ── Types: Custom Order Requests ────────────────
+
+export type CustomRequestStatus = "new" | "under_review" | "converted" | "declined";
+
+export interface MockCustomRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  portal: Portal;
+  description: string;
+  status: CustomRequestStatus;
+  convertedOrderId: string | null;
+  declineReason: string | null;
+  notes: { author: string; text: string; date: string }[];
+  createdAt: string;
+  [key: string]: unknown;
+}
+
+function generateCustomRequests(count: number, users: MockUser[]): MockCustomRequest[] {
+  const statuses: CustomRequestStatus[] = ["new", "new", "under_review", "converted", "declined"];
+  const groceryDescs = [
+    "I need 5kg of fresh tomatoes, 2 baskets of peppers, and scotch bonnet. Delivery to Lekki.",
+    "Looking for bulk rice — 4 bags of 50kg long grain plus cooking oil 25L. Need by Saturday.",
+    "Assorted party jollof rice ingredients for 200 guests. Can you put together a package?",
+    "Weekly grocery box: milk, bread, eggs, butter, fruits, and vegetables for a family of 4.",
+    "I need baby food supplies — Cerelac, NAN milk, fruit puree. Monthly subscription if possible.",
+    "Bulk office snacks for 50 people — biscuits, drinks, water, chips. Delivery to VI.",
+    "Fresh fish and seafood for a restaurant. Need regular supply 3x per week.",
+  ];
+  const logisticsDescs = [
+    "2 laptops from Amazon, order already placed. Need delivery to Ikeja.",
+    "Bulk clothing order from Shein, 3 separate packages. Consolidate and deliver.",
+    "Fragile electronics from eBay — please handle with care. Insurance needed.",
+    "4 boxes of kitchen appliances from AliExpress. Expected to arrive in 2 weeks.",
+    "Phone accessories from Temu, small package. Deliver to Surulere.",
+    "Custom furniture parts from Amazon — heavy items, may need special handling.",
+  ];
+  const reqs: MockCustomRequest[] = [];
+
+  for (let i = 1; i <= count; i++) {
+    const user = randPick(users);
+    const portal: Portal = i % 3 === 0 ? "logistics" : "groceries";
+    const desc = portal === "groceries" ? randPick(groceryDescs) : randPick(logisticsDescs);
+    const status = randPick(statuses);
+
+    reqs.push({
+      id: padId("CRQ", i),
+      userId: user.id,
+      userName: user.name,
+      portal,
+      description: desc,
+      status,
+      convertedOrderId: status === "converted" ? padId("ORD", randInt(1, 100)) : null,
+      declineReason: status === "declined" ? randPick(["Items not available", "Delivery area not covered", "Customer did not respond to clarification"]) : null,
+      notes: status !== "new" ? [{ author: randPick(TEAM_NAMES), text: randPick(["Called customer to clarify quantities", "Pricing sent to customer for approval", "Items sourced from vendor"]), date: randDate() }] : [],
+      createdAt: randDate(),
+    });
+  }
+  return reqs;
+}
+
+// ── Types: Live Carts ───────────────────────────
+
+export interface MockCartItem {
+  productId: string;
+  productName: string;
+  portal: Portal;
+  price: number;
+  quantity: number;
+}
+
+export interface MockCart {
+  userId: string;
+  userName: string;
+  userTier: MembershipTier;
+  items: MockCartItem[];
+  lastUpdated: string;
+  createdAt: string;
+  [key: string]: unknown;
+}
+
+function generateCarts(count: number, users: MockUser[], products: MockProduct[]): MockCart[] {
+  const carts: MockCart[] = [];
+  const activeProducts = products.filter((p) => p.status === "active");
+
+  for (let i = 0; i < count; i++) {
+    const user = users[i % users.length];
+    const itemCount = randInt(1, 5);
+    const items: MockCartItem[] = [];
+
+    for (let j = 0; j < itemCount; j++) {
+      const product = randPick(activeProducts);
+      if (!items.find((it) => it.productId === product.id)) {
+        items.push({
+          productId: product.id,
+          productName: product.name,
+          portal: product.portal,
+          price: product.price,
+          quantity: randInt(1, 3),
+        });
+      }
+    }
+
+    const daysAgo = randInt(0, 72);
+    const updated = new Date();
+    updated.setHours(updated.getHours() - daysAgo);
+
+    carts.push({
+      userId: user.id,
+      userName: user.name,
+      userTier: user.membershipTier,
+      items,
+      lastUpdated: updated.toISOString().slice(0, 16).replace("T", " "),
+      createdAt: randDate(),
+    });
+  }
+  return carts;
+}
+
+// ── Types: Benefit Usage ────────────────────────
+
+export interface MockBenefitUsage {
+  userId: string;
+  userName: string;
+  tier: Exclude<MembershipTier, "none">;
+  benefits: { name: string; used: number; limit: number | null; period: string }[];
+  [key: string]: unknown;
+}
+
+const TIER_BENEFITS: Record<string, { name: string; limit: number | null; period: string }[]> = {
+  bronze: [
+    { name: "Free Delivery", limit: 3, period: "month" },
+    { name: "Doctor Consultations", limit: 2, period: "month" },
+    { name: "Order Discount (5%)", limit: 5, period: "month" },
+    { name: "Car Rental Days", limit: 2, period: "quarter" },
+  ],
+  silver: [
+    { name: "Free Delivery", limit: 8, period: "month" },
+    { name: "Doctor Consultations", limit: 5, period: "month" },
+    { name: "Order Discount (10%)", limit: 10, period: "month" },
+    { name: "Car Rental Days", limit: 5, period: "quarter" },
+    { name: "Event Venue Discount", limit: 2, period: "quarter" },
+  ],
+  gold: [
+    { name: "Free Delivery", limit: null, period: "month" },
+    { name: "Doctor Consultations", limit: null, period: "month" },
+    { name: "Order Discount (15%)", limit: null, period: "month" },
+    { name: "Car Rental Days", limit: 10, period: "quarter" },
+    { name: "Event Venue Discount", limit: 5, period: "quarter" },
+    { name: "Priority Support", limit: null, period: "month" },
+  ],
+};
+
+function generateBenefitUsage(subs: MockSubscription[]): MockBenefitUsage[] {
+  return subs
+    .filter((s) => s.status === "active")
+    .map((s) => {
+      const tierBenefits = TIER_BENEFITS[s.tier] || [];
+      return {
+        userId: s.userId,
+        userName: s.userName,
+        tier: s.tier,
+        benefits: tierBenefits.map((b) => ({
+          name: b.name,
+          used: b.limit ? randInt(0, b.limit) : randInt(0, 15),
+          limit: b.limit,
+          period: b.period,
+        })),
+      };
+    });
+}
+
+// ── Types: User Notifications ───────────────────
+
+export interface MockUserNotification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: "order" | "wallet" | "membership" | "system" | "broadcast";
+  read: boolean;
+  retracted: boolean;
+  createdAt: string;
+  [key: string]: unknown;
+}
+
+function generateUserNotifications(users: MockUser[]): MockUserNotification[] {
+  const templates: { title: string; message: string; type: MockUserNotification["type"] }[] = [
+    { title: "Order Confirmed", message: "Your order ORD-042 has been confirmed and is being processed.", type: "order" },
+    { title: "Wallet Top-up Successful", message: "₦50,000 has been added to your wallet.", type: "wallet" },
+    { title: "Membership Renewed", message: "Your Silver membership has been renewed until July 2026.", type: "membership" },
+    { title: "Order Delivered", message: "Your Groceries order has been delivered. Rate your experience!", type: "order" },
+    { title: "Referral Bonus", message: "You earned ₦2,000 referral bonus! Your friend joined LagosApps.", type: "wallet" },
+    { title: "Easter Sale!", message: "Get 20% off all Groceries this weekend. Shop now!", type: "broadcast" },
+    { title: "New Service Available", message: "Ambulance service coming soon to Health portal.", type: "system" },
+    { title: "Payment Failed", message: "Your card payment for ORD-039 failed. Please retry.", type: "wallet" },
+    { title: "Membership Expiring", message: "Your Bronze membership expires in 3 days. Renew now!", type: "membership" },
+    { title: "Free Health Check", message: "Free health screening this Friday at our Ikeja centre.", type: "broadcast" },
+  ];
+
+  const notifs: MockUserNotification[] = [];
+  let idx = 1;
+
+  for (const user of users.slice(0, 20)) {
+    const count = randInt(3, 8);
+    for (let j = 0; j < count; j++) {
+      const tpl = randPick(templates);
+      notifs.push({
+        id: padId("UNT", idx),
+        userId: user.id,
+        title: tpl.title,
+        message: tpl.message,
+        type: tpl.type,
+        read: Math.random() > 0.4,
+        retracted: false,
+        createdAt: randDate(),
+      });
+      idx++;
+    }
+  }
+  return notifs;
+}
+
 // ── Generate all data ─────────────────────────
 
 export const mockUsers = generateUsers(50);
@@ -585,6 +883,11 @@ export const mockNotifications = generateNotifications(20);
 export const mockAuditLog = generateAuditLog(50);
 export const mockSubscriptions = generateSubscriptions(40, mockUsers);
 export const mockProducts = generateProducts();
+export const mockServiceRequests = generateServiceRequests(40, mockUsers);
+export const mockCustomRequests = generateCustomRequests(15, mockUsers);
+export const mockCarts = generateCarts(18, mockUsers, mockProducts);
+export const mockBenefitUsage = generateBenefitUsage(mockSubscriptions);
+export const mockUserNotifications = generateUserNotifications(mockUsers);
 
 // ── Utility exports ───────────────────────────
 

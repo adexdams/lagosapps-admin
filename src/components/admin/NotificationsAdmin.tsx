@@ -1,10 +1,16 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import DataTable, { type Column } from "./shared/DataTable";
 import FilterBar, { type FilterConfig } from "./shared/FilterBar";
 import { mockNotifications, formatDate, type MockNotification } from "../../data/adminMockData";
 
-type NotifRow = MockNotification & Record<string, unknown>;
+const TYPE_CONFIG: Record<string, { bg: string; text: string; icon: string }> = {
+  order: { bg: "#FFF7ED", text: "#EA580C", icon: "receipt_long" },
+  wallet: { bg: "#EFF6FF", text: "#2563EB", icon: "account_balance_wallet" },
+  membership: { bg: "#F5F3FF", text: "#7C3AED", icon: "card_membership" },
+  system: { bg: "#F1F5F9", text: "#64748B", icon: "settings" },
+};
+
+const card = "bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60";
 
 export default function NotificationsAdmin() {
   const navigate = useNavigate();
@@ -17,51 +23,8 @@ export default function NotificationsAdmin() {
     return matchSearch && matchType;
   });
 
-  const columns: Column<NotifRow>[] = [
-    {
-      key: "title",
-      label: "Title",
-      sortable: true,
-      render: (row) => <span className="text-sm font-semibold text-[#0F172A]">{row.title}</span>,
-    },
-    {
-      key: "type",
-      label: "Type",
-      render: (row) => {
-        const typeColors: Record<string, { bg: string; text: string }> = {
-          order: { bg: "#FFF7ED", text: "#EA580C" },
-          wallet: { bg: "#EFF6FF", text: "#2563EB" },
-          membership: { bg: "#F5F3FF", text: "#7C3AED" },
-          system: { bg: "#F1F5F9", text: "#64748B" },
-        };
-        const t = row.type as string;
-        const colors = typeColors[t] ?? { bg: "#F1F5F9", text: "#64748B" };
-        return (
-          <span className="inline-block px-2.5 py-1 rounded-lg text-[11px] font-semibold uppercase" style={{ backgroundColor: colors.bg, color: colors.text }}>
-            {t}
-          </span>
-        );
-      },
-    },
-    {
-      key: "read",
-      label: "Read",
-      align: "center",
-      hideOnMobile: true,
-      render: (row) => (
-        <span className={`material-symbols-outlined text-[18px] ${(row.read as boolean) ? "text-[#059669]" : "text-[#94A3B8]"}`}>
-          {(row.read as boolean) ? "mark_email_read" : "mail"}
-        </span>
-      ),
-    },
-    {
-      key: "createdAt",
-      label: "Date",
-      sortable: true,
-      hideOnMobile: true,
-      render: (row) => <span className="text-[13px] text-[#64748B] whitespace-nowrap">{formatDate(row.createdAt as string)}</span>,
-    },
-  ];
+  const readCount = mockNotifications.filter((n) => n.read).length;
+  const unreadCount = mockNotifications.length - readCount;
 
   const filters: FilterConfig[] = [
     {
@@ -83,7 +46,9 @@ export default function NotificationsAdmin() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-[#0F172A]">Broadcast</h1>
-          <p className="text-sm text-[#64748B] mt-0.5">Broadcast history and notifications</p>
+          <p className="text-sm text-[#64748B] mt-0.5">
+            {mockNotifications.length} broadcasts · {readCount} read by users · {unreadCount} unread
+          </p>
         </div>
         <button
           onClick={() => navigate("/broadcast/compose")}
@@ -101,12 +66,62 @@ export default function NotificationsAdmin() {
         filters={filters}
       />
 
-      <DataTable<NotifRow>
-        columns={columns}
-        data={filtered as NotifRow[]}
-        onRowClick={(row) => navigate(`/broadcast/${row.id}`)}
-        pageSize={10}
-      />
+      <div className={`${card} overflow-hidden`}>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs sm:text-sm">
+            <thead>
+              <tr className="bg-[#F8FAFC]">
+                <th className="px-2.5 sm:px-4 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left">Title</th>
+                <th className="px-2.5 sm:px-4 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-center">Type</th>
+                <th className="px-2.5 sm:px-4 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-center hidden sm:table-cell">User Read Rate</th>
+                <th className="px-2.5 sm:px-4 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left hidden md:table-cell">Date</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#F1F5F9]">
+              {filtered.length === 0 ? (
+                <tr><td colSpan={4} className="px-5 py-12 text-center text-[#94A3B8]">No broadcasts found</td></tr>
+              ) : (
+                filtered.map((n: MockNotification) => {
+                  const tc = TYPE_CONFIG[n.type] ?? TYPE_CONFIG.system;
+                  // Simulate a user read rate per broadcast
+                  const readPct = n.read ? 85 : 42;
+                  return (
+                    <tr
+                      key={n.id}
+                      onClick={() => navigate(`/broadcast/${n.id}`)}
+                      className="hover:bg-[#F8FAFC] transition-colors cursor-pointer"
+                    >
+                      {/* Title + message preview */}
+                      <td className="px-2.5 sm:px-4 py-3">
+                        <p className="text-sm font-semibold text-[#0F172A] truncate max-w-[250px] sm:max-w-none">{n.title}</p>
+                        <p className="text-[12px] text-[#64748B] truncate max-w-[250px] sm:max-w-[400px] mt-0.5">{n.message}</p>
+                      </td>
+                      {/* Type */}
+                      <td className="px-2.5 sm:px-4 py-3 text-center">
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg" style={{ backgroundColor: tc.bg }}>
+                          <span className="material-symbols-outlined text-[14px]" style={{ color: tc.text }}>{tc.icon}</span>
+                          <span className="text-[11px] font-semibold uppercase" style={{ color: tc.text }}>{n.type}</span>
+                        </div>
+                      </td>
+                      {/* User read rate */}
+                      <td className="px-2.5 sm:px-4 py-3 hidden sm:table-cell">
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-16 h-2 bg-[#F1F5F9] rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full ${readPct >= 70 ? "bg-[#059669]" : readPct >= 40 ? "bg-[#EA580C]" : "bg-[#DC2626]"}`} style={{ width: `${readPct}%` }} />
+                          </div>
+                          <span className={`text-[12px] font-semibold ${readPct >= 70 ? "text-[#059669]" : readPct >= 40 ? "text-[#EA580C]" : "text-[#DC2626]"}`}>{readPct}%</span>
+                        </div>
+                      </td>
+                      {/* Date */}
+                      <td className="px-2.5 sm:px-4 py-3 text-[#64748B] hidden md:table-cell whitespace-nowrap">{formatDate(n.createdAt)}</td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }

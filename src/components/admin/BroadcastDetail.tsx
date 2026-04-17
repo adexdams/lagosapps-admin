@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useToast } from "../../hooks/useToast";
 import { mockNotifications, formatDate } from "../../data/adminMockData";
 
 const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
@@ -11,6 +13,9 @@ const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
 export default function BroadcastDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const toast = useToast();
+  const [broadcastStatus, setBroadcastStatus] = useState<"sent" | "retracted">("sent");
+  const [showRetractConfirm, setShowRetractConfirm] = useState(false);
 
   const notif = mockNotifications.find((n) => n.id === id);
 
@@ -54,6 +59,52 @@ export default function BroadcastDetail() {
               </span>
             </div>
             <p className="text-sm text-[#334155] leading-relaxed">{notif.message}</p>
+            {broadcastStatus === "retracted" && (
+              <div className="mt-3 p-3 bg-red-50 rounded-lg">
+                <p className="text-sm text-red-600 font-semibold">This broadcast has been retracted</p>
+              </div>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-3.5 sm:p-5">
+            <h3 className="text-sm font-bold text-[#0F172A] mb-3">Actions</h3>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => navigate("/broadcast/compose")}
+                className="px-4 py-2 rounded-xl text-sm font-semibold bg-primary text-white hover:bg-primary/90 cursor-pointer transition-all"
+              >
+                <span className="material-symbols-outlined text-[16px] mr-1 align-text-bottom">replay</span>
+                Resend
+              </button>
+              {broadcastStatus === "sent" && (
+                <button
+                  onClick={() => setShowRetractConfirm(true)}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold bg-orange-50 text-orange-600 hover:bg-orange-100 cursor-pointer transition-all"
+                >
+                  <span className="material-symbols-outlined text-[16px] mr-1 align-text-bottom">undo</span>
+                  Retract
+                </button>
+              )}
+              {broadcastStatus === "retracted" && (
+                <button
+                  onClick={() => { toast.success("Broadcast deleted"); navigate("/broadcast"); }}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer transition-all"
+                >
+                  <span className="material-symbols-outlined text-[16px] mr-1 align-text-bottom">delete</span>
+                  Delete
+                </button>
+              )}
+            </div>
+            {showRetractConfirm && (
+              <div className="mt-3 p-3 bg-orange-50 rounded-xl space-y-2">
+                <p className="text-sm text-orange-800">Users who haven't read this notification will no longer see it. Users who already read it will see a retraction notice.</p>
+                <div className="flex gap-2">
+                  <button onClick={() => { setBroadcastStatus("retracted"); setShowRetractConfirm(false); toast.success("Broadcast retracted"); }} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-orange-600 text-white hover:bg-orange-700 cursor-pointer">Confirm Retract</button>
+                  <button onClick={() => setShowRetractConfirm(false)} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[#64748B] hover:text-[#0F172A] cursor-pointer">Cancel</button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Delivery stats */}

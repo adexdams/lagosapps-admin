@@ -36,6 +36,25 @@ const COLOR_MAP: Record<string, { bg: string; text: string }> = {
 
   // Fulfillment
   out_of_stock: { bg: "#FEF2F2", text: "#DC2626" },
+
+  // Service Requests
+  new: { bg: "#EFF6FF", text: "#2563EB" },
+  reviewing: { bg: "#FFF7ED", text: "#EA580C" },
+  scheduled: { bg: "#F5F3FF", text: "#7C3AED" },
+  in_progress: { bg: "#FFF7ED", text: "#EA580C" },
+  declined: { bg: "#FEF2F2", text: "#DC2626" },
+
+  // Custom orders
+  under_review: { bg: "#FFF7ED", text: "#EA580C" },
+  converted: { bg: "#ECFDF5", text: "#059669" },
+
+  // Broadcast
+  retracted: { bg: "#FEF2F2", text: "#DC2626" },
+  draft: { bg: "#F1F5F9", text: "#94A3B8" },
+  sent: { bg: "#ECFDF5", text: "#059669" },
+
+  // Notification types (extended)
+  broadcast: { bg: "#F5F3FF", text: "#7C3AED" },
 };
 
 const FALLBACK = { bg: "#F1F5F9", text: "#64748B" };

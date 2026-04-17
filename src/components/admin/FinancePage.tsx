@@ -4,7 +4,7 @@ import DataTable, { type Column } from "./shared/DataTable";
 import FilterBar, { type FilterConfig } from "./shared/FilterBar";
 import StatusBadge from "./shared/StatusBadge";
 import { useToast } from "../../hooks/useToast";
-import { mockOrders, mockWalletTxns, formatNaira, formatDate, PORTAL_LABELS, PORTAL_COLORS, type Portal } from "../../data/adminMockData";
+import { mockOrders, mockWalletTxns, formatNaira, formatDate, type Portal } from "../../data/adminMockData";
 
 /* ── Mock Paystack transactions ─────────────────────────────────────────────── */
 
@@ -110,17 +110,23 @@ const channelBreakdown = (() => {
   return Object.entries(map).sort((a, b) => b[1].amount - a[1].amount);
 })();
 
-const portalRevenue = (() => {
-  const map: Record<string, number> = {};
-  successTxns.forEach((t) => { map[t.portal] = (map[t.portal] || 0) + t.amount; });
-  return Object.entries(map).sort((a, b) => b[1] - a[1]) as [Portal, number][];
-})();
-
-const dailyRevenue = (() => {
-  const map: Record<string, number> = {};
-  successTxns.forEach((t) => { map[t.createdAt] = (map[t.createdAt] || 0) + t.amount; });
-  return Object.entries(map).sort((a, b) => a[0].localeCompare(b[0])).slice(-14);
-})();
+// Realistic daily revenue with clear variation (last 14 days)
+const dailyRevenue: [string, number][] = [
+  ["2026-04-01", 320000],
+  ["2026-04-02", 185000],
+  ["2026-04-03", 540000],
+  ["2026-04-04", 410000],
+  ["2026-04-05", 95000],
+  ["2026-04-06", 120000],
+  ["2026-04-07", 680000],
+  ["2026-04-08", 450000],
+  ["2026-04-09", 290000],
+  ["2026-04-10", 820000],
+  ["2026-04-11", 560000],
+  ["2026-04-12", 150000],
+  ["2026-04-13", 75000],
+  ["2026-04-14", 730000],
+];
 
 const walletCredits = mockWalletTxns.filter((t) => t.type === "credit").reduce((s, t) => s + t.amount, 0);
 const walletDebits = mockWalletTxns.filter((t) => t.type === "debit").reduce((s, t) => s + t.amount, 0);
@@ -156,7 +162,6 @@ export default function FinancePage() {
   }, [txnSearch, txnStatus, txnChannel]);
 
   const maxDaily = Math.max(...dailyRevenue.map(([, v]) => v), 1);
-  const maxPortal = portalRevenue.length > 0 ? portalRevenue[0][1] : 1;
 
   const txnColumns: Column<PaystackTxn>[] = [
     { key: "reference", label: "Reference", render: (row) => <span className="font-mono text-[11px] sm:text-[12px] text-[#0F172A] font-semibold truncate block max-w-[120px] sm:max-w-none">{row.reference}</span> },
@@ -250,18 +255,18 @@ export default function FinancePage() {
                 </div>
                 <span className="text-sm font-bold text-[#0F172A]">{formatNaira(totalRevenue)}</span>
               </div>
-              <div className="flex items-end gap-[3px] sm:gap-1.5 h-36 sm:h-44">
+              <div className="flex items-end gap-[3px] sm:gap-1.5">
                 {dailyRevenue.map(([date, amount]) => {
-                  const pct = (amount / maxDaily) * 100;
+                  const pct = Math.max((amount / maxDaily) * 100, 4);
                   return (
-                    <div key={date} className="flex-1 flex flex-col items-center gap-1 group">
-                      <span className="text-[9px] font-semibold text-[#64748B] opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block">
+                    <div key={date} className="flex-1 min-w-0 flex flex-col items-center gap-1 group">
+                      <span className="text-[9px] font-semibold text-[#64748B] opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block truncate max-w-full">
                         {formatNaira(amount)}
                       </span>
-                      <div className="w-full flex-1 flex items-end">
+                      <div className="w-full relative h-36 sm:h-44">
                         <div
-                          className="w-full rounded-full bg-gradient-to-t from-primary to-primary/50 group-hover:from-primary group-hover:to-primary/70 transition-all"
-                          style={{ height: `${Math.max(pct, 3)}%`, minHeight: "3px" }}
+                          className="absolute bottom-0 inset-x-0.5 rounded-t-md bg-gradient-to-t from-primary to-primary/50 group-hover:from-primary group-hover:to-primary/70 transition-all"
+                          style={{ height: `${pct}%` }}
                         />
                       </div>
                       <span className="text-[9px] sm:text-[10px] text-[#94A3B8] font-medium">{date.slice(8)}</span>
@@ -301,33 +306,8 @@ export default function FinancePage() {
             </div>
           </div>
 
-          {/* Portal revenue + Wallet summary */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
-            {/* Portal revenue */}
-            <div className={`${card} p-3.5 sm:p-5 md:p-6`}>
-              <h3 className="text-sm font-semibold text-[#0F172A] mb-5">Revenue by Portal</h3>
-              <div className="space-y-3.5">
-                {portalRevenue.map(([portal, amount]) => {
-                  const pct = Math.round((amount / maxPortal) * 100);
-                  return (
-                    <div key={portal}>
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-2">
-                          <span className="size-2.5 rounded-full" style={{ backgroundColor: PORTAL_COLORS[portal] }} />
-                          <span className="text-[12px] sm:text-[13px] font-medium text-[#334155]">{PORTAL_LABELS[portal]}</span>
-                        </div>
-                        <span className="text-[12px] sm:text-[13px] font-bold text-[#0F172A]">{formatNaira(amount)}</span>
-                      </div>
-                      <div className="h-2 bg-[#F1F5F9] rounded-full overflow-hidden">
-                        <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: PORTAL_COLORS[portal] }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Wallet summary */}
+          {/* Wallet summary */}
+          <div className="grid grid-cols-1 gap-3 sm:gap-4 md:gap-6">
             <div className={`${card} p-3.5 sm:p-5 md:p-6`}>
               <h3 className="text-sm font-semibold text-[#0F172A] mb-5">Wallet Activity</h3>
               <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-5">
