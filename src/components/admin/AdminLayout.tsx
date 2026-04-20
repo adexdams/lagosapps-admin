@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Routes, Route, NavLink, useLocation } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
 
 import AdminOverview from "./AdminOverview";
 import UsersPage from "./UsersPage";
@@ -46,7 +47,8 @@ const navItems = [
 export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
-  const initials = "AD";
+  const { profile, signOut } = useAuth();
+  const initials = profile?.name?.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "AD";
 
   const currentPage = navItems.find((item) => item.path === location.pathname)?.label || "Overview";
 
@@ -150,14 +152,17 @@ export default function AdminLayout() {
           <NotificationPanel />
 
           {/* Admin avatar */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 group relative">
             <div className="size-9 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white font-bold text-xs shadow-sm">
               {initials}
             </div>
             <div className="hidden sm:block">
-              <p className="text-sm font-semibold text-[#0F172A] leading-tight">Admin</p>
-              <p className="text-[11px] text-[#94A3B8]">Super Admin</p>
+              <p className="text-sm font-semibold text-[#0F172A] leading-tight">{profile?.name || "Admin"}</p>
+              <p className="text-[11px] text-[#94A3B8] capitalize">{profile?.teamRole?.replace("_", " ") || "Admin"}</p>
             </div>
+            <button onClick={signOut} className="hidden sm:flex size-8 items-center justify-center rounded-lg hover:bg-[#FEF2F2] text-[#94A3B8] hover:text-[#DC2626] cursor-pointer transition-colors" title="Sign out">
+              <span className="material-symbols-outlined text-[18px]">logout</span>
+            </button>
           </div>
         </header>
 

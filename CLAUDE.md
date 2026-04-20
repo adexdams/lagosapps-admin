@@ -119,6 +119,16 @@ The `src/index.css` contains the full Tailwind theme from the main LagosApps app
 - **Mock data**: All data comes from `src/data/adminMockData.ts` until backend is ready
 - **No backend yet**: Everything is frontend-only with mock data. Design for easy API replacement later.
 
+## Implementation Plan Tracking
+
+After completing work that finishes a milestone (or a significant step within a milestone) from `docs/IMPLEMENTATION_PLAN.md`, **always update the implementation plan** before reporting the work as done:
+- Mark completed steps with checkboxes or strikethrough
+- Note what was actually delivered (may differ from what was originally planned)
+- Update the "Current State" section if it exists
+- If a milestone is fully complete, mark it as done and note the date
+
+This applies to any commit that advances the implementation — not just final milestone commits.
+
 ## Related Repository
 
 The user-facing app lives at: https://github.com/adexdams/lagosapps
