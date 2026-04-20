@@ -131,4 +131,70 @@ This applies to any commit that advances the implementation — not just final m
 
 ## Related Repository
 
-The user-facing app lives at: https://github.com/adexdams/lagosapps
+The user-facing app lives at: <https://github.com/adexdams/lagosapps>
+
+### Shared Supabase Backend
+
+Both repos connect to the same Supabase project:
+
+- **Project ref**: `uhrlsvnmoemrakwfrjyf`
+- **Region**: West EU (Ireland)
+- **URL**: `https://uhrlsvnmoemrakwfrjyf.supabase.co`
+
+**This admin repo owns the database schema.** All migrations live in `supabase/migrations/`. The user-facing repo must NOT create its own migrations — any schema change goes here and is applied via `supabase db push`, after which both apps see it immediately.
+
+The user-facing repo's `supabase/migrations/001_profiles.sql` is marked superseded — its functionality is now part of this repo's migration `20260420120400_align_with_auth_users.sql`.
+
+### Canonical User Table
+
+Users are stored in the `profiles` table, which extends Supabase's built-in `auth.users`. A trigger (`handle_new_user`) auto-creates a `profiles` row whenever someone signs up via Supabase Auth. The `profiles.role` column is either `user`, `admin`, or `super_admin` — this is what the `AdminRoute` guard checks.
+
+### Admin → User Flow
+
+Admins in this dashboard control what customers see on the user-facing app:
+
+| Action here | Effect on user app |
+|---|---|
+| Add/edit/disable product in Inventory | Product appears/updates/disappears in the relevant portal |
+| Change product price | New price reflected at checkout |
+| Toggle a portal off in Settings | That portal becomes unavailable on the user app |
+| Edit membership tier pricing | New prices shown on the tier cards |
+| Edit tier benefits | New benefits shown on membership pages |
+| Send a Broadcast | User receives it in their notifications inbox + email via Resend |
+| Update order status | User's order timeline updates (realtime) |
+| Issue a refund | User's wallet is credited; transaction appears in their history |
+| Adjust user wallet manually | Transaction logged and visible in user's wallet history |
+| Extend/cancel a subscription | User's membership reflects the new status |
+| Retract a broadcast | Unread users stop seeing it; read users see a retraction notice |
+| Convert a service request to an order | Order appears in user's order history |
+
+### User → Admin Flow
+
+Every customer action creates records visible in this dashboard:
+
+| User action (other repo) | Where it appears here |
+|---|---|
+| Signs up | `profiles` row → Users page |
+| Adds items to cart | `carts` + `cart_items` → Live Carts page |
+| Abandons cart | Abandoned Carts tab → admin can send reminder |
+| Places order | `orders` row → Orders + Fulfillment queue |
+| Submits Solar audit / Health visit / Event booking / etc. | `service_requests` → Fulfillment > Service Requests |
+| Submits freeform grocery/logistics request | `custom_order_requests` → Fulfillment > Custom Orders |
+| Tops up wallet | `wallet_transactions` → Wallet page |
+| Subscribes to membership | `membership_subscriptions` → Membership page |
+| Uses a membership benefit | `membership_benefit_usage` increments → Benefit Usage tab |
+| Shares referral link, referred user joins | `referrals` → Referrals page |
+| Reads a broadcast | `broadcast_recipients.read = true` → affects read rate shown on Broadcast Detail |
+
+### Row-Level Security
+
+Every table has RLS enabled. Users can only see their own rows (via `auth.uid() = user_id` policies). Admins get elevated access through the `is_admin()` helper function. This means API calls from either app are filtered at the database level — no frontend filtering bug can leak another user's data.
+
+### Key Files for Cross-Repo Awareness
+
+- `supabase/migrations/` — the canonical schema (5 migrations, 35 tables, RLS policies, seed data)
+- `src/lib/supabase.ts` — Supabase client initialization
+- `src/lib/api.ts` — typed wrapper functions for every database operation
+- `src/components/AuthProvider.tsx` — loads profile + team privileges on login
+- `src/components/admin/AdminRoute.tsx` — enforces `role IN ('admin', 'super_admin')`
+- `docs/IMPLEMENTATION_PLAN.md` — 9-milestone rollout plan covering both repos

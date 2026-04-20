@@ -16,12 +16,12 @@ export default function AuthProvider({ children }: Props) {
   const loadProfile = useCallback(async (userId: string) => {
     // Load user profile
     const { data: userData } = await supabase
-      .from("users")
+      .from("profiles")
       .select("id, name, email, avatar_url, role")
       .eq("id", userId)
       .single();
 
-    if (!userData || userData.role !== "admin") {
+    if (!userData || (userData.role !== "admin" && userData.role !== "super_admin")) {
       setProfile(null);
       return;
     }

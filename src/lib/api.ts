@@ -21,15 +21,15 @@ export function onAuthStateChange(callback: (event: string, session: unknown) =>
 // ── Users ───────────────────────────────────────────────────
 
 export async function getUsers() {
-  return supabase.from("users").select("*").order("created_at", { ascending: false });
+  return supabase.from("profiles").select("*").order("created_at", { ascending: false });
 }
 
 export async function getUser(id: string) {
-  return supabase.from("users").select("*").eq("id", id).single();
+  return supabase.from("profiles").select("*").eq("id", id).single();
 }
 
 export async function updateUser(id: string, data: Record<string, unknown>) {
-  return supabase.from("users").update(data).eq("id", id);
+  return supabase.from("profiles").update(data).eq("id", id);
 }
 
 // ── Orders ──────────────────────────────────────────────────
@@ -115,7 +115,7 @@ export async function updateMembershipTier(id: string, data: Record<string, unkn
 }
 
 export async function getSubscriptions() {
-  return supabase.from("membership_subscriptions").select("*, users(name, email, avatar_url)").order("created_at", { ascending: false });
+  return supabase.from("membership_subscriptions").select("*, profiles(name, email, avatar_url)").order("created_at", { ascending: false });
 }
 
 export async function getBenefitUsage(userId?: string) {
@@ -157,7 +157,7 @@ export async function updateCustomRequest(id: string, data: Record<string, unkno
 // ── Fulfillment ─────────────────────────────────────────────
 
 export async function getFulfillmentTracking() {
-  return supabase.from("fulfillment_tracking").select("*, orders(*, users(name)), fulfillment_notes(*)").order("created_at", { ascending: false });
+  return supabase.from("fulfillment_tracking").select("*, orders(*, profiles(name)), fulfillment_notes(*)").order("created_at", { ascending: false });
 }
 
 export async function updateFulfillmentTracking(id: string, data: Record<string, unknown>) {
@@ -167,7 +167,7 @@ export async function updateFulfillmentTracking(id: string, data: Record<string,
 // ── Carts ───────────────────────────────────────────────────
 
 export async function getCarts() {
-  return supabase.from("carts").select("*, cart_items(*), users(name, email, membership_tier, avatar_url)").order("updated_at", { ascending: false });
+  return supabase.from("carts").select("*, cart_items(*), profiles(name, email, membership_tier, avatar_url)").order("updated_at", { ascending: false });
 }
 
 // ── Broadcasts ──────────────────────────────────────────────
@@ -221,7 +221,7 @@ export async function getUserNotifications(userId: string) {
 // ── Team ────────────────────────────────────────────────────
 
 export async function getTeamMembers() {
-  return supabase.from("admin_team_members").select("*, users(name, email, avatar_url), admin_team_privileges(*)").order("created_at");
+  return supabase.from("admin_team_members").select("*, profiles(name, email, avatar_url), admin_team_privileges(*)").order("created_at");
 }
 
 export async function createTeamMember(data: Record<string, unknown>) {
@@ -239,7 +239,7 @@ export async function upsertTeamPrivileges(privileges: Record<string, unknown>[]
 // ── Audit Log ───────────────────────────────────────────────
 
 export async function getAuditLog() {
-  return supabase.from("admin_audit_log").select("*, users(name)").order("created_at", { ascending: false });
+  return supabase.from("admin_audit_log").select("*, profiles(name)").order("created_at", { ascending: false });
 }
 
 export async function createAuditEntry(data: Record<string, unknown>) {
