@@ -29,6 +29,43 @@ export async function sendEmail(options: SendEmailOptions) {
   return data as { success: true; id: string } | { error: string };
 }
 
+export interface InlineTemplate {
+  subject: string;
+  heading: string;
+  body_html: string;
+  banner_url?: string | null;
+}
+
+/**
+ * Preview an email without sending — returns the fully rendered HTML
+ * and subject as it would appear in a recipient's inbox.
+ *
+ * Pass `inlineTemplate` to preview unsaved edits; otherwise the live
+ * database template is used.
+ */
+export async function previewEmail(options: {
+  template: string;
+  data?: Record<string, unknown>;
+  inlineTemplate?: InlineTemplate;
+  customSubject?: string;
+  customHtml?: string;
+}): Promise<{ subject: string; html: string } | { error: string }> {
+  const { data: result, error } = await supabase.functions.invoke("send-email", {
+    body: {
+      template: options.template,
+      data: options.data,
+      inlineTemplate: options.inlineTemplate,
+      subject: options.customSubject,
+      html: options.customHtml,
+      dryRun: true,
+    },
+  });
+  if (error) return { error: error.message };
+  const r = result as { success: boolean; subject?: string; html?: string; error?: string };
+  if (r.error) return { error: r.error };
+  return { subject: r.subject ?? "", html: r.html ?? "" };
+}
+
 // Convenience helpers — one per template
 
 export async function sendWelcomeEmail(to: string, name: string, referralCode: string) {

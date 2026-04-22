@@ -32,12 +32,21 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+interface InlineTemplate {
+  subject: string;
+  heading: string;
+  body_html: string;
+  banner_url?: string | null;
+}
+
 interface EmailPayload {
   template: string;
-  to: string | string[];
+  to?: string | string[];
   data?: Record<string, unknown>;
   subject?: string;
   html?: string;
+  dryRun?: boolean; // if true, return rendered HTML instead of sending
+  inlineTemplate?: InlineTemplate; // preview unsaved edits without hitting DB
 }
 
 interface TemplateRow {
@@ -104,8 +113,14 @@ serve(async (req: Request) => {
 
     const payload: EmailPayload = await req.json();
 
-    if (!payload.to || !payload.template) {
-      return new Response(JSON.stringify({ error: "Missing 'to' or 'template' field" }), {
+    if (!payload.template) {
+      return new Response(JSON.stringify({ error: "Missing 'template' field" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (!payload.dryRun && !payload.to) {
+      return new Response(JSON.stringify({ error: "Missing 'to' field (required unless dryRun)" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -124,33 +139,53 @@ serve(async (req: Request) => {
         content: payload.html,
       });
     } else {
-      // Fetch template from DB
-      const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-        auth: { persistSession: false },
-      });
+      let tpl: TemplateRow;
+      let logoUrl = DEFAULT_LOGO_URL;
 
-      const { data: tpl, error: tplError } = await admin
-        .from("email_templates")
-        .select("key, subject, banner_url, heading, body_html")
-        .eq("key", payload.template)
-        .eq("is_active", true)
-        .single<TemplateRow>();
+      if (payload.inlineTemplate) {
+        // Inline template provided — use it directly (for previewing unsaved edits)
+        tpl = {
+          key: payload.template,
+          subject: payload.inlineTemplate.subject,
+          heading: payload.inlineTemplate.heading,
+          body_html: payload.inlineTemplate.body_html,
+          banner_url: payload.inlineTemplate.banner_url ?? null,
+        };
+        // Still fetch the logo since admin may have set one globally
+        const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+        const { data: logoSetting } = await admin
+          .from("platform_settings")
+          .select("value")
+          .eq("key", "email_logo_url")
+          .maybeSingle();
+        if (logoSetting?.value) logoUrl = logoSetting.value as string;
+      } else {
+        // Fetch template from DB
+        const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
-      if (tplError || !tpl) {
-        return new Response(JSON.stringify({ error: `Template '${payload.template}' not found or inactive` }), {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        const { data: dbTpl, error: tplError } = await admin
+          .from("email_templates")
+          .select("key, subject, banner_url, heading, body_html")
+          .eq("key", payload.template)
+          .eq("is_active", true)
+          .single<TemplateRow>();
+
+        if (tplError || !dbTpl) {
+          return new Response(JSON.stringify({ error: `Template '${payload.template}' not found or inactive` }), {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        tpl = dbTpl;
+
+        const { data: logoSetting } = await admin
+          .from("platform_settings")
+          .select("value")
+          .eq("key", "email_logo_url")
+          .maybeSingle();
+        if (logoSetting?.value) logoUrl = logoSetting.value as string;
       }
-
-      // Fetch global logo override from platform_settings (optional)
-      const { data: logoSetting } = await admin
-        .from("platform_settings")
-        .select("value")
-        .eq("key", "email_logo_url")
-        .maybeSingle();
-
-      const logoUrl = (logoSetting?.value as string) || DEFAULT_LOGO_URL;
 
       // Interpolate variables
       subject = interpolate(tpl.subject, data);
@@ -163,6 +198,14 @@ serve(async (req: Request) => {
         logoUrl,
         bannerUrl: tpl.banner_url,
         content,
+      });
+    }
+
+    // Dry run — return rendered HTML without sending
+    if (payload.dryRun) {
+      return new Response(JSON.stringify({ success: true, dryRun: true, subject, html }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 

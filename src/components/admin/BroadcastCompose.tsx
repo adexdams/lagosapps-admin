@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../../hooks/useToast";
 import { mockUsers } from "../../data/adminMockData";
+import EmailPreviewModal from "./shared/EmailPreviewModal";
 
 type RecipientType = "all" | "tier" | "specific";
 type NotifType = "info" | "promo" | "alert" | "update";
@@ -31,6 +32,7 @@ export default function BroadcastCompose() {
   const [message, setMessage] = useState("");
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleImageSelect = (file: File) => {
@@ -199,10 +201,10 @@ export default function BroadcastCompose() {
           )}
         </div>
 
-        {/* Live preview */}
+        {/* In-app notification preview (quick glance) */}
         {(title || message) && (
           <div>
-            <label className="text-[13px] font-semibold text-[#0F172A] mb-2 block">Preview</label>
+            <label className="text-[13px] font-semibold text-[#0F172A] mb-2 block">In-app notification preview</label>
             <div className="bg-[#F8FAFC] rounded-xl p-4 border border-[#E8ECF1]/60">
               <div className="flex items-start gap-3">
                 <div className="size-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
@@ -214,11 +216,25 @@ export default function BroadcastCompose() {
                 </div>
               </div>
             </div>
+            <p className="text-[11px] text-[#94A3B8] mt-2">Click "Preview Email" below to see the full branded email version</p>
           </div>
         )}
 
-        {/* Send + Draft buttons */}
-        <div className="flex justify-end gap-3 pt-3 border-t border-[#E8ECF1]/60">
+        {/* Action buttons */}
+        <div className="flex flex-wrap justify-end gap-3 pt-3 border-t border-[#E8ECF1]/60">
+          <button
+            onClick={() => {
+              if (!title.trim() || !message.trim()) {
+                toast.error("Add a title and message to preview");
+                return;
+              }
+              setPreviewOpen(true);
+            }}
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 border border-[#E2E8F0] text-[#334155] text-sm font-semibold rounded-xl cursor-pointer hover:bg-[#F1F5F9] active:scale-[0.98] transition-all"
+          >
+            <span className="material-symbols-outlined text-[16px]">visibility</span>
+            Preview Email
+          </button>
           <button
             onClick={() => { toast.success("Draft saved"); navigate("/broadcast"); }}
             className="px-6 py-2.5 border border-[#E2E8F0] text-[#334155] text-sm font-semibold rounded-xl cursor-pointer hover:bg-[#F1F5F9] active:scale-[0.98] transition-all"
@@ -233,6 +249,15 @@ export default function BroadcastCompose() {
           </button>
         </div>
       </div>
+
+      {/* Email preview — uses the current form state */}
+      <EmailPreviewModal
+        isOpen={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        template="broadcast"
+        sampleData={{ title: title || "Your broadcast title", message: message || "Your message content..." }}
+        title="Preview — Broadcast Email"
+      />
     </div>
   );
 }

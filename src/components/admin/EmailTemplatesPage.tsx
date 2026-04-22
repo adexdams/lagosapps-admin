@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { useToast } from "../../hooks/useToast";
+import EmailPreviewModal from "./shared/EmailPreviewModal";
 
 interface TemplateVariable {
   name: string;
@@ -33,8 +34,19 @@ export default function EmailTemplatesPage() {
   const [uploading, setUploading] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string>("");
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
+
+  // Sample data for previews (matches placeholders in seeded templates)
+  const SAMPLE_DATA: Record<string, Record<string, string>> = {
+    welcome: { name: "Damola Adediran", referralCode: "LAABCD12" },
+    password_reset: { resetUrl: "https://lagosapps.com/reset?token=sample-reset-token" },
+    order_confirmation: { name: "Damola Adediran", orderId: "ORD-042", total: "₦185,000" },
+    wallet_topup: { amount: "₦50,000", newBalance: "₦125,000", reference: "PAY-LA-A1B2C3" },
+    membership_renewal: { tier: "Silver", daysRemaining: "7", expiresAt: "May 1, 2026", renewUrl: "https://lagosapps.com/renew" },
+    broadcast: { title: "Easter Weekend Sale — 20% off Groceries", message: "For this weekend only, all Groceries portal items get 20% off at checkout. Stock up on essentials and enjoy the savings!" },
+  };
 
   useEffect(() => {
     loadTemplates();
@@ -126,39 +138,6 @@ export default function EmailTemplatesPage() {
     setUploadingLogo(false);
   }
 
-  async function sendTestEmail() {
-    if (!selected) return;
-    const { data: { session } } = await supabase.auth.getSession();
-    const email = session?.user?.email;
-    if (!email) {
-      toast.error("No logged-in admin email to send test to");
-      return;
-    }
-
-    // Sample data for each template
-    const sampleData: Record<string, Record<string, string>> = {
-      welcome: { name: "Test Admin", referralCode: "TEST01" },
-      password_reset: { resetUrl: "https://lagosapps.com/reset?token=test" },
-      order_confirmation: { name: "Test Admin", orderId: "ORD-TEST", total: "₦15,000" },
-      wallet_topup: { amount: "₦50,000", newBalance: "₦125,000", reference: "TEST-REF-001" },
-      membership_renewal: { tier: "Silver", daysRemaining: "7", expiresAt: "May 1, 2026", renewUrl: "https://lagosapps.com/renew" },
-      broadcast: { title: "Test Broadcast", message: "This is a test broadcast message." },
-    };
-
-    toast.info("Sending test email...");
-    const { data, error } = await supabase.functions.invoke("send-email", {
-      body: {
-        template: selected.key,
-        to: email,
-        data: sampleData[selected.key] ?? {},
-      },
-    });
-    if (error || (data && (data as { error?: string }).error)) {
-      toast.error((error?.message || (data as { error?: string }).error) ?? "Failed to send");
-    } else {
-      toast.success(`Test email sent to ${email}`);
-    }
-  }
 
   return (
     <div className="space-y-5">
@@ -228,8 +207,9 @@ export default function EmailTemplatesPage() {
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <h3 className="text-[15px] font-bold text-[#0F172A]">{selected.label}</h3>
                   <div className="flex gap-2">
-                    <button onClick={sendTestEmail} className="px-3 py-1.5 border border-[#E2E8F0] text-[#334155] text-xs font-semibold rounded-lg cursor-pointer hover:bg-[#F1F5F9] transition-all">
-                      Send Test to Me
+                    <button onClick={() => setPreviewOpen(true)} className="inline-flex items-center gap-1 px-3 py-1.5 border border-[#E2E8F0] text-[#334155] text-xs font-semibold rounded-lg cursor-pointer hover:bg-[#F1F5F9] transition-all">
+                      <span className="material-symbols-outlined text-[14px]">visibility</span>
+                      Preview
                     </button>
                     <button onClick={saveTemplate} disabled={saving} className="px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg cursor-pointer hover:brightness-[0.92] transition-all disabled:opacity-50">
                       {saving ? "Saving..." : "Save Changes"}
@@ -317,6 +297,23 @@ export default function EmailTemplatesPage() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Preview modal — uses local (unsaved) edits */}
+      {selected && (
+        <EmailPreviewModal
+          isOpen={previewOpen}
+          onClose={() => setPreviewOpen(false)}
+          template={selected.key}
+          sampleData={SAMPLE_DATA[selected.key] ?? {}}
+          inlineTemplate={{
+            subject: selected.subject,
+            heading: selected.heading,
+            body_html: selected.body_html,
+            banner_url: selected.banner_url,
+          }}
+          title={`Preview — ${selected.label}`}
+        />
       )}
     </div>
   );
