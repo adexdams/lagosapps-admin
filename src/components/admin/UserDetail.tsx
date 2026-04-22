@@ -1,7 +1,8 @@
 import { useParams, useNavigate } from "react-router-dom";
 import StatusBadge from "./shared/StatusBadge";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "../../hooks/useToast";
+import { supabase } from "../../lib/supabase";
 import {
   mockUsers,
   mockOrders,
@@ -22,8 +23,21 @@ export default function UserDetail() {
   const navigate = useNavigate();
   const toast = useToast();
   const [notifTypeFilter, setNotifTypeFilter] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   const user = mockUsers.find((u) => u.id === id);
+
+  // Try to fetch real profile avatar from Supabase (UUID lookup). Mock IDs
+  // won't match so this will quietly no-op for mock users.
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.from("profiles").select("avatar_url").eq("id", id).maybeSingle();
+      if (!cancelled && data?.avatar_url) setAvatarUrl(data.avatar_url as string);
+    })();
+    return () => { cancelled = true; };
+  }, [id]);
   if (!user) {
     return (
       <div className="text-center py-20">
@@ -59,9 +73,13 @@ export default function UserDetail() {
           {/* Profile card */}
           <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-3.5 sm:p-5 md:p-7">
             <div className="flex items-start gap-3 sm:gap-4">
-              <div className="size-12 sm:size-16 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white text-base sm:text-xl font-bold flex-shrink-0">
-                {user.avatar}
-              </div>
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={user.name} className="size-12 sm:size-16 rounded-full object-cover flex-shrink-0" />
+              ) : (
+                <div className="size-12 sm:size-16 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white text-base sm:text-xl font-bold flex-shrink-0">
+                  {user.avatar}
+                </div>
+              )}
               <div className="flex-1 min-w-0">
                 <h2 className="text-lg font-bold text-[#0F172A]">{user.name}</h2>
                 <p className="text-sm text-[#64748B]">{user.phone}</p>

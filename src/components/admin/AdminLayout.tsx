@@ -155,9 +155,17 @@ export default function AdminLayout() {
 
           {/* Admin avatar */}
           <div className="flex items-center gap-3 group relative">
-            <div className="size-9 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white font-bold text-xs shadow-sm">
-              {initials}
-            </div>
+            {profile?.avatar_url ? (
+              <img
+                src={profile.avatar_url}
+                alt={profile.name ?? "Admin"}
+                className="size-9 rounded-full object-cover shadow-sm"
+              />
+            ) : (
+              <div className="size-9 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white font-bold text-xs shadow-sm">
+                {initials}
+              </div>
+            )}
             <div className="hidden sm:block">
               <p className="text-sm font-semibold text-[#0F172A] leading-tight">{profile?.name || "Admin"}</p>
               <p className="text-[11px] text-[#94A3B8] capitalize">{profile?.teamRole?.replace("_", " ") || "Admin"}</p>

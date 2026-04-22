@@ -1,5 +1,8 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useToast } from "../../hooks/useToast";
+import { useAuth } from "../../hooks/useAuth";
+import { supabase } from "../../lib/supabase";
+import { updateUser, logAudit } from "../../lib/api";
 import { PORTAL_LABELS, PORTAL_COLORS, type Portal } from "../../data/adminMockData";
 
 const PORTALS: Portal[] = ["solar", "transport", "groceries", "health", "events", "community", "logistics"];
@@ -9,6 +12,7 @@ const card = "bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.
 
 export default function SettingsPage() {
   const toast = useToast();
+  const { user, profile } = useAuth();
 
   const [siteName, setSiteName] = useState("LagosApps");
   const [supportEmail, setSupportEmail] = useState("support@lagosapps.com");
@@ -19,17 +23,56 @@ export default function SettingsPage() {
     events: true, community: false, logistics: true,
   });
   const [testMode, setTestMode] = useState(false);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const avatarRef = useRef<HTMLInputElement>(null);
+
+  // Load current avatar from profile on mount
+  useEffect(() => {
+    if (profile?.avatar_url) setAvatarUrl(profile.avatar_url);
+  }, [profile]);
 
   const handleSave = (section: string) => toast.success(`${section} saved successfully`);
 
-  const handleAvatarChange = (file: File) => {
+  async function handleAvatarChange(file: File) {
     if (!file.type.startsWith("image/")) { toast.error("Only image files allowed"); return; }
     if (file.size > 2 * 1024 * 1024) { toast.error("Max 2MB file size"); return; }
-    setAvatarPreview(URL.createObjectURL(file));
+    if (!user?.id) { toast.error("Not authenticated"); return; }
+
+    setUploadingAvatar(true);
+    const ext = file.name.split(".").pop() ?? "png";
+    const path = `${user.id}/avatar.${ext}`;
+
+    // Upload to avatars bucket (RLS enforces {user_id}/... path convention)
+    const { error: uploadErr } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+    if (uploadErr) {
+      toast.error(`Upload failed: ${uploadErr.message}`);
+      setUploadingAvatar(false);
+      return;
+    }
+
+    // Get public URL (with cache-busting query so image refreshes immediately)
+    const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+    const publicUrl = `${data.publicUrl}?t=${Date.now()}`;
+
+    // Save to profile
+    const { error: updateErr } = await updateUser(user.id, { avatar_url: publicUrl });
+    if (updateErr) {
+      toast.error(`Profile update failed: ${updateErr.message}`);
+      setUploadingAvatar(false);
+      return;
+    }
+
+    await logAudit({
+      action: "profile.avatar_update",
+      entity_type: "profile",
+      entity_id: user.id,
+    });
+
+    setAvatarUrl(publicUrl);
+    setUploadingAvatar(false);
     toast.success("Profile picture updated");
-  };
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6 max-w-3xl">
@@ -48,29 +91,35 @@ export default function SettingsPage() {
             {/* Avatar */}
             <div className="relative group">
               <input ref={avatarRef} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleAvatarChange(e.target.files[0])} />
-              {avatarPreview ? (
-                <img src={avatarPreview} alt="Profile" className="size-20 sm:size-24 rounded-full object-cover" />
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="Profile" className="size-20 sm:size-24 rounded-full object-cover" />
               ) : (
                 <div className="size-20 sm:size-24 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white text-2xl sm:text-3xl font-bold">
-                  AD
+                  {profile?.name ? profile.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase() : "AD"}
                 </div>
               )}
               <button
-                onClick={() => avatarRef.current?.click()}
-                className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer"
+                onClick={() => !uploadingAvatar && avatarRef.current?.click()}
+                disabled={uploadingAvatar}
+                className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer disabled:cursor-not-allowed"
               >
-                <span className="material-symbols-outlined text-white text-[24px]">photo_camera</span>
+                {uploadingAvatar ? (
+                  <span className="size-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <span className="material-symbols-outlined text-white text-[24px]">photo_camera</span>
+                )}
               </button>
             </div>
             {/* Info */}
             <div className="text-center sm:text-left">
-              <p className="text-lg font-bold text-[#0F172A]">Admin</p>
-              <p className="text-[13px] text-[#64748B]">admin@lagosapps.com</p>
+              <p className="text-lg font-bold text-[#0F172A]">{profile?.name ?? "Admin"}</p>
+              <p className="text-[13px] text-[#64748B]">{profile?.email ?? user?.email ?? ""}</p>
               <button
-                onClick={() => avatarRef.current?.click()}
-                className="mt-2 text-[13px] font-semibold text-primary cursor-pointer hover:underline"
+                onClick={() => !uploadingAvatar && avatarRef.current?.click()}
+                disabled={uploadingAvatar}
+                className="mt-2 text-[13px] font-semibold text-primary cursor-pointer hover:underline disabled:opacity-50"
               >
-                Change photo
+                {uploadingAvatar ? "Uploading..." : "Change photo"}
               </button>
             </div>
           </div>

@@ -11,7 +11,8 @@ A step-by-step plan to take both the admin dashboard and user-facing app from fr
 - **Supabase project** (`uhrlsvnmoemrakwfrjyf`, West EU Ireland) — linked, 36 tables + RLS + seed data
 - **Admin dashboard** — auth + role-guarded routes, real profile loading from `profiles` table, login supports email/password + magic link + password reset
 - **Netlify deployment** — auto-deploys from `main` branch, SPA fallback via `_redirects` + `netlify.toml`, secret-scan whitelist configured for public Supabase anon key, security headers + long-cache on `/assets/*`. Blank-page-on-refresh bug resolved. `ErrorBoundary` + `ConfigError` screens catch runtime failures.
-- **Product catalog seeded** — 74 products, 29 categories, 10 solar packages, 3 venues, 5 building types, 3 membership tiers + 15 benefits, 7 portals, 5 pricing zones
+- **Product catalog seeded + fully wired on admin side** — 74 products (all mapped to correct categories via backfill migration), 29 categories, 10 solar packages, 3 venues, 5 building types, 3 membership tiers + 15 benefits, 7 portals, 5 pricing zones. `InventoryPortal` + `ProductForm` do full CRUD with portal-specific metadata (solar/transport/health/events/logistics fields), audit logging, and `products` bucket image upload via shared `ImageUpload` component.
+- **Admin avatars** — upload to `avatars` bucket, stored on `profiles.avatar_url`; rendered in topbar and User Detail
 - **Resend integration** — domain `lagosapps.com` verified, sending from `hello@lagosapps.com`, Edge Function `send-email` deployed, 6 email templates seeded and editable from `/emails` admin page with banner/logo upload
 - **Welcome email trigger** — fires automatically on every new `profiles` row via `pg_net` + Edge Function (covers both user-app signup and admin-created users)
 - **Email preview system** — dry-run endpoint returns rendered HTML; reusable `EmailPreviewModal` with desktop/mobile views; preview works for both email templates and broadcasts
@@ -33,7 +34,7 @@ A step-by-step plan to take both the admin dashboard and user-facing app from fr
 | # | Milestone | Status | What becomes usable | Infrastructure |
 |---|-----------|--------|--------------------|---|
 | 1 | Foundation | ✅ Complete | Auth, user accounts, DB schema, API layer | Supabase (Auth + DB) |
-| 2 | Product Catalog | 🟡 Partial (seeded, wiring pending) | Real inventory, admin CRUD, user browsing | Supabase Storage |
+| 2 | Product Catalog | 🟡 Partial (admin side complete, user-app portal migration pending) | Real inventory, admin CRUD, user browsing | Supabase Storage |
 | 3 | Orders & Cart | ⬜ Not started | Real checkout, order management, fulfillment | Paystack |
 | 4 | Wallet & Membership | ⬜ Not started | Payments, subscriptions, wallet top-ups, benefits | Paystack (subscriptions) |
 | 5 | Communication | 🟡 Partial (email infra done, triggers pending) | Broadcasts to users, internal admin notifications | Resend |
@@ -135,22 +136,24 @@ A step-by-step plan to take both the admin dashboard and user-facing app from fr
 - ⬜ Build reusable image upload component (generalize the logic already in `EmailTemplatesPage`)
 - ⬜ Configure Supabase image transformations for thumbnails
 
-**2.2 — Admin inventory CRUD** 🟡 Partial
-- ✅ `ProductForm.tsx` wired to Supabase: create/update/delete via `src/lib/api.ts`, image upload to `products` bucket, category dropdown fetches from `product_categories`, stock status auto-computed from quantity + threshold, Delete button added for edit mode
-- ✅ `InventoryPortal.tsx` fetches real products from Supabase per portal, shows category filter pills built from joined `product_categories`, loading skeletons, empty state with "Add the first one" CTA, live image rendering
-- ✅ Stock level management working (quantity + low-stock threshold → stock_status enum)
-- ✅ Active/inactive toggle wired
-- ⬜ Handle portal-specific metadata (solar wattage, transport zone pricing, event venues, etc.) — current form uses the same fields for all portals
-- ⬜ Log all product changes to `admin_audit_log`
+**2.2 — Admin inventory CRUD** ✅ COMPLETE
+- ✅ `ProductForm.tsx` wired to Supabase: create/update/delete via `src/lib/api.ts`, image upload via shared `ImageUpload` component to `products` bucket, category dropdown fetches from `product_categories`, stock status auto-computed, Delete button on edit
+- ✅ `InventoryPortal.tsx` fetches real products from Supabase per portal, category filter pills built from joined `product_categories`, loading skeletons, empty state, live image rendering
+- ✅ Stock level management (quantity + low-stock threshold → stock_status enum)
+- ✅ Active/inactive toggle
+- ✅ **Portal-specific metadata fields** — Solar (wattage/brand/battery_type), Transport (vehicle_type + pickup_hours + 5 zone prices + note), Health (coming_soon toggle), Events (capacity/location + amenities tag input + event_categories tag input), Logistics (store), stored in `products.metadata` JSONB. Groceries + Community use category alone.
+- ✅ **Audit logging** — all product.create / product.update / product.delete actions write to `admin_audit_log` via `logAudit()` helper in `src/lib/api.ts` (non-blocking — never blocks real work on audit failure)
+- ✅ **Category backfill** — migration `20260422110000_backfill_product_categories.sql` maps all 74 seeded products to their correct categories (no more Uncategorized bucket by default)
 
 **2.3 — User-facing portal migration**
 - ⬜ Replace hardcoded product arrays in all 7 portal components with Supabase queries
 - ⬜ Extract data files (Step 7-8 from migration plan) as an interim step if needed
 - ⬜ Ensure product images load from Supabase Storage
 
-**2.4 — Admin profile avatars**
-- ⬜ Connect Settings page avatar upload to Supabase Storage
-- ⬜ Connect User Detail avatar display to stored URLs
+**2.4 — Admin profile avatars** ✅ COMPLETE
+- ✅ `SettingsPage.tsx` avatar upload wired to `avatars` bucket using `{user_id}/avatar.{ext}` path convention; saves public URL to `profiles.avatar_url`; cache-busting query param so new uploads show immediately; audit logged as `profile.avatar_update`
+- ✅ `AdminLayout.tsx` topbar avatar displays `profile.avatar_url` image when present, initials fallback otherwise
+- ✅ `UserDetail.tsx` fetches `profiles.avatar_url` for the viewed user on mount and renders image (initials fallback if none or mock ID)
 
 ### What works after Milestone 2
 

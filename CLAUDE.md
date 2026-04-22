@@ -121,13 +121,27 @@ The `src/index.css` contains the full Tailwind theme from the main LagosApps app
 
 ## Implementation Plan Tracking
 
-After completing work that finishes a milestone (or a significant step within a milestone) from `docs/IMPLEMENTATION_PLAN.md`, **always update the implementation plan** before reporting the work as done:
-- Mark completed steps with checkboxes or strikethrough
-- Note what was actually delivered (may differ from what was originally planned)
-- Update the "Current State" section if it exists
-- If a milestone is fully complete, mark it as done and note the date
+`docs/IMPLEMENTATION_PLAN.md` is a **living monitoring document** the project owner reads to track progress across both repos (admin + user-facing). Keep it accurate.
 
-This applies to any commit that advances the implementation — not just final milestone commits.
+**Update the plan immediately after any change that affects it** — do not batch updates or save them for the end of a session. Specifically:
+
+- When you finish a step inside a milestone, flip its ⬜ to ✅ (or 🟡 for partial) in that milestone's step list **and** in the `Milestone Overview` rollup table at the top.
+- When a milestone's status changes (not started → partial → complete), update the rollup row, the "What works after Milestone N" section, and the per-step checklist — all three should agree.
+- When you add new infrastructure (migration, storage bucket, Edge Function, trigger, cron, secret, Netlify config) reflect it in the **Current State** section AND in the relevant milestone's Infrastructure table.
+- When the shape of the plan itself needs to change (new step uncovered, dependency reordered, estimate revised), edit the plan structure — don't just leave old steps in place with new commentary on top.
+- When the user-facing repo (`lagosapps`) lands work that affects milestone status here, pull latest from that repo if relevant, verify, and reflect it.
+
+**Anchor claims to evidence.** If you write "✅ Done", cite the file path, migration name, commit SHA, table/bucket name, or Edge Function slug that proves it. If you can't verify programmatically (e.g., a Netlify env var, a Supabase dashboard SMTP setting, Resend domain verification) say so and mark it as "trusting user confirmation" rather than claiming it's verified.
+
+**When to update** (non-exhaustive):
+
+- Immediately after `git commit` if the commit advanced a plan step
+- After a migration applied successfully (`supabase db push`)
+- After an Edge Function deploy (`supabase functions deploy`)
+- After the user confirms a manual action (SMTP config, env var set, DNS record added)
+- After a failed deploy or rolled-back change — record what happened so the plan doesn't overstate status
+
+**Do not** mark something complete based on intent to complete it; only after the code is written, pushed, and (when possible) verified.
 
 ## Related Repository
 

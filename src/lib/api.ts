@@ -246,6 +246,46 @@ export async function createAuditEntry(data: Record<string, unknown>) {
   return supabase.from("admin_audit_log").insert(data);
 }
 
+/**
+ * Log an admin action to admin_audit_log. Non-blocking — errors are logged
+ * to console but never thrown, so a broken audit log can't block real work.
+ *
+ * Usage:
+ *   await logAudit({
+ *     action: "product.create",
+ *     entity_type: "product",
+ *     entity_id: newProduct.id,
+ *     new_values: { name, price, portal_id },
+ *   });
+ */
+export async function logAudit(entry: {
+  action: string;
+  entity_type?: string;
+  entity_id?: string;
+  old_values?: Record<string, unknown>;
+  new_values?: Record<string, unknown>;
+}): Promise<void> {
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData?.session?.user?.id;
+    if (!userId) {
+      console.warn("logAudit: no authenticated user, skipping");
+      return;
+    }
+    const { error } = await supabase.from("admin_audit_log").insert({
+      admin_user_id: userId,
+      action: entry.action,
+      entity_type: entry.entity_type ?? null,
+      entity_id: entry.entity_id ?? null,
+      old_values: entry.old_values ?? null,
+      new_values: entry.new_values ?? null,
+    });
+    if (error) console.error("logAudit failed:", error);
+  } catch (e) {
+    console.error("logAudit threw:", e);
+  }
+}
+
 // ── Platform Settings ───────────────────────────────────────
 
 export async function getSettings() {

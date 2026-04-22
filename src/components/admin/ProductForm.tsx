@@ -1,41 +1,38 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Modal from "../ui/Modal";
 import { useToast } from "../../hooks/useToast";
-import { supabase } from "../../lib/supabase";
-import { getCategories, createProduct, updateProduct, deleteProduct } from "../../lib/api";
+import { getCategories, createProduct, updateProduct, deleteProduct, logAudit } from "../../lib/api";
 import { PORTAL_LABELS, type Portal } from "../../data/adminMockData";
+import ImageUpload from "./shared/ImageUpload";
 
-// The shape InventoryPortal passes in — superset of DB and mock shapes
 export interface ProductFormRecord {
   id: string;
   name: string;
   description: string;
   price: number;
-  category?: string; // legacy mock shape (name)
+  category?: string;
   category_id?: string | null;
   stock: number;
   low_stock_threshold?: number;
-  status?: "active" | "inactive" | "out_of_stock"; // mock
-  is_active?: boolean; // db
+  status?: "active" | "inactive" | "out_of_stock";
+  is_active?: boolean;
   image_url?: string | null;
+  metadata?: Record<string, unknown>;
 }
 
 interface ProductFormProps {
   portal: Portal;
   product: ProductFormRecord | null;
   onClose: () => void;
-  onSaved?: () => void; // parent refetches after success
+  onSaved?: () => void;
 }
 
-interface Category {
-  id: string;
-  name: string;
-  slug: string;
-}
+interface Category { id: string; name: string; slug: string; }
 
 const inputClass =
   "w-full border border-[#E2E8F0] rounded-xl px-3 py-2.5 text-sm text-[#0F172A] outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all";
 const labelClass = "text-[13px] font-semibold text-[#0F172A] mb-1.5 block";
+const smallLabelClass = "text-[12px] font-semibold text-[#334155] mb-1 block";
 
 function computeStockStatus(stock: number, threshold: number): "in_stock" | "low_stock" | "out_of_stock" {
   if (stock <= 0) return "out_of_stock";
@@ -43,9 +40,34 @@ function computeStockStatus(stock: number, threshold: number): "in_stock" | "low
   return "in_stock";
 }
 
+// ── Portal-specific metadata shapes ─────────────────────────
+
+interface SolarMeta {
+  wattage?: number;
+  brand?: string;
+  battery_type?: "gel" | "lithium" | "";
+}
+interface TransportMeta {
+  vehicle_type?: string;
+  pickup_hours?: string;
+  note?: string;
+  mainland_price?: number;
+  island_price?: number;
+  outskirts_price?: number;
+  abeokuta_price?: number;
+  ibadan_price?: number;
+}
+interface HealthMeta { coming_soon?: boolean; }
+interface EventsMeta {
+  capacity?: number;
+  location?: string;
+  amenities?: string[];
+  event_categories?: string[];
+}
+interface LogisticsMeta { store?: string; }
+
 export default function ProductForm({ portal, product, onClose, onSaved }: ProductFormProps) {
   const toast = useToast();
-  const fileRef = useRef<HTMLInputElement>(null);
   const isEditing = !!product;
 
   const [categories, setCategories] = useState<Category[]>([]);
@@ -58,13 +80,44 @@ export default function ProductForm({ portal, product, onClose, onSaved }: Produ
   const [isActive, setIsActive] = useState(
     product?.is_active ?? (product?.status ? product.status === "active" : true)
   );
-  const [imagePreview, setImagePreview] = useState<string | null>(product?.image_url ?? null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string | null>(product?.image_url ?? null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  // Load categories for this portal
+  // Portal metadata (initialized from existing product or defaults)
+  const initialMeta = (product?.metadata ?? {}) as Record<string, unknown>;
+  const [solarMeta, setSolarMeta] = useState<SolarMeta>({
+    wattage: (initialMeta.wattage as number) ?? undefined,
+    brand: (initialMeta.brand as string) ?? "",
+    battery_type: (initialMeta.battery_type as "gel" | "lithium" | "") ?? "",
+  });
+  const [transportMeta, setTransportMeta] = useState<TransportMeta>({
+    vehicle_type: (initialMeta.vehicle_type as string) ?? "",
+    pickup_hours: (initialMeta.pickup_hours as string) ?? "",
+    note: (initialMeta.note as string) ?? "",
+    mainland_price: (initialMeta.mainland_price as number) ?? undefined,
+    island_price: (initialMeta.island_price as number) ?? undefined,
+    outskirts_price: (initialMeta.outskirts_price as number) ?? undefined,
+    abeokuta_price: (initialMeta.abeokuta_price as number) ?? undefined,
+    ibadan_price: (initialMeta.ibadan_price as number) ?? undefined,
+  });
+  const [healthMeta, setHealthMeta] = useState<HealthMeta>({
+    coming_soon: (initialMeta.coming_soon as boolean) ?? false,
+  });
+  const [eventsMeta, setEventsMeta] = useState<EventsMeta>({
+    capacity: (initialMeta.capacity as number) ?? undefined,
+    location: (initialMeta.location as string) ?? "",
+    amenities: (initialMeta.amenities as string[]) ?? [],
+    event_categories: (initialMeta.event_categories as string[]) ?? [],
+  });
+  const [logisticsMeta, setLogisticsMeta] = useState<LogisticsMeta>({
+    store: (initialMeta.store as string) ?? "",
+  });
+
+  const [newAmenity, setNewAmenity] = useState("");
+  const [newEventCategory, setNewEventCategory] = useState("");
+
+  // Load categories
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -76,10 +129,7 @@ export default function ProductForm({ portal, product, onClose, onSaved }: Produ
       }
       const rows = (data as Category[]) ?? [];
       setCategories(rows);
-      // Default category if creating new and we have options
-      if (!isEditing && !categoryId && rows.length > 0) {
-        setCategoryId(rows[0].id);
-      }
+      if (!isEditing && !categoryId && rows.length > 0) setCategoryId(rows[0].id);
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -87,44 +137,42 @@ export default function ProductForm({ portal, product, onClose, onSaved }: Produ
 
   const qty = parseInt(quantity) || 0;
   const thresh = parseInt(threshold) || 10;
-
   const stockColor = qty === 0 ? "#DC2626" : qty <= thresh ? "#EA580C" : "#059669";
   const stockLabel = qty === 0 ? "Out of Stock" : qty <= thresh ? "Low Stock" : "In Stock";
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith("image/")) pickFile(file);
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) pickFile(file);
-  };
-
-  const pickFile = (file: File) => {
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image must be under 5MB");
-      return;
+  function buildMetadata(): Record<string, unknown> {
+    switch (portal) {
+      case "solar":
+        return {
+          ...(solarMeta.wattage != null && { wattage: solarMeta.wattage }),
+          ...(solarMeta.brand && { brand: solarMeta.brand }),
+          ...(solarMeta.battery_type && { battery_type: solarMeta.battery_type }),
+        };
+      case "transport":
+        return {
+          ...(transportMeta.vehicle_type && { vehicle_type: transportMeta.vehicle_type }),
+          ...(transportMeta.pickup_hours && { pickup_hours: transportMeta.pickup_hours }),
+          ...(transportMeta.note && { note: transportMeta.note }),
+          ...(transportMeta.mainland_price != null && { mainland_price: transportMeta.mainland_price }),
+          ...(transportMeta.island_price != null && { island_price: transportMeta.island_price }),
+          ...(transportMeta.outskirts_price != null && { outskirts_price: transportMeta.outskirts_price }),
+          ...(transportMeta.abeokuta_price != null && { abeokuta_price: transportMeta.abeokuta_price }),
+          ...(transportMeta.ibadan_price != null && { ibadan_price: transportMeta.ibadan_price }),
+        };
+      case "health":
+        return healthMeta.coming_soon ? { coming_soon: true } : {};
+      case "events":
+        return {
+          ...(eventsMeta.capacity != null && { capacity: eventsMeta.capacity }),
+          ...(eventsMeta.location && { location: eventsMeta.location }),
+          ...(eventsMeta.amenities && eventsMeta.amenities.length > 0 && { amenities: eventsMeta.amenities }),
+          ...(eventsMeta.event_categories && eventsMeta.event_categories.length > 0 && { event_categories: eventsMeta.event_categories }),
+        };
+      case "logistics":
+        return logisticsMeta.store ? { store: logisticsMeta.store } : {};
+      default:
+        return {};
     }
-    setImageFile(file);
-    const reader = new FileReader();
-    reader.onload = (ev) => setImagePreview(ev.target?.result as string);
-    reader.readAsDataURL(file);
-  };
-
-  async function uploadImageIfNeeded(): Promise<string | null> {
-    if (!imageFile) return imagePreview; // keep existing URL if no new file
-    const ext = imageFile.name.split(".").pop() ?? "png";
-    const path = `${portal}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-    const { error: upErr } = await supabase.storage.from("products").upload(path, imageFile, { upsert: false });
-    if (upErr) {
-      toast.error(`Image upload failed: ${upErr.message}`);
-      return null;
-    }
-    const { data } = supabase.storage.from("products").getPublicUrl(path);
-    return data.publicUrl;
   }
 
   async function handleSave() {
@@ -134,11 +182,10 @@ export default function ProductForm({ portal, product, onClose, onSaved }: Produ
 
     setSaving(true);
 
-    const imageUrl = await uploadImageIfNeeded();
-
     const stock = qty;
     const lowStockThreshold = thresh;
     const stockStatus = computeStockStatus(stock, lowStockThreshold);
+    const metadata = buildMetadata();
 
     const payload = {
       portal_id: portal,
@@ -151,19 +198,48 @@ export default function ProductForm({ portal, product, onClose, onSaved }: Produ
       stock_status: stockStatus,
       is_active: isActive,
       image_url: imageUrl,
+      metadata,
     };
 
-    const { error } = isEditing
-      ? await updateProduct(product!.id, payload)
-      : await createProduct(payload);
-
-    setSaving(false);
-
-    if (error) {
-      toast.error(`Save failed: ${error.message}`);
-      return;
+    if (isEditing) {
+      const oldValues = {
+        name: product!.name,
+        price: product!.price,
+        stock: product!.stock,
+        is_active: product!.is_active,
+        category_id: product!.category_id,
+      };
+      const { error } = await updateProduct(product!.id, payload);
+      setSaving(false);
+      if (error) {
+        toast.error(`Save failed: ${error.message}`);
+        return;
+      }
+      await logAudit({
+        action: "product.update",
+        entity_type: "product",
+        entity_id: product!.id,
+        old_values: oldValues,
+        new_values: { name: payload.name, price: payload.price, stock: payload.stock, is_active: payload.is_active, category_id: payload.category_id },
+      });
+      toast.success("Product updated");
+    } else {
+      const { data, error } = await createProduct(payload);
+      setSaving(false);
+      if (error) {
+        toast.error(`Save failed: ${error.message}`);
+        return;
+      }
+      const newId = (data as { id?: string })?.id;
+      await logAudit({
+        action: "product.create",
+        entity_type: "product",
+        entity_id: newId,
+        new_values: { name: payload.name, portal_id: payload.portal_id, price: payload.price },
+      });
+      toast.success("Product created");
     }
-    toast.success(isEditing ? "Product updated" : "Product created");
+
     onSaved?.();
     onClose();
   }
@@ -174,13 +250,34 @@ export default function ProductForm({ portal, product, onClose, onSaved }: Produ
     setDeleting(true);
     const { error } = await deleteProduct(product.id);
     setDeleting(false);
-    if (error) {
-      toast.error(`Delete failed: ${error.message}`);
-      return;
-    }
+    if (error) { toast.error(`Delete failed: ${error.message}`); return; }
+    await logAudit({
+      action: "product.delete",
+      entity_type: "product",
+      entity_id: product.id,
+      old_values: { name: product.name, price: product.price },
+    });
     toast.success("Product deleted");
     onSaved?.();
     onClose();
+  }
+
+  // ── Tag input helpers ──
+  function addAmenity() {
+    if (!newAmenity.trim()) return;
+    setEventsMeta((m) => ({ ...m, amenities: [...(m.amenities ?? []), newAmenity.trim()] }));
+    setNewAmenity("");
+  }
+  function removeAmenity(idx: number) {
+    setEventsMeta((m) => ({ ...m, amenities: (m.amenities ?? []).filter((_, i) => i !== idx) }));
+  }
+  function addEventCategory() {
+    if (!newEventCategory.trim()) return;
+    setEventsMeta((m) => ({ ...m, event_categories: [...(m.event_categories ?? []), newEventCategory.trim()] }));
+    setNewEventCategory("");
+  }
+  function removeEventCategory(idx: number) {
+    setEventsMeta((m) => ({ ...m, event_categories: (m.event_categories ?? []).filter((_, i) => i !== idx) }));
   }
 
   return (
@@ -189,34 +286,14 @@ export default function ProductForm({ portal, product, onClose, onSaved }: Produ
         {/* Image upload */}
         <div>
           <label className={labelClass}>Product Image</label>
-          <div
-            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-            onDragLeave={() => setIsDragging(false)}
-            onDrop={handleDrop}
-            onClick={() => fileRef.current?.click()}
-            className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${
-              isDragging ? "border-primary bg-primary/5" : "border-[#E2E8F0] hover:border-[#94A3B8]"
-            }`}
-          >
-            {imagePreview ? (
-              <div className="relative inline-block">
-                <img src={imagePreview} alt="Preview" className="h-24 rounded-lg object-cover" />
-                <button
-                  onClick={(e) => { e.stopPropagation(); setImagePreview(null); setImageFile(null); }}
-                  className="absolute -top-2 -right-2 size-6 bg-[#DC2626] text-white rounded-full flex items-center justify-center text-xs cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-[14px]">close</span>
-                </button>
-              </div>
-            ) : (
-              <>
-                <span className="material-symbols-outlined text-[32px] text-[#94A3B8]">upload_file</span>
-                <p className="text-sm text-[#64748B] mt-1">Drag and drop or click to upload</p>
-                <p className="text-[11px] text-[#94A3B8] mt-0.5">PNG, JPG, WEBP up to 5MB</p>
-              </>
-            )}
-          </div>
-          <input ref={fileRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+          <ImageUpload
+            bucket="products"
+            pathPrefix={portal}
+            value={imageUrl}
+            onUploaded={setImageUrl}
+            onRemove={() => setImageUrl(null)}
+            disabled={saving || deleting}
+          />
         </div>
 
         {/* Name */}
@@ -237,13 +314,7 @@ export default function ProductForm({ portal, product, onClose, onSaved }: Produ
             <label className={labelClass}>Price</label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-[#64748B]">{"\u20A6"}</span>
-              <input
-                type="number"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                className={`${inputClass} pl-7`}
-                placeholder="0"
-              />
+              <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} className={`${inputClass} pl-7`} placeholder="0" />
             </div>
           </div>
           <div>
@@ -262,9 +333,7 @@ export default function ProductForm({ portal, product, onClose, onSaved }: Produ
           <div>
             <label className={labelClass}>
               Quantity Available
-              <span className="ml-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold" style={{ backgroundColor: `${stockColor}15`, color: stockColor }}>
-                {stockLabel}
-              </span>
+              <span className="ml-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold" style={{ backgroundColor: `${stockColor}15`, color: stockColor }}>{stockLabel}</span>
             </label>
             <input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} className={inputClass} />
           </div>
@@ -274,14 +343,154 @@ export default function ProductForm({ portal, product, onClose, onSaved }: Produ
           </div>
         </div>
 
+        {/* ─── Portal-specific metadata ─── */}
+        <div className="bg-[#F8FAFC] rounded-xl p-4 space-y-3 border border-[#E8ECF1]">
+          <p className="text-[13px] font-bold text-[#0F172A]">{PORTAL_LABELS[portal].split(",")[0]} details</p>
+
+          {portal === "solar" && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className={smallLabelClass}>Wattage</label>
+                <div className="relative">
+                  <input type="number" value={solarMeta.wattage ?? ""} onChange={(e) => setSolarMeta({ ...solarMeta, wattage: e.target.value ? Number(e.target.value) : undefined })} className={`${inputClass} pr-9`} placeholder="650" />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-[#94A3B8]">W</span>
+                </div>
+              </div>
+              <div>
+                <label className={smallLabelClass}>Brand</label>
+                <input type="text" value={solarMeta.brand ?? ""} onChange={(e) => setSolarMeta({ ...solarMeta, brand: e.target.value })} className={inputClass} placeholder="SMS, Growatt…" />
+              </div>
+              <div>
+                <label className={smallLabelClass}>Battery Type</label>
+                <select value={solarMeta.battery_type ?? ""} onChange={(e) => setSolarMeta({ ...solarMeta, battery_type: e.target.value as "gel" | "lithium" | "" })} className={`${inputClass} cursor-pointer`}>
+                  <option value="">N/A</option>
+                  <option value="gel">Gel</option>
+                  <option value="lithium">Lithium</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {portal === "transport" && (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className={smallLabelClass}>Vehicle Type</label>
+                  <input type="text" value={transportMeta.vehicle_type ?? ""} onChange={(e) => setTransportMeta({ ...transportMeta, vehicle_type: e.target.value })} className={inputClass} placeholder="Sedan, SUV, Bus…" />
+                </div>
+                <div>
+                  <label className={smallLabelClass}>Pickup Hours</label>
+                  <input type="text" value={transportMeta.pickup_hours ?? ""} onChange={(e) => setTransportMeta({ ...transportMeta, pickup_hours: e.target.value })} className={inputClass} placeholder="7 AM – 11 AM" />
+                </div>
+              </div>
+              <div>
+                <label className={smallLabelClass}>Zone Pricing (₦)</label>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                  {(["mainland", "island", "outskirts", "abeokuta", "ibadan"] as const).map((zone) => (
+                    <div key={zone}>
+                      <label className="text-[10px] font-semibold text-[#94A3B8] uppercase mb-0.5 block">{zone}</label>
+                      <input
+                        type="number"
+                        value={(transportMeta[`${zone}_price` as keyof TransportMeta] as number | undefined) ?? ""}
+                        onChange={(e) => setTransportMeta({ ...transportMeta, [`${zone}_price`]: e.target.value ? Number(e.target.value) : undefined })}
+                        className={inputClass}
+                        placeholder="0"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className={smallLabelClass}>Note</label>
+                <input type="text" value={transportMeta.note ?? ""} onChange={(e) => setTransportMeta({ ...transportMeta, note: e.target.value })} className={inputClass} placeholder="3-day minimum for non-members" />
+              </div>
+            </>
+          )}
+
+          {portal === "health" && (
+            <div className="flex items-center justify-between py-1">
+              <div>
+                <p className="text-[13px] font-semibold text-[#334155]">Coming Soon</p>
+                <p className="text-[11px] text-[#94A3B8]">Hide from purchase but show as preview</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setHealthMeta({ coming_soon: !healthMeta.coming_soon })}
+                className={`w-11 h-6 rounded-full p-0.5 transition-colors cursor-pointer ${healthMeta.coming_soon ? "bg-primary" : "bg-[#E2E8F0]"}`}
+              >
+                <div className={`size-5 bg-white rounded-full shadow transition-transform ${healthMeta.coming_soon ? "translate-x-5" : ""}`} />
+              </button>
+            </div>
+          )}
+
+          {portal === "events" && (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className={smallLabelClass}>Capacity</label>
+                  <input type="number" value={eventsMeta.capacity ?? ""} onChange={(e) => setEventsMeta({ ...eventsMeta, capacity: e.target.value ? Number(e.target.value) : undefined })} className={inputClass} placeholder="50" />
+                </div>
+                <div>
+                  <label className={smallLabelClass}>Location</label>
+                  <input type="text" value={eventsMeta.location ?? ""} onChange={(e) => setEventsMeta({ ...eventsMeta, location: e.target.value })} className={inputClass} placeholder="Ikeja, Lagos" />
+                </div>
+              </div>
+
+              <div>
+                <label className={smallLabelClass}>Amenities</label>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {(eventsMeta.amenities ?? []).map((a, i) => (
+                    <span key={i} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] bg-[#EFF6FF] text-[#1E40AF] font-semibold">
+                      {a}
+                      <button type="button" onClick={() => removeAmenity(i)} className="cursor-pointer hover:text-red-600">
+                        <span className="material-symbols-outlined text-[12px]">close</span>
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input type="text" value={newAmenity} onChange={(e) => setNewAmenity(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addAmenity())} className={`${inputClass} flex-1`} placeholder="Projector, WiFi, AC…" />
+                  <button type="button" onClick={addAmenity} className="px-3 py-2 text-xs font-semibold bg-primary text-white rounded-lg cursor-pointer hover:brightness-[0.92]">Add</button>
+                </div>
+              </div>
+
+              <div>
+                <label className={smallLabelClass}>Event Categories</label>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {(eventsMeta.event_categories ?? []).map((c, i) => (
+                    <span key={i} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] bg-[#F5F3FF] text-[#7C3AED] font-semibold">
+                      {c}
+                      <button type="button" onClick={() => removeEventCategory(i)} className="cursor-pointer hover:text-red-600">
+                        <span className="material-symbols-outlined text-[12px]">close</span>
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input type="text" value={newEventCategory} onChange={(e) => setNewEventCategory(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addEventCategory())} className={`${inputClass} flex-1`} placeholder="Wedding, Conference, Birthday…" />
+                  <button type="button" onClick={addEventCategory} className="px-3 py-2 text-xs font-semibold bg-primary text-white rounded-lg cursor-pointer hover:brightness-[0.92]">Add</button>
+                </div>
+              </div>
+            </>
+          )}
+
+          {portal === "logistics" && (
+            <div>
+              <label className={smallLabelClass}>Supported Store</label>
+              <input type="text" value={logisticsMeta.store ?? ""} onChange={(e) => setLogisticsMeta({ store: e.target.value })} className={inputClass} placeholder="Amazon, eBay, Shein…" />
+            </div>
+          )}
+
+          {portal === "groceries" && <p className="text-[12px] text-[#94A3B8]">No portal-specific fields needed. Category handles grouping.</p>}
+          {portal === "community" && <p className="text-[12px] text-[#94A3B8]">No portal-specific fields needed. Category handles grouping.</p>}
+        </div>
+
         {/* Active toggle */}
         <div className="flex items-center justify-between py-2">
           <span className="text-[13px] font-semibold text-[#0F172A]">Active</span>
           <button
             onClick={() => setIsActive(!isActive)}
-            className={`w-11 h-6 rounded-full p-0.5 transition-colors cursor-pointer ${
-              isActive ? "bg-primary" : "bg-[#E2E8F0]"
-            }`}
+            className={`w-11 h-6 rounded-full p-0.5 transition-colors cursor-pointer ${isActive ? "bg-primary" : "bg-[#E2E8F0]"}`}
           >
             <div className={`size-5 bg-white rounded-full shadow transition-transform ${isActive ? "translate-x-5" : ""}`} />
           </button>
@@ -289,7 +498,6 @@ export default function ProductForm({ portal, product, onClose, onSaved }: Produ
 
         {/* Footer */}
         <div className="flex items-center justify-between gap-3 pt-3 border-t border-[#E8ECF1]/60">
-          {/* Delete (only when editing) */}
           <div>
             {isEditing && (
               <button
@@ -302,20 +510,11 @@ export default function ProductForm({ portal, product, onClose, onSaved }: Produ
               </button>
             )}
           </div>
-
           <div className="flex items-center gap-2">
-            <button
-              onClick={onClose}
-              disabled={saving || deleting}
-              className="px-5 py-2.5 text-sm font-semibold text-[#64748B] hover:text-[#334155] cursor-pointer transition-colors disabled:opacity-50"
-            >
+            <button onClick={onClose} disabled={saving || deleting} className="px-5 py-2.5 text-sm font-semibold text-[#64748B] hover:text-[#334155] cursor-pointer transition-colors disabled:opacity-50">
               Cancel
             </button>
-            <button
-              onClick={handleSave}
-              disabled={saving || deleting}
-              className="px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl cursor-pointer hover:brightness-[0.92] active:scale-[0.98] transition-all disabled:opacity-50"
-            >
+            <button onClick={handleSave} disabled={saving || deleting} className="px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl cursor-pointer hover:brightness-[0.92] active:scale-[0.98] transition-all disabled:opacity-50">
               {saving ? "Saving..." : isEditing ? "Save Changes" : "Create Product"}
             </button>
           </div>
