@@ -2,6 +2,17 @@
   command = "npm run build"
   publish = "dist"
 
+[build.environment]
+  # Supabase anon/publishable key is designed to be public (client-facing).
+  # Data access is controlled by Row-Level Security, not key secrecy.
+  # Vite inlines VITE_* vars into the client bundle by design.
+  # See: https://supabase.com/docs/guides/api/api-keys
+  SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_ANON_KEY,VITE_SUPABASE_URL"
+  # Backend SQL migrations aren't served to end users — they exist only
+  # for the Supabase CLI to apply schema changes. Netlify doesn't serve
+  # the supabase/ folder anyway; it's not in the publish dir.
+  SECRETS_SCAN_OMIT_PATHS = "supabase/**"
+
 # SPA fallback — every route served by the client-side router returns index.html.
 # Without this, refreshing /users or any nested route gives a blank page on Netlify.
 [[redirects]]
