@@ -24,6 +24,7 @@ import FulfillmentPage from "./FulfillmentPage";
 import FulfillmentDetail from "./FulfillmentDetail";
 import MembershipTierConfig from "./MembershipTierConfig";
 import LiveCartsPage from "./LiveCartsPage";
+import EmailTemplatesPage from "./EmailTemplatesPage";
 import NotificationPanel from "./shared/NotificationPanel";
 
 const navItems = [
@@ -41,6 +42,7 @@ const navItems = [
   { path: "/analytics", label: "Analytics", icon: "analytics" },
   { path: "/team", label: "Team", icon: "people" },
   { path: "/audit", label: "Audit Log", icon: "history" },
+  { path: "/emails", label: "Email Templates", icon: "mail" },
   { path: "/settings", label: "Settings", icon: "settings" },
 ];
 
@@ -191,6 +193,7 @@ export default function AdminLayout() {
             <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="team" element={<TeamPage />} />
             <Route path="audit" element={<AuditLog />} />
+            <Route path="emails" element={<EmailTemplatesPage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Routes>
         </main>
