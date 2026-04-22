@@ -52,16 +52,39 @@ export default function AuthProvider({ children }: Props) {
   }, []);
 
   useEffect(() => {
-    // Check existing session
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-      if (s?.user) {
-        loadProfile(s.user.id).finally(() => setLoading(false));
-      } else {
+    let resolved = false;
+
+    // Safety timeout — if Supabase is unreachable we don't want the app stuck
+    // on a loading spinner forever. After 8 seconds, unblock and let the user
+    // hit the login screen (they can retry from there).
+    const timeout = window.setTimeout(() => {
+      if (!resolved) {
+        console.warn("Auth check timed out after 8s — unblocking UI");
         setLoading(false);
       }
-    });
+    }, 8000);
+
+    // Check existing session
+    supabase.auth
+      .getSession()
+      .then(({ data: { session: s } }) => {
+        setSession(s);
+        setUser(s?.user ?? null);
+        if (s?.user) {
+          loadProfile(s.user.id).finally(() => {
+            resolved = true;
+            setLoading(false);
+          });
+        } else {
+          resolved = true;
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.error("Auth getSession failed:", err);
+        resolved = true;
+        setLoading(false);
+      });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
@@ -74,7 +97,10 @@ export default function AuthProvider({ children }: Props) {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      window.clearTimeout(timeout);
+      subscription.unsubscribe();
+    };
   }, [loadProfile]);
 
   const signIn = useCallback(async (email: string, password: string) => {
