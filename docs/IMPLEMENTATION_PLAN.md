@@ -4,28 +4,43 @@ A step-by-step plan to take both the admin dashboard and user-facing app from fr
 
 ---
 
-## Current State
+## Current State (as of 2026-04-22)
 
-- **Admin dashboard** (`lagosapps-admin`): 15 pages fully built with mock data, responsive UI, all features visible but non-functional (no database, no API, no auth)
-- **User-facing app** (`lagosapps`): 7 portals, cart, checkout, membership, referrals, wallet — all using localStorage and hardcoded product arrays
-- **Backend**: None. No database, no server, no API endpoints
-- **Hosting**: Not deployed. Running locally on Vite dev servers
+**What's live and working:**
+
+- **Supabase project** (`uhrlsvnmoemrakwfrjyf`, West EU Ireland) — linked, 36 tables + RLS + seed data
+- **Admin dashboard** — auth + role-guarded routes, real profile loading from `profiles` table, login supports email/password + magic link + password reset
+- **Product catalog seeded** — 74 products, 29 categories, 10 solar packages, 3 venues, 5 building types, 3 membership tiers + 15 benefits, 7 portals, 5 pricing zones
+- **Resend integration** — domain `lagosapps.com` verified, sending from `hello@lagosapps.com`, Edge Function `send-email` deployed, 6 email templates seeded and editable from `/emails` admin page with banner/logo upload
+- **Email preview system** — dry-run endpoint returns rendered HTML; reusable `EmailPreviewModal` with desktop/mobile views; preview works for both email templates and broadcasts
+- **Storage bucket** `email-assets` — for logo and per-template banner uploads (admin-only write)
+- **User-facing app** — schema-aligned (reads from `profiles` extending `auth.users`), docs cross-linked with admin repo
+
+**What's still on mock data / still needs wiring:**
+
+- **Admin pages** — still render from `adminMockData.ts` (fallback hook in place; pages migrate incrementally as real data flows in)
+- **User-facing app** — still uses localStorage auth + hardcoded product arrays; Supabase client installed but not yet wired to DB
+- **Paystack** — not integrated yet (Milestone 3)
+- **Broadcasts + transactional emails** — Edge Function ready, sending works end-to-end with test calls, but not yet triggered by real app events (signup, order placed, etc.)
+- **WhatsApp** — deferred to Milestone 9
 
 ---
 
 ## Milestone Overview
 
-| # | Milestone | What becomes usable | Infrastructure needed | Duration estimate |
-|---|-----------|--------------------|-----------------------|---|
-| 1 | Foundation | Auth, user accounts, basic data persistence | Supabase (Auth + DB) | — |
-| 2 | Product Catalog | Real inventory, admin CRUD, user browsing | Supabase (Storage) | — |
-| 3 | Orders & Cart | Real checkout, order management, fulfillment | Paystack | — |
-| 4 | Wallet & Membership | Payments, subscriptions, wallet top-ups, benefits | Paystack (subscriptions) | — |
-| 5 | Communication | Broadcasts to users, internal admin notifications | Resend | — |
-| 6 | Operations | Service requests, custom orders, fulfillment tracking | — | — |
-| 7 | Analytics & Monitoring | Real dashboards, error tracking, product analytics | Sentry, PostHog | — |
-| 8 | Deployment & Security | Live on custom domain with SSL, DDoS protection | Netlify, Cloudflare | — |
-| 9 | Messaging & Support | WhatsApp order updates, customer support | WhatsApp Business API | — |
+| # | Milestone | Status | What becomes usable | Infrastructure |
+|---|-----------|--------|--------------------|---|
+| 1 | Foundation | ✅ Complete | Auth, user accounts, DB schema, API layer | Supabase (Auth + DB) |
+| 2 | Product Catalog | 🟡 Partial (seeded, wiring pending) | Real inventory, admin CRUD, user browsing | Supabase Storage |
+| 3 | Orders & Cart | ⬜ Not started | Real checkout, order management, fulfillment | Paystack |
+| 4 | Wallet & Membership | ⬜ Not started | Payments, subscriptions, wallet top-ups, benefits | Paystack (subscriptions) |
+| 5 | Communication | 🟡 Partial (email infra done, triggers pending) | Broadcasts to users, internal admin notifications | Resend |
+| 6 | Operations | ⬜ Not started | Service requests, custom orders, fulfillment tracking | — |
+| 7 | Analytics & Monitoring | ⬜ Not started | Real dashboards, error tracking, product analytics | Sentry, PostHog |
+| 8 | Deployment & Security | ⬜ Not started | Live on custom domain with SSL, DDoS protection | Netlify, Cloudflare |
+| 9 | Messaging & Support | ⬜ Not started | WhatsApp order updates, customer support | WhatsApp Business API |
+
+**Legend**: ✅ Complete · 🟡 Partial · ⬜ Not started
 
 ---
 
@@ -98,38 +113,41 @@ A step-by-step plan to take both the admin dashboard and user-facing app from fr
 
 ---
 
-## Milestone 2: Product Catalog
+## Milestone 2: Product Catalog — 🟡 PARTIAL
 
 **Goal**: Admin can manage the full product catalog (CRUD), and users browse real products from the database.
 
 ### Infrastructure
 
-| Service | What to set up | Cost |
-|---------|---------------|------|
-| **Supabase Storage** | Create buckets for product images, avatars, broadcast images. Configure public access policies. Enable image transformations. | Free |
+| Service | What to set up | Status |
+|---------|---------------|--------|
+| **Supabase Storage** | Public buckets for product images, avatars, email banners/logo | ✅ `email-assets` bucket live; `products` + `avatars` buckets still to create |
 
 ### Steps
 
-**2.1 — Image upload pipeline**
-- Create Supabase Storage buckets: `products`, `avatars`, `broadcasts`
-- Build reusable image upload component (drag-and-drop, preview, compression)
-- Configure Supabase image transformations for thumbnails
+**2.1 — Image upload pipeline** 🟡 Partial
+- ✅ `email-assets` bucket created (public, admin-only write, 5MB image limit)
+- ✅ Admin-UI image upload working end-to-end (used for email logo + banners)
+- ⬜ Create `products` bucket for catalog images
+- ⬜ Create `avatars` bucket for user avatars
+- ⬜ Build reusable image upload component (generalize the logic already in `EmailTemplatesPage`)
+- ⬜ Configure Supabase image transformations for thumbnails
 
 **2.2 — Admin inventory CRUD**
-- Connect `ProductForm.tsx` to real Supabase insert/update/delete
-- Connect `InventoryPortal.tsx` to fetch products per portal from DB
-- Wire up stock level management, active/inactive toggles
-- Handle portal-specific metadata (solar wattage, transport zone pricing, event venues, etc.)
-- Log all product changes to audit log
+- ⬜ Connect `ProductForm.tsx` to real Supabase insert/update/delete
+- ⬜ Connect `InventoryPortal.tsx` to fetch products per portal from DB (data is already seeded, just needs wiring)
+- ⬜ Wire up stock level management, active/inactive toggles
+- ⬜ Handle portal-specific metadata (solar wattage, transport zone pricing, event venues, etc.)
+- ⬜ Log all product changes to audit log
 
 **2.3 — User-facing portal migration**
-- Replace hardcoded product arrays in all 7 portal components with Supabase queries
-- Extract data files (Step 7-8 from migration plan) as an interim step if needed
-- Ensure product images load from Supabase Storage
+- ⬜ Replace hardcoded product arrays in all 7 portal components with Supabase queries
+- ⬜ Extract data files (Step 7-8 from migration plan) as an interim step if needed
+- ⬜ Ensure product images load from Supabase Storage
 
 **2.4 — Admin profile avatars**
-- Connect Settings page avatar upload to Supabase Storage
-- Connect User Detail avatar display to stored URLs
+- ⬜ Connect Settings page avatar upload to Supabase Storage
+- ⬜ Connect User Detail avatar display to stored URLs
 
 ### What works after Milestone 2
 
@@ -244,42 +262,50 @@ A step-by-step plan to take both the admin dashboard and user-facing app from fr
 
 ---
 
-## Milestone 5: Communication
+## Milestone 5: Communication — 🟡 PARTIAL (infrastructure complete, wiring to app events pending)
 
 **Goal**: Admin can broadcast messages to users via email. Internal system notifications alert admin team members about events that need attention.
 
 ### Infrastructure
 
-| Service | What to set up | Cost |
-|---------|---------------|------|
-| **Resend** | Create account, verify sending domain, get API key | Free (3K emails/month) |
-| **Supabase Realtime** | Enable realtime subscriptions on `system_notifications` table | Free |
+| Service | Status |
+|---------|--------|
+| **Resend** | ✅ Account created, domain `lagosapps.com` verified (DKIM + SPF + MX + DMARC), API key stored in Edge Function secrets, sending from `hello@lagosapps.com` |
+| **Supabase Realtime** | ⬜ Not yet enabled on `system_notifications` (deferred until UI is wired) |
 
 ### Steps
 
-**5.1 — Broadcast system (admin → users)**
-- Connect Broadcast Compose to create records in `broadcasts` table
-- On send: create `broadcast_recipients` records for each target user
-- Trigger Resend API to send email to each recipient
-- Support targeting: all users, by tier, specific user
-- Track delivery and read status per recipient
-- Connect Broadcast list and Broadcast Detail to real data (read rates from `broadcast_recipients`)
-- Implement retract: update broadcast status, mark as retracted for unread recipients
-- Implement save as draft: store broadcast with "draft" status
+**5.1 — Broadcast system (admin → users)** 🟡 Partial
 
-**5.2 — Transactional emails (system → users)**
-- Set up Resend email templates for:
-  - Order confirmation
-  - Payment receipt
-  - Membership renewal reminder (3 days before expiry)
-  - Referral bonus notification
-  - Password reset
-  - Wallet top-up confirmation
-- Trigger emails from Supabase Edge Functions or database triggers
+- ✅ `broadcasts` + `broadcast_recipients` tables created
+- ✅ Broadcast template seeded in `email_templates` with `{{title}}` + `{{message}}` interpolation
+- ✅ Broadcast Compose UI has working "Preview Email" button (uses real rendering pipeline)
+- ✅ Save as Draft button wired (UI only, not persisting to DB yet)
+- ⬜ Wire Broadcast Compose send button to create `broadcasts` row + fan-out `broadcast_recipients`
+- ⬜ Trigger Resend send for each recipient via the `send-email` Edge Function
+- ⬜ Connect Broadcast list and Broadcast Detail pages to real DB data (read rates from `broadcast_recipients`)
+- ⬜ Implement retract: update broadcast status, mark `retracted: true` on unread recipient rows
 
-**5.3 — Internal system notifications (admin-to-admin)**
-- Create `system_notifications` table with fields: id, recipient_admin_id, type, title, message, entity_type, entity_id, read, created_at
-- Build notification generation logic (Supabase database triggers or Edge Functions):
+**5.2 — Transactional emails (system → users)** 🟡 Infrastructure complete
+
+- ✅ `send-email` Edge Function deployed and tested (welcome + order_confirmation emails sent successfully to test inbox)
+- ✅ All 6 email templates seeded and editable from `/emails` admin page: welcome, password_reset, order_confirmation, wallet_topup, membership_renewal, broadcast
+- ✅ Template variable interpolation working (`{{name}}`, `{{orderId}}`, etc.)
+- ✅ Shared layout with logo header, optional per-template banner, content, branded footer (`hello@lagosapps.com`)
+- ✅ Dry-run preview endpoint and `EmailPreviewModal` with desktop/mobile views
+- ✅ Typed helpers in `src/lib/email.ts`: `sendWelcomeEmail`, `sendPasswordResetEmail`, `sendOrderConfirmationEmail`, `sendWalletTopupEmail`, `sendMembershipRenewalEmail`, `sendBroadcastEmail`, `sendCustomEmail`, `previewEmail`
+- ⬜ Wire triggers from app events:
+  - New user signup → welcome email (via auth trigger or Edge Function)
+  - Paystack webhook success → order confirmation + wallet topup email
+  - Cron job → membership renewal reminder (3 days before expiry)
+  - Referral confirmed → referral bonus email
+- ⬜ Optionally route Supabase Auth emails (confirm signup, password reset) through Resend SMTP — requires one-time SMTP config in Supabase Dashboard
+
+**5.3 — Internal system notifications (admin-to-admin)** 🟡 Schema ready
+
+- ✅ `system_notifications` table created with all 20+ notification types as CHECK constraint
+- ✅ RLS policies: admin reads own, update own, system can insert
+- ⬜ Build notification generation logic (Supabase database triggers or Edge Functions):
   - When service request is assigned → notify assigned team member
   - When order is pending > X hours → notify operations team
   - When stock drops below threshold → notify operations team
@@ -288,33 +314,37 @@ A step-by-step plan to take both the admin dashboard and user-facing app from fr
   - When membership expires → notify support team
   - When fulfillment SLA is at risk → notify assigned team member
   - When custom order request arrives → notify operations team
-- Rebuild topbar Notification Panel to fetch from `system_notifications` (not broadcasts)
-- Add "View all" link to new Notifications page
+- ⬜ Rebuild topbar Notification Panel to fetch from `system_notifications` (currently shows broadcasts from mock data)
+- ⬜ Add "View all" link to new Notifications page
 
-**5.4 — Notifications page (new admin page)**
-- Create `/notifications` page in sidebar
-- Show all system notifications for the logged-in admin
-- Read/unread management with mark individual and mark all
-- Filter by notification type
+**5.4 — Notifications page (new admin page)** ⬜
 
-**5.5 — Alert preferences and thresholds**
-- Create `notification_preferences` table: admin_id, category, enabled, threshold_value
-- Add "Alert Settings" section to the Notifications page or Settings page
-- Configurable alert categories (toggles):
-  - Order alerts (new, status change, overdue, cancellation)
-  - Fulfillment alerts (assigned to you, SLA at risk, overdue)
-  - Service request alerts (new, assigned to you, overdue)
-  - Inventory alerts (low stock, out of stock)
-  - Wallet alerts (large transactions above threshold)
-  - Membership alerts (new subscription, expiration, cancellation)
-  - Team alerts (new member, role change, privilege update)
-  - System alerts (settings changed, portal toggled)
-- Configurable thresholds:
-  - Low stock threshold (notify when product drops below X units)
-  - Large transaction threshold (notify on wallet movements above ₦X)
-  - Overdue order threshold (notify when order pending > X hours)
-  - SLA risk threshold (notify when fulfillment is X hours before deadline)
-- Use Supabase Realtime to push new notifications to the topbar panel without page refresh
+- ⬜ Create `/notifications` page in sidebar
+- ⬜ Show all system notifications for the logged-in admin
+- ⬜ Read/unread management with mark individual and mark all
+- ⬜ Filter by notification type
+
+**5.5 — Alert preferences and thresholds** 🟡 Schema ready
+
+- ✅ `notification_preferences` table created with all 8 categories + threshold columns (low_stock, large_transaction, overdue_hours, sla_risk_hours)
+- ✅ RLS policy: admin manages own preferences
+- ⬜ Build Alert Settings UI section in Notifications page or Settings page
+- ⬜ Wire threshold values into notification-generation triggers
+- ⬜ Enable Supabase Realtime on `system_notifications` for live topbar updates
+
+**5.6 — Login UX** ✅ COMPLETE (bonus)
+
+- ✅ Magic link sign-in option added to admin login page (uses `supabase.auth.signInWithOtp`)
+- ✅ Password/Magic Link tab toggle
+- ✅ "Forgot password?" flow using `supabase.auth.resetPasswordForEmail`
+
+**5.7 — Admin email template management** ✅ COMPLETE (bonus — not originally scoped)
+
+- ✅ `email_templates` table with admin-editable subject, heading, body HTML, banner per template
+- ✅ `email-assets` storage bucket (public read, admin write)
+- ✅ `/emails` admin page: template list, editor, banner upload per template, global logo upload
+- ✅ Live preview modal with desktop/mobile views — renders unsaved edits via inline template payload
+- ✅ Variable reference panel shows available placeholders per template
 
 ### What works after Milestone 5
 
@@ -323,6 +353,12 @@ A step-by-step plan to take both the admin dashboard and user-facing app from fr
 - Admin team members receive real-time internal notifications for events relevant to their role
 - Each admin can configure which alerts they receive and at what thresholds
 - Topbar notification bell shows real system alerts, not broadcasts
+
+### What works today (partial progress)
+
+- Any code in either repo can call `sendEmail(...)` or `sendWelcomeEmail(...)` to email a user through Resend — the full pipeline (DB template fetch, variable interpolation, logo/banner, branded layout, Resend send) is live
+- Admin can preview any email template (and broadcast) in full HTML before sending, with unsaved edits rendered
+- Admin can edit email content, heading, subject, and upload banner images without a code deploy
 
 ---
 
