@@ -1,16 +1,35 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../../hooks/useToast";
+import { useAuth } from "../../hooks/useAuth";
+import { supabase } from "../../lib/supabase";
+import { createOrder, insertOrderItems, insertOrderTimelineStep, generateOrderId, logAudit, getProducts } from "../../lib/api";
 import {
-  mockUsers,
-  mockProducts,
   formatNaira,
   PORTAL_LABELS,
   PORTAL_COLORS,
   type Portal,
-  type MockProduct,
-  type MockUser,
 } from "../../data/adminMockData";
+
+interface DbUser {
+  id: string;
+  name: string | null;
+  email: string;
+  phone: string | null;
+  membership_tier: string | null;
+  avatar_url: string | null;
+  wallet_balance: number;
+}
+
+interface DbProduct {
+  id: string;
+  portal_id: Portal;
+  name: string;
+  description: string | null;
+  price: number;
+  image_url: string | null;
+  is_active: boolean;
+}
 
 type Step = 1 | 2 | 3;
 
@@ -23,7 +42,7 @@ const CHANNELS = [
 const PORTALS: Portal[] = ["solar", "transport", "groceries", "health", "events", "community", "logistics"];
 
 interface CartItem {
-  product: MockProduct;
+  product: DbProduct;
   qty: number;
 }
 
@@ -32,37 +51,61 @@ const inputClass = "w-full border border-[#E2E8F0] rounded-xl px-3 py-2.5 text-s
 export default function CreateOrderAdmin() {
   const navigate = useNavigate();
   const toast = useToast();
+  const { user: authUser } = useAuth();
 
   const [step, setStep] = useState<Step>(1);
   const [channel, setChannel] = useState("");
   const [customerSearch, setCustomerSearch] = useState("");
-  const [selectedUser, setSelectedUser] = useState<MockUser | null>(null);
+  const [selectedUser, setSelectedUser] = useState<DbUser | null>(null);
+  const [searchResults, setSearchResults] = useState<DbUser[]>([]);
   const [showResults, setShowResults] = useState(false);
+  const [searching, setSearching] = useState(false);
 
   const [activePortal, setActivePortal] = useState<Portal>("solar");
+  const [portalProducts, setPortalProducts] = useState<DbProduct[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
 
   const [paymentMethod, setPaymentMethod] = useState("wallet");
   const [adminNotes, setAdminNotes] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  // Step 1 helpers
-  const searchResults = customerSearch.length >= 2
-    ? mockUsers.filter((u) =>
-        u.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
-        u.phone.includes(customerSearch)
-      ).slice(0, 5)
-    : [];
+  // Customer search debounce
+  useEffect(() => {
+    if (customerSearch.length < 2) { setSearchResults([]); return; }
+    const id = setTimeout(async () => {
+      setSearching(true);
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, name, email, phone, membership_tier, avatar_url, wallet_balance")
+        .or(`name.ilike.%${customerSearch}%,email.ilike.%${customerSearch}%,phone.ilike.%${customerSearch}%`)
+        .eq("is_active", true)
+        .eq("role", "user")
+        .limit(5);
+      setSearching(false);
+      setSearchResults((data as DbUser[]) ?? []);
+    }, 300);
+    return () => clearTimeout(id);
+  }, [customerSearch]);
 
-  const selectUser = (user: MockUser) => {
+  // Load products when portal changes
+  useEffect(() => {
+    (async () => {
+      setLoadingProducts(true);
+      const { data } = await getProducts(activePortal);
+      setLoadingProducts(false);
+      const active = ((data as DbProduct[]) ?? []).filter((p) => p.is_active);
+      setPortalProducts(active);
+    })();
+  }, [activePortal]);
+
+  const selectUser = (user: DbUser) => {
     setSelectedUser(user);
     setCustomerSearch("");
     setShowResults(false);
   };
 
-  // Step 2 helpers
-  const portalProducts = mockProducts.filter((p) => p.portal === activePortal && p.status === "active");
-
-  const addToCart = (product: MockProduct) => {
+  const addToCart = (product: DbProduct) => {
     setCart((prev) => {
       const existing = prev.find((c) => c.product.id === product.id);
       if (existing) return prev.map((c) => c.product.id === product.id ? { ...c, qty: c.qty + 1 } : c);
@@ -78,10 +121,86 @@ export default function CreateOrderAdmin() {
 
   const subtotal = cart.reduce((sum, c) => sum + c.product.price * c.qty, 0);
 
-  const handleSubmit = () => {
-    toast.success("Order created successfully");
-    navigate("/orders");
-  };
+  async function handleSubmit() {
+    if (!selectedUser || cart.length === 0) return;
+    setSubmitting(true);
+
+    // Group items by portal; we only support one portal per order for simplicity
+    const portalsInCart = Array.from(new Set(cart.map((c) => c.product.portal_id)));
+    const orderPortal = portalsInCart[0];
+    if (portalsInCart.length > 1) {
+      toast.error("Please add items from one portal at a time");
+      setSubmitting(false);
+      return;
+    }
+
+    // 1. Generate order ID + create order
+    const orderId = await generateOrderId();
+    const walletDeduction = paymentMethod === "wallet" ? Math.min(Number(selectedUser.wallet_balance), subtotal) : 0;
+    const paymentAmount = subtotal - walletDeduction;
+
+    const { data: createdOrder, error: orderErr } = await createOrder({
+      id: orderId,
+      user_id: selectedUser.id,
+      portal_id: orderPortal,
+      description: cart.map((c) => `${c.qty}× ${c.product.name}`).join(", "),
+      total_amount: subtotal,
+      discount_amount: 0,
+      wallet_deduction: walletDeduction,
+      payment_amount: paymentAmount,
+      payment_method: paymentMethod,
+      status: "pending",
+      channel,
+      admin_notes: adminNotes || null,
+      created_by: authUser?.id,
+    });
+
+    if (orderErr || !createdOrder) {
+      setSubmitting(false);
+      toast.error(`Order creation failed: ${orderErr?.message ?? "unknown"}`);
+      return;
+    }
+
+    // 2. Insert order items
+    const { error: itemsErr } = await insertOrderItems(
+      cart.map((c) => ({
+        order_id: orderId,
+        product_id: c.product.id,
+        name: c.product.name,
+        description: c.product.description,
+        price: c.product.price,
+        quantity: c.qty,
+        member_covered: false,
+      }))
+    );
+    if (itemsErr) {
+      setSubmitting(false);
+      toast.error(`Items failed: ${itemsErr.message}`);
+      return;
+    }
+
+    // 3. Seed first timeline step
+    await insertOrderTimelineStep({
+      order_id: orderId,
+      label: "Order Placed",
+      occurred_at: new Date().toISOString(),
+      completed: true,
+      sort_order: 0,
+      created_by: authUser?.id,
+    });
+
+    // 4. Audit
+    await logAudit({
+      action: "order.create",
+      entity_type: "order",
+      entity_id: orderId,
+      new_values: { portal_id: orderPortal, total_amount: subtotal, channel, customer: selectedUser.email },
+    });
+
+    setSubmitting(false);
+    toast.success(`Order ${orderId} created`);
+    navigate(`/orders/${orderId}`);
+  }
 
   const canProceed = () => {
     if (step === 1) return !!channel && !!selectedUser;
@@ -153,23 +272,31 @@ export default function CreateOrderAdmin() {
               className={inputClass}
               placeholder="Search by name or phone..."
             />
-            {showResults && searchResults.length > 0 && (
+            {(showResults || customerSearch.length >= 2) && (searching || searchResults.length > 0) && (
               <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-lg border border-[#E8ECF1] z-10 max-h-60 overflow-y-auto">
-                {searchResults.map((user) => (
-                  <button
-                    key={user.id}
-                    onClick={() => selectUser(user)}
-                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#F8FAFC] cursor-pointer transition-colors text-left"
-                  >
-                    <div className="size-8 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white text-[10px] font-bold">
-                      {user.avatar}
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-[#0F172A]">{user.name}</p>
-                      <p className="text-[12px] text-[#64748B]">{user.phone}</p>
-                    </div>
-                  </button>
-                ))}
+                {searching && <p className="px-4 py-3 text-sm text-[#94A3B8]">Searching…</p>}
+                {!searching && searchResults.map((user) => {
+                  const initials = (user.name ?? user.email).split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+                  return (
+                    <button
+                      key={user.id}
+                      onClick={() => selectUser(user)}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#F8FAFC] cursor-pointer transition-colors text-left"
+                    >
+                      {user.avatar_url ? (
+                        <img src={user.avatar_url} alt={user.name ?? user.email} className="size-8 rounded-full object-cover" />
+                      ) : (
+                        <div className="size-8 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white text-[10px] font-bold">
+                          {initials}
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-sm font-semibold text-[#0F172A]">{user.name ?? user.email}</p>
+                        <p className="text-[12px] text-[#64748B]">{user.phone ?? user.email}</p>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -178,12 +305,19 @@ export default function CreateOrderAdmin() {
           {selectedUser && (
             <div className="bg-[#F8FAFC] rounded-xl p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="size-10 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white text-sm font-bold">
-                  {selectedUser.avatar}
-                </div>
+                {selectedUser.avatar_url ? (
+                  <img src={selectedUser.avatar_url} alt={selectedUser.name ?? selectedUser.email} className="size-10 rounded-full object-cover" />
+                ) : (
+                  <div className="size-10 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white text-sm font-bold">
+                    {(selectedUser.name ?? selectedUser.email).split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}
+                  </div>
+                )}
                 <div>
-                  <p className="text-sm font-bold text-[#0F172A]">{selectedUser.name}</p>
-                  <p className="text-[12px] text-[#64748B]">{selectedUser.email} | {selectedUser.phone}</p>
+                  <p className="text-sm font-bold text-[#0F172A]">{selectedUser.name ?? selectedUser.email}</p>
+                  <p className="text-[12px] text-[#64748B]">{selectedUser.email}{selectedUser.phone ? ` | ${selectedUser.phone}` : ""}</p>
+                  {selectedUser.wallet_balance > 0 && (
+                    <p className="text-[11px] text-[#059669] mt-0.5">Wallet: {formatNaira(Number(selectedUser.wallet_balance))}</p>
+                  )}
                 </div>
               </div>
               <button onClick={() => setSelectedUser(null)} className="text-[#DC2626] cursor-pointer">
@@ -215,27 +349,33 @@ export default function CreateOrderAdmin() {
             </div>
 
             {/* Product grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {portalProducts.map((product) => {
-                const inCart = cart.find((c) => c.product.id === product.id);
-                return (
-                  <button
-                    key={product.id}
-                    onClick={() => addToCart(product)}
-                    className={`p-3 rounded-xl border-2 text-left cursor-pointer transition-all ${
-                      inCart ? "border-primary bg-primary/5" : "border-[#E2E8F0] hover:border-[#94A3B8]"
-                    }`}
-                  >
-                    <p className="text-sm font-semibold text-[#0F172A] truncate">{product.name}</p>
-                    <p className="text-[12px] text-[#64748B] truncate">{product.description}</p>
-                    <p className="text-sm font-bold text-[#0F172A] mt-1">{formatNaira(product.price)}</p>
-                    {inCart && (
-                      <span className="inline-block mt-1 text-[11px] font-semibold text-primary">x{inCart.qty} in cart</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+            {loadingProducts ? (
+              <p className="text-sm text-[#94A3B8] py-8 text-center">Loading {PORTAL_LABELS[activePortal]} products…</p>
+            ) : portalProducts.length === 0 ? (
+              <p className="text-sm text-[#94A3B8] py-8 text-center">No active products in this portal yet.</p>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {portalProducts.map((product) => {
+                  const inCart = cart.find((c) => c.product.id === product.id);
+                  return (
+                    <button
+                      key={product.id}
+                      onClick={() => addToCart(product)}
+                      className={`p-3 rounded-xl border-2 text-left cursor-pointer transition-all ${
+                        inCart ? "border-primary bg-primary/5" : "border-[#E2E8F0] hover:border-[#94A3B8]"
+                      }`}
+                    >
+                      <p className="text-sm font-semibold text-[#0F172A] truncate">{product.name}</p>
+                      <p className="text-[12px] text-[#64748B] truncate">{product.description}</p>
+                      <p className="text-sm font-bold text-[#0F172A] mt-1">{formatNaira(product.price)}</p>
+                      {inCart && (
+                        <span className="inline-block mt-1 text-[11px] font-semibold text-primary">x{inCart.qty} in cart</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Cart sidebar */}
@@ -280,11 +420,15 @@ export default function CreateOrderAdmin() {
             <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
               <h3 className="text-sm font-bold text-[#0F172A] mb-3">Customer</h3>
               <div className="flex items-center gap-3">
-                <div className="size-10 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white text-sm font-bold">
-                  {selectedUser.avatar}
-                </div>
+                {selectedUser.avatar_url ? (
+                  <img src={selectedUser.avatar_url} alt={selectedUser.name ?? selectedUser.email} className="size-10 rounded-full object-cover" />
+                ) : (
+                  <div className="size-10 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white text-sm font-bold">
+                    {(selectedUser.name ?? selectedUser.email).split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}
+                  </div>
+                )}
                 <div>
-                  <p className="text-sm font-bold text-[#0F172A]">{selectedUser.name}</p>
+                  <p className="text-sm font-bold text-[#0F172A]">{selectedUser.name ?? selectedUser.email}</p>
                   <p className="text-[12px] text-[#64748B]">{selectedUser.email} | Channel: {channel}</p>
                 </div>
               </div>
@@ -336,9 +480,10 @@ export default function CreateOrderAdmin() {
             </div>
             <button
               onClick={handleSubmit}
-              className="px-6 py-3 bg-primary text-white text-sm font-semibold rounded-xl cursor-pointer hover:brightness-[0.92] active:scale-[0.98] transition-all"
+              disabled={submitting}
+              className="px-6 py-3 bg-primary text-white text-sm font-semibold rounded-xl cursor-pointer hover:brightness-[0.92] active:scale-[0.98] transition-all disabled:opacity-50"
             >
-              Submit Order
+              {submitting ? "Creating..." : "Submit Order"}
             </button>
           </div>
         </div>

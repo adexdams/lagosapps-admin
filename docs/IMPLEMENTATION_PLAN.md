@@ -4,7 +4,7 @@ A step-by-step plan to take both the admin dashboard and user-facing app from fr
 
 ---
 
-## Current State (as of 2026-04-22)
+## Current State (as of 2026-04-20)
 
 **What's live and working:**
 
@@ -19,6 +19,7 @@ A step-by-step plan to take both the admin dashboard and user-facing app from fr
 - **Internal system notifications** — 7 DB triggers fire into `system_notifications` (service requests created/assigned, custom orders created, orders cancelled, inventory low/out of stock, team role changes, broadcasts sent); topbar panel and `/notifications` page both subscribe to Supabase Realtime so new alerts appear without refresh
 - **Alert preferences** — per-admin `notification_preferences` with per-category toggles + thresholds (low stock units, large transaction ₦, overdue hours, SLA risk hours), editable from Settings page, auto-persisted
 - **Service Portal Toggles wired to DB** — Settings page loads `service_portals.is_active` on mount, each toggle now calls `updatePortal(portal, { is_active })` with optimistic update + audit logging + success toast. Disabled portals show a "HIDDEN" badge. Takes effect immediately on the user-facing app (which filters by `is_active=true` in `getActivePortals`)
+- **Admin Orders / Fulfillment / Live Carts wired to DB** — Orders list + Order Detail (with refund-to-wallet flow + audit), Create Order admin wizard (debounced customer search, per-portal product picker, order + items + timeline insert), Live Carts (real `carts` + `cart_items`, abandoned detection via `updated_at`, Send Reminder email via Resend), Fulfillment page all 3 tabs (Order Fulfillment, Service Requests, Custom Orders) with real DB fetches + team-member assignment via `upsertFulfillmentTracking`, Fulfillment Detail supports both order SLA/progress editing (writes to `fulfillment_tracking`) and service-request status transitions + decline flow (writes to `service_requests`), with shared internal-notes stream backed by `fulfillment_notes` / `service_request_notes`
 - **Email preview system** — dry-run endpoint returns rendered HTML; reusable `EmailPreviewModal` with desktop/mobile views; preview works for both email templates and broadcasts
 - **Storage buckets** — `email-assets` (admin-only write), `products` (admin-only write), `avatars` (users manage own via `{user_id}/...` path convention)
 - **User-facing app** — schema-aligned (reads from `profiles` extending `auth.users`), docs cross-linked with admin repo
@@ -39,10 +40,10 @@ A step-by-step plan to take both the admin dashboard and user-facing app from fr
 |---|-----------|--------|--------------------|---|
 | 1 | Foundation | ✅ Complete | Auth, user accounts, DB schema, API layer | Supabase (Auth + DB) |
 | 2 | Product Catalog | 🟡 Partial (admin side complete, user-app portal migration pending) | Real inventory, admin CRUD, user browsing | Supabase Storage |
-| 3 | Orders & Cart | ⬜ Not started | Real checkout, order management, fulfillment | Paystack |
+| 3 | Orders & Cart | 🟡 Admin-side wired (user cart + Paystack pending) | Real checkout, order management, fulfillment | Paystack |
 | 4 | Wallet & Membership | ⬜ Not started | Payments, subscriptions, wallet top-ups, benefits | Paystack (subscriptions) |
 | 5 | Communication | 🟡 Mostly complete (broadcasts + internal notifications live; cron-based triggers pending) | Broadcasts to users, internal admin notifications | Resend |
-| 6 | Operations | ⬜ Not started | Service requests, custom orders, fulfillment tracking | — |
+| 6 | Operations | 🟡 Admin-side wired (user-app request submission pending) | Service requests, custom orders, fulfillment tracking | — |
 | 7 | Analytics & Monitoring | ⬜ Not started | Real dashboards, error tracking, product analytics | Sentry, PostHog |
 | 8 | Deployment & Security | ⬜ Not started | Live on custom domain with SSL, DDoS protection | Netlify, Cloudflare |
 | 9 | Messaging & Support | ⬜ Not started | WhatsApp order updates, customer support | WhatsApp Business API |
@@ -197,17 +198,17 @@ A step-by-step plan to take both the admin dashboard and user-facing app from fr
 - On payment failure: update order to "pending", notify user
 - Verify webhook signatures for security
 
-**3.4 — Order management (admin app)**
-- Connect Orders page to real order data
-- Wire up status transitions (pending → confirmed → processing → completed/cancelled)
-- Implement refund flow: admin triggers refund → Paystack refund API → credit user wallet
-- Connect Create Order (admin) to create real orders on behalf of customers
-- Connect Order Detail timeline to real `order_timeline` table
+**3.4 — Order management (admin app)** ✅ COMPLETE (admin-side)
 
-**3.5 — Live Carts (admin app)**
-- Connect Live Carts page to real `carts` table
-- Implement abandoned cart detection based on `updated_at` timestamp
-- Wire up "Send Reminder" to create a notification for the user
+- ✅ Orders page reads from `orders` with profile join, search/filter by status/portal, real avatar rendering, loading + empty states with "Create first order" CTA
+- ✅ Order Detail reads real `order_items` + `order_timeline` + profile, supports status transitions + refund-to-wallet flow (cancels order, credits customer wallet, inserts `wallet_transactions` row, logs audit)
+- ✅ Create Order 3-step wizard: debounced customer search via profiles, per-portal product picker via `getProducts(portalId)`, on submit generates ORD-XXXX id, inserts order + items + first timeline step, logs audit
+- ⬜ Paystack refund API integration (currently wallet-credit-only refund) — blocked on M3 Paystack setup
+
+**3.5 — Live Carts (admin app)** ✅ COMPLETE
+
+- ✅ Live Carts reads from `carts` + `cart_items` + profiles (filters empty carts, uses `updated_at` for abandoned detection > 24h)
+- ✅ Send Reminder flow uses `sendBroadcastEmail` with cart total + item count
 
 ### What works after Milestone 3
 
@@ -400,28 +401,26 @@ No new infrastructure — uses Supabase tables and Edge Functions from previous 
 
 ### Steps
 
-**6.1 — Service request pipeline (user → admin)**
-- Create submission forms in user-facing app for each request type:
-  - Solar: audit booking, installation request, maintenance request
-  - Health: home visit booking, health check booking, consultation
-  - Events: venue booking, training room booking, coverage request
-  - Community: volunteer application, sponsorship, donation
-  - Logistics: forwarding request
-- Each form writes to `service_requests` table
-- Connect admin Fulfillment > Service Requests tab to real data
+**6.1 — Service request pipeline (user → admin)** 🟡 Admin-side wired
 
-**6.2 — Custom order pipeline (user → admin)**
-- Add freeform request option in Groceries portal ("tell us what you need")
-- Add freeform description in Logistics portal
-- Write to `custom_order_requests` table
-- Connect admin Fulfillment > Custom Orders tab to real data
-- Implement "Convert to Order" flow: pre-fill Create Order with customer data
+- ✅ Admin Fulfillment > Service Requests tab reads real `service_requests` with profile join, filters, team-member assignment
+- ✅ Fulfillment Detail supports status workflow transitions (new → reviewing → scheduled → in_progress → completed), decline with reason, internal notes (`service_request_notes`), all with audit logging
+- ⬜ Create submission forms in user-facing app for each request type (Solar, Health, Events, Community, Logistics) that write to `service_requests` table
 
-**6.3 — Fulfillment tracking**
-- Connect Order Fulfillment tab to real orders with `processing`/`confirmed` status
-- Implement team assignment: write `assigned_to` field on orders and requests
-- Track SLA deadlines and progress in database
-- Generate system notifications when tasks are assigned or SLA is at risk
+**6.2 — Custom order pipeline (user → admin)** 🟡 Admin-side wired
+
+- ✅ Admin Fulfillment > Custom Orders tab reads real `custom_order_requests` with profile join, expandable detail rows, status filter
+- ✅ "Convert to Order" navigates to Create Order wizard; "View Customer" deep-links to user detail
+- ⬜ Add freeform request option in Groceries portal and freeform description in Logistics portal (user-facing app)
+- ⬜ Pre-fill Create Order with customer + request data on convert
+
+**6.3 — Fulfillment tracking** ✅ COMPLETE (admin-side)
+
+- ✅ Order Fulfillment tab reads orders with `processing`/`confirmed` status + `fulfillment_tracking` join, derives on-track / at-risk / behind counts, Unassigned queue with inline assignment dropdown
+- ✅ Team assignment via `upsertFulfillmentTracking` (onConflict: order_id), loaded team members from `admin_team_members` + profiles, writes `assigned_to` on both orders and service requests
+- ✅ SLA deadlines (response + fulfillment), priority, risk level, and progress % all persisted to `fulfillment_tracking` from Fulfillment Detail
+- ✅ Internal notes persisted to `fulfillment_notes` with `author_id` from `auth.getUser()`
+- ⬜ System notifications on SLA risk (needs cron job — M4.5)
 
 **6.4 — Audit log**
 - Implement real audit logging: every admin action writes to `admin_audit_log`

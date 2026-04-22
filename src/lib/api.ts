@@ -35,19 +35,104 @@ export async function updateUser(id: string, data: Record<string, unknown>) {
 // ── Orders ──────────────────────────────────────────────────
 
 export async function getOrders() {
-  return supabase.from("orders").select("*, order_items(*)").order("created_at", { ascending: false });
+  return supabase
+    .from("orders")
+    .select("*, profiles(name, email, avatar_url)")
+    .order("created_at", { ascending: false });
 }
 
 export async function getOrder(id: string) {
-  return supabase.from("orders").select("*, order_items(*), order_timeline(*)").eq("id", id).single();
+  return supabase
+    .from("orders")
+    .select("*, order_items(*), order_timeline(*), profiles(id, name, email, avatar_url, phone, membership_tier)")
+    .eq("id", id)
+    .single();
 }
 
 export async function updateOrderStatus(id: string, status: string) {
-  return supabase.from("orders").update({ status }).eq("id", id);
+  return supabase.from("orders").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
 }
 
 export async function createOrder(data: Record<string, unknown>) {
   return supabase.from("orders").insert(data).select().single();
+}
+
+export async function insertOrderItems(items: Record<string, unknown>[]) {
+  return supabase.from("order_items").insert(items);
+}
+
+export async function insertOrderTimelineStep(step: Record<string, unknown>) {
+  return supabase.from("order_timeline").insert(step);
+}
+
+/**
+ * Generates a human-readable order ID in ORD-XXX format. Queries the
+ * latest order to find the next sequence number.
+ */
+export async function generateOrderId(): Promise<string> {
+  const { data } = await supabase
+    .from("orders")
+    .select("id")
+    .like("id", "ORD-%")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const latest = (data as { id: string } | null)?.id;
+  const num = latest ? parseInt(latest.replace("ORD-", ""), 10) + 1 : 1;
+  return `ORD-${String(num).padStart(4, "0")}`;
+}
+
+// ── Fulfillment ─────────────────────────────────────────────
+
+export async function getFulfillmentOrders() {
+  // Orders that are actively being fulfilled
+  return supabase
+    .from("orders")
+    .select("*, profiles(name, email), fulfillment_tracking(*)")
+    .in("status", ["confirmed", "processing"])
+    .order("created_at", { ascending: false });
+}
+
+export async function getFulfillmentTrackingByOrder(orderId: string) {
+  return supabase
+    .from("fulfillment_tracking")
+    .select("*, fulfillment_notes(*, profiles(name))")
+    .eq("order_id", orderId)
+    .maybeSingle();
+}
+
+export async function upsertFulfillmentTracking(data: Record<string, unknown>) {
+  return supabase.from("fulfillment_tracking").upsert(data, { onConflict: "order_id" }).select().single();
+}
+
+export async function addFulfillmentNote(data: Record<string, unknown>) {
+  return supabase.from("fulfillment_notes").insert(data).select().single();
+}
+
+// ── Service Requests ────────────────────────────────────────
+
+export async function getServiceRequestsList() {
+  return supabase
+    .from("service_requests")
+    .select("*, profiles!service_requests_user_id_fkey(name, email)")
+    .order("created_at", { ascending: false });
+}
+
+export async function updateServiceRequestStatus(id: string, data: Record<string, unknown>) {
+  return supabase.from("service_requests").update(data).eq("id", id);
+}
+
+// ── Custom Order Requests ──────────────────────────────────
+
+export async function getCustomRequestsList() {
+  return supabase
+    .from("custom_order_requests")
+    .select("*, profiles(name, email)")
+    .order("created_at", { ascending: false });
+}
+
+export async function updateCustomRequestStatus(id: string, data: Record<string, unknown>) {
+  return supabase.from("custom_order_requests").update(data).eq("id", id);
 }
 
 // ── Products ────────────────────────────────────────────────
@@ -142,6 +227,10 @@ export async function getServiceRequest(id: string) {
 
 export async function updateServiceRequest(id: string, data: Record<string, unknown>) {
   return supabase.from("service_requests").update(data).eq("id", id);
+}
+
+export async function addServiceRequestNote(data: Record<string, unknown>) {
+  return supabase.from("service_request_notes").insert(data).select().single();
 }
 
 // ── Custom Order Requests ───────────────────────────────────
