@@ -127,9 +127,9 @@ A step-by-step plan to take both the admin dashboard and user-facing app from fr
 
 **2.1 — Image upload pipeline** 🟡 Partial
 - ✅ `email-assets` bucket created (public, admin-only write, 5MB image limit)
+- ✅ `products` bucket created (public read, admin-only write, 5MB image limit)
+- ✅ `avatars` bucket created (public read, user can manage own, 2MB image limit, path convention `{user_id}/avatar.{ext}`)
 - ✅ Admin-UI image upload working end-to-end (used for email logo + banners)
-- ⬜ Create `products` bucket for catalog images
-- ⬜ Create `avatars` bucket for user avatars
 - ⬜ Build reusable image upload component (generalize the logic already in `EmailTemplatesPage`)
 - ⬜ Configure Supabase image transformations for thumbnails
 
@@ -294,11 +294,11 @@ A step-by-step plan to take both the admin dashboard and user-facing app from fr
 - ✅ Shared layout with logo header, optional per-template banner, content, branded footer (`hello@lagosapps.com`)
 - ✅ Dry-run preview endpoint and `EmailPreviewModal` with desktop/mobile views
 - ✅ Typed helpers in `src/lib/email.ts`: `sendWelcomeEmail`, `sendPasswordResetEmail`, `sendOrderConfirmationEmail`, `sendWalletTopupEmail`, `sendMembershipRenewalEmail`, `sendBroadcastEmail`, `sendCustomEmail`, `previewEmail`
-- ⬜ Wire triggers from app events:
-  - New user signup → welcome email (via auth trigger or Edge Function)
-  - Paystack webhook success → order confirmation + wallet topup email
-  - Cron job → membership renewal reminder (3 days before expiry)
-  - Referral confirmed → referral bonus email
+- 🟡 Wire triggers from app events:
+  - ✅ New user signup → welcome email (DB trigger `on_profile_created_send_welcome` fires `send-email` Edge Function via `pg_net` whenever a row is inserted into `profiles`; works for both user-facing signup and admin-created users)
+  - ⬜ Paystack webhook success → order confirmation + wallet topup email
+  - ⬜ Cron job → membership renewal reminder (3 days before expiry)
+  - ⬜ Referral confirmed → referral bonus email
 - ⬜ Optionally route Supabase Auth emails (confirm signup, password reset) through Resend SMTP — requires one-time SMTP config in Supabase Dashboard
 
 **5.3 — Internal system notifications (admin-to-admin)** 🟡 Schema ready
