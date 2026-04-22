@@ -1,28 +1,115 @@
-import { useState } from "react";
-import { mockNotifications, formatDate } from "../../../data/adminMockData";
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../../hooks/useAuth";
+import { supabase } from "../../../lib/supabase";
+import { getSystemNotifications, markSystemNotificationRead, markAllSystemNotificationsRead } from "../../../lib/api";
+import { formatDate } from "../../../data/adminMockData";
+
+interface SystemNotification {
+  id: string;
+  recipient_id: string;
+  type: string;
+  title: string;
+  message: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  read: boolean;
+  created_at: string;
+}
 
 const TYPE_ICONS: Record<string, { icon: string; color: string; bg: string }> = {
-  order: { icon: "receipt_long", color: "#EA580C", bg: "#FFF7ED" },
-  wallet: { icon: "account_balance_wallet", color: "#2563EB", bg: "#EFF6FF" },
-  membership: { icon: "card_membership", color: "#7C3AED", bg: "#F5F3FF" },
-  system: { icon: "settings", color: "#64748B", bg: "#F1F5F9" },
+  order_new: { icon: "receipt_long", color: "#EA580C", bg: "#FFF7ED" },
+  order_overdue: { icon: "schedule", color: "#DC2626", bg: "#FEF2F2" },
+  order_cancelled: { icon: "cancel", color: "#DC2626", bg: "#FEF2F2" },
+  fulfillment_assigned: { icon: "assignment_ind", color: "#2563EB", bg: "#EFF6FF" },
+  fulfillment_sla_risk: { icon: "warning", color: "#EA580C", bg: "#FFF7ED" },
+  fulfillment_overdue: { icon: "error", color: "#DC2626", bg: "#FEF2F2" },
+  request_new: { icon: "fiber_new", color: "#2563EB", bg: "#EFF6FF" },
+  request_assigned: { icon: "assignment_ind", color: "#7C3AED", bg: "#F5F3FF" },
+  request_overdue: { icon: "schedule", color: "#DC2626", bg: "#FEF2F2" },
+  inventory_low_stock: { icon: "inventory_2", color: "#EA580C", bg: "#FFF7ED" },
+  inventory_out_of_stock: { icon: "remove_shopping_cart", color: "#DC2626", bg: "#FEF2F2" },
+  wallet_large_transaction: { icon: "payments", color: "#7C3AED", bg: "#F5F3FF" },
+  wallet_adjustment: { icon: "account_balance_wallet", color: "#2563EB", bg: "#EFF6FF" },
+  membership_new: { icon: "card_membership", color: "#059669", bg: "#ECFDF5" },
+  membership_expiring: { icon: "schedule", color: "#EA580C", bg: "#FFF7ED" },
+  membership_cancelled: { icon: "cancel", color: "#DC2626", bg: "#FEF2F2" },
+  team_role_changed: { icon: "badge", color: "#7C3AED", bg: "#F5F3FF" },
+  team_privilege_updated: { icon: "shield", color: "#7C3AED", bg: "#F5F3FF" },
+  team_member_added: { icon: "person_add", color: "#059669", bg: "#ECFDF5" },
+  settings_changed: { icon: "settings", color: "#64748B", bg: "#F1F5F9" },
+  portal_toggled: { icon: "power_settings_new", color: "#64748B", bg: "#F1F5F9" },
+  broadcast_sent: { icon: "campaign", color: "#0D47A1", bg: "#EFF6FF" },
 };
 
+const DEFAULT_META = { icon: "notifications", color: "#64748B", bg: "#F1F5F9" };
+
 export default function NotificationPanel() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [readState, setReadState] = useState<Record<string, boolean>>(
-    Object.fromEntries(mockNotifications.map((n) => [n.id, n.read]))
-  );
+  const [notifications, setNotifications] = useState<SystemNotification[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const unreadCount = Object.values(readState).filter((r) => !r).length;
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
-  const toggleRead = (id: string) => {
-    setReadState((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
+  const load = useCallback(async () => {
+    if (!user?.id) return;
+    setLoading(true);
+    const { data } = await getSystemNotifications(user.id);
+    const rows = (data as SystemNotification[]) ?? [];
+    setNotifications(rows.slice(0, 15)); // top 15 in the dropdown
+    setLoading(false);
+  }, [user?.id]);
 
-  const markAllRead = () => {
-    setReadState((prev) => Object.fromEntries(Object.keys(prev).map((k) => [k, true])));
-  };
+  useEffect(() => { load(); }, [load]);
+
+  // Realtime: new notifications for this admin push into the panel
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`topbar_notifications:${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "system_notifications", filter: `recipient_id=eq.${user.id}` },
+        (payload) => {
+          setNotifications((prev) => [payload.new as SystemNotification, ...prev].slice(0, 15));
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.id]);
+
+  async function toggleRead(n: SystemNotification, e?: React.MouseEvent) {
+    e?.stopPropagation();
+    if (!n.read) {
+      setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
+      const { error } = await markSystemNotificationRead(n.id);
+      if (error) {
+        setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: false } : x)));
+      }
+    } else {
+      setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: false } : x)));
+      await supabase.from("system_notifications").update({ read: false }).eq("id", n.id);
+    }
+  }
+
+  async function handleMarkAllRead() {
+    if (!user?.id) return;
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    await markAllSystemNotificationsRead(user.id);
+  }
+
+  function handleClick(n: SystemNotification) {
+    if (!n.read) void toggleRead(n);
+    setOpen(false);
+    if (n.entity_type === "service_request") navigate("/fulfillment");
+    else if (n.entity_type === "order" && n.entity_id) navigate(`/orders/${n.entity_id}`);
+    else if (n.entity_type === "product") navigate("/inventory");
+    else if (n.entity_type === "broadcast" && n.entity_id) navigate(`/broadcast/${n.entity_id}`);
+    else if (n.entity_type === "custom_order_request") navigate("/fulfillment");
+    else if (n.entity_type === "team_member") navigate("/team");
+  }
 
   return (
     <div className="relative">
@@ -33,7 +120,7 @@ export default function NotificationPanel() {
         <span className="material-symbols-outlined text-[22px] text-[#334155]">notifications</span>
         {unreadCount > 0 && (
           <span className="absolute top-1 right-1 size-4 bg-[#DC2626] text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-            {unreadCount}
+            {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
       </button>
@@ -47,52 +134,70 @@ export default function NotificationPanel() {
               <div className="flex items-center gap-3">
                 <span className="text-[11px] font-semibold text-primary">{unreadCount} unread</span>
                 {unreadCount > 0 && (
-                  <button onClick={markAllRead} className="text-[11px] font-semibold text-[#64748B] hover:text-[#0F172A] cursor-pointer">
+                  <button onClick={handleMarkAllRead} className="text-[11px] font-semibold text-[#64748B] hover:text-[#0F172A] cursor-pointer">
                     Mark all read
                   </button>
                 )}
               </div>
             </div>
             <div className="max-h-96 overflow-y-auto">
-              {mockNotifications.slice(0, 10).map((n) => {
-                const isUnread = !readState[n.id];
-                const typeConfig = TYPE_ICONS[n.type] ?? TYPE_ICONS.system;
-                return (
-                  <div
-                    key={n.id}
-                    className={`px-4 py-3 border-b border-[#F1F5F9] last:border-0 transition-colors ${
-                      isUnread ? "bg-primary/[0.04]" : "hover:bg-[#F8FAFC]"
-                    }`}
-                  >
-                    <div className="flex gap-3">
-                      {/* Unread dot + type icon */}
-                      <div className="flex flex-col items-center gap-1 pt-0.5 flex-shrink-0">
-                        <div className={`size-2 rounded-full ${isUnread ? "bg-primary" : "bg-transparent"}`} />
-                        <div className="size-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: typeConfig.bg }}>
-                          <span className="material-symbols-outlined text-[16px]" style={{ color: typeConfig.color }}>{typeConfig.icon}</span>
+              {loading ? (
+                <div className="px-4 py-8 text-center text-sm text-[#94A3B8]">Loading…</div>
+              ) : notifications.length === 0 ? (
+                <div className="px-4 py-10 text-center">
+                  <span className="material-symbols-outlined text-[32px] text-[#CBD5E1] block mb-1">notifications_off</span>
+                  <p className="text-sm text-[#94A3B8]">No notifications</p>
+                </div>
+              ) : (
+                notifications.map((n) => {
+                  const meta = TYPE_ICONS[n.type] ?? DEFAULT_META;
+                  return (
+                    <div
+                      key={n.id}
+                      onClick={() => handleClick(n)}
+                      className={`px-4 py-3 border-b border-[#F1F5F9] last:border-0 transition-colors cursor-pointer ${
+                        !n.read ? "bg-primary/[0.04] hover:bg-primary/[0.08]" : "hover:bg-[#F8FAFC]"
+                      }`}
+                    >
+                      <div className="flex gap-3">
+                        <div className="flex flex-col items-center gap-1 pt-0.5 flex-shrink-0">
+                          <div className={`size-2 rounded-full ${!n.read ? "bg-primary" : "bg-transparent"}`} />
+                          <div className="size-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: meta.bg }}>
+                            <span className="material-symbols-outlined text-[16px]" style={{ color: meta.color }}>{meta.icon}</span>
+                          </div>
                         </div>
-                      </div>
-                      {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-[13px] truncate ${isUnread ? "font-bold text-[#0F172A]" : "font-medium text-[#334155]"}`}>{n.title}</p>
-                        <p className="text-[12px] text-[#64748B] truncate mt-0.5">{n.message}</p>
-                        <div className="flex items-center justify-between mt-1.5">
-                          <p className="text-[11px] text-[#94A3B8]">{formatDate(n.createdAt)}</p>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); toggleRead(n.id); }}
-                            className="text-[11px] font-semibold text-primary hover:underline cursor-pointer"
-                          >
-                            {isUnread ? "Mark read" : "Mark unread"}
-                          </button>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-[13px] truncate ${!n.read ? "font-bold text-[#0F172A]" : "font-medium text-[#334155]"}`}>{n.title}</p>
+                          <p className="text-[12px] text-[#64748B] truncate mt-0.5">{n.message}</p>
+                          <div className="flex items-center justify-between mt-1.5">
+                            <p className="text-[11px] text-[#94A3B8]">{formatDate(n.created_at)}</p>
+                            <button
+                              onClick={(e) => void toggleRead(n, e)}
+                              className="text-[11px] font-semibold text-primary hover:underline cursor-pointer"
+                            >
+                              {!n.read ? "Mark read" : "Mark unread"}
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
-            <div className="px-4 py-3 border-t border-[#E8ECF1]/60">
-              <a href="/broadcast" className="text-sm font-semibold text-primary hover:underline">View all broadcasts</a>
+            <div className="px-4 py-3 border-t border-[#E8ECF1]/60 flex items-center justify-between">
+              <button
+                onClick={() => { setOpen(false); navigate("/notifications"); }}
+                className="text-sm font-semibold text-primary hover:underline cursor-pointer"
+              >
+                View all notifications
+              </button>
+              <button
+                onClick={() => { setOpen(false); navigate("/settings"); }}
+                className="text-xs font-semibold text-[#64748B] hover:text-[#334155] cursor-pointer"
+              >
+                Alert settings
+              </button>
             </div>
           </div>
         </>

@@ -15,6 +15,9 @@ A step-by-step plan to take both the admin dashboard and user-facing app from fr
 - **Admin avatars** — upload to `avatars` bucket, stored on `profiles.avatar_url`; rendered in topbar and User Detail
 - **Resend integration** — domain `lagosapps.com` verified, sending from `hello@lagosapps.com`, Edge Function `send-email` deployed, 6 email templates seeded and editable from `/emails` admin page with banner/logo upload
 - **Welcome email trigger** — fires automatically on every new `profiles` row via `pg_net` + Edge Function (covers both user-app signup and admin-created users)
+- **Broadcast system end-to-end** — admin Compose creates `broadcasts` + fans out to `broadcast_recipients` + `user_notifications` + fires Resend emails; list page + detail page show live read rates; retract flow marks unread inboxes as retracted
+- **Internal system notifications** — 7 DB triggers fire into `system_notifications` (service requests created/assigned, custom orders created, orders cancelled, inventory low/out of stock, team role changes, broadcasts sent); topbar panel and `/notifications` page both subscribe to Supabase Realtime so new alerts appear without refresh
+- **Alert preferences** — per-admin `notification_preferences` with per-category toggles + thresholds (low stock units, large transaction ₦, overdue hours, SLA risk hours), editable from Settings page, auto-persisted
 - **Email preview system** — dry-run endpoint returns rendered HTML; reusable `EmailPreviewModal` with desktop/mobile views; preview works for both email templates and broadcasts
 - **Storage buckets** — `email-assets` (admin-only write), `products` (admin-only write), `avatars` (users manage own via `{user_id}/...` path convention)
 - **User-facing app** — schema-aligned (reads from `profiles` extending `auth.users`), docs cross-linked with admin repo
@@ -37,7 +40,7 @@ A step-by-step plan to take both the admin dashboard and user-facing app from fr
 | 2 | Product Catalog | 🟡 Partial (admin side complete, user-app portal migration pending) | Real inventory, admin CRUD, user browsing | Supabase Storage |
 | 3 | Orders & Cart | ⬜ Not started | Real checkout, order management, fulfillment | Paystack |
 | 4 | Wallet & Membership | ⬜ Not started | Payments, subscriptions, wallet top-ups, benefits | Paystack (subscriptions) |
-| 5 | Communication | 🟡 Partial (email infra done, triggers pending) | Broadcasts to users, internal admin notifications | Resend |
+| 5 | Communication | 🟡 Mostly complete (broadcasts + internal notifications live; cron-based triggers pending) | Broadcasts to users, internal admin notifications | Resend |
 | 6 | Operations | ⬜ Not started | Service requests, custom orders, fulfillment tracking | — |
 | 7 | Analytics & Monitoring | ⬜ Not started | Real dashboards, error tracking, product analytics | Sentry, PostHog |
 | 8 | Deployment & Security | ⬜ Not started | Live on custom domain with SSL, DDoS protection | Netlify, Cloudflare |
@@ -308,21 +311,31 @@ A step-by-step plan to take both the admin dashboard and user-facing app from fr
   - ⬜ Referral confirmed → referral bonus email
 - ⬜ Optionally route Supabase Auth emails (confirm signup, password reset) through Resend SMTP — requires one-time SMTP config in Supabase Dashboard
 
-**5.3 — Internal system notifications (admin-to-admin)** 🟡 Schema ready
+**5.3 — Internal system notifications (admin-to-admin)** 🟡 Partial (key triggers live, more to add)
 
-- ✅ `system_notifications` table created with all 20+ notification types as CHECK constraint
+- ✅ `system_notifications` table with all 22 notification types (added `broadcast_sent` in `20260422120000`)
 - ✅ RLS policies: admin reads own, update own, system can insert
-- ⬜ Build notification generation logic (Supabase database triggers or Edge Functions):
-  - When service request is assigned → notify assigned team member
-  - When order is pending > X hours → notify operations team
-  - When stock drops below threshold → notify operations team
-  - When large wallet transaction occurs → notify finance team
-  - When team member role/privileges change → notify the member
-  - When membership expires → notify support team
-  - When fulfillment SLA is at risk → notify assigned team member
-  - When custom order request arrives → notify operations team
-- ⬜ Rebuild topbar Notification Panel to fetch from `system_notifications` (currently shows broadcasts from mock data)
-- ⬜ Add "View all" link to new Notifications page
+- ✅ Migration `20260422120000_system_notification_triggers.sql` installs 7 DB triggers:
+  - `on_service_request_event` — new request → ops team; assignment → assignee
+  - `on_custom_request_created` — new custom order → ops team
+  - `on_order_cancelled` — status→cancelled → ops team
+  - `on_product_stock_change` — stock crosses threshold → ops team (low_stock / out_of_stock)
+  - `on_team_role_changed` — role update → the member themselves
+  - `on_broadcast_sent` — status→sent → super_admins (except sender)
+- ✅ Helper SQL functions `admins_with_roles(variadic)` + `insert_system_notification(...)` — non-blocking (exceptions log warnings)
+- ✅ Topbar `NotificationPanel` now fetches `system_notifications` for the logged-in admin, with Supabase Realtime subscription for live updates. Shows unread badge, per-item mark read/unread, deep links to related entity (order, request, product, broadcast, team member).
+- ⬜ Still pending triggers: order overdue timer (needs cron), membership expiring (needs cron), membership new/cancelled, wallet large transactions, fulfillment SLA risk
+
+**5.4 — Notifications page** ✅ COMPLETE
+
+- ✅ `/notifications` route + sidebar entry "Notifications"
+- ✅ `NotificationsInboxPage.tsx` lists all the logged-in admin's system notifications
+- ✅ Category filter pills (all, orders, fulfillment, requests, inventory, wallet, membership, team, system) with per-category counts
+- ✅ Unread-only toggle
+- ✅ Mark individual as read/unread; Mark all read
+- ✅ Click notification → deep link to related entity + auto-mark read
+- ✅ Supabase Realtime subscription — new notifications appear without refresh
+- ✅ Empty state ("You're all caught up")
 
 **5.4 — Notifications page (new admin page)** ⬜
 
@@ -331,13 +344,20 @@ A step-by-step plan to take both the admin dashboard and user-facing app from fr
 - ⬜ Read/unread management with mark individual and mark all
 - ⬜ Filter by notification type
 
-**5.5 — Alert preferences and thresholds** 🟡 Schema ready
+**5.5 — Alert preferences and thresholds** ✅ COMPLETE
 
-- ✅ `notification_preferences` table created with all 8 categories + threshold columns (low_stock, large_transaction, overdue_hours, sla_risk_hours)
+- ✅ `notification_preferences` table with all 8 categories + threshold columns
 - ✅ RLS policy: admin manages own preferences
-- ⬜ Build Alert Settings UI section in Notifications page or Settings page
-- ⬜ Wire threshold values into notification-generation triggers
-- ⬜ Enable Supabase Realtime on `system_notifications` for live topbar updates
+- ✅ **Alert Preferences card** added to Settings page
+  - Per-category toggle: orders, fulfillment, requests, inventory, wallet, membership, team, system
+  - Category-specific threshold inputs where relevant:
+    - Orders — overdue-hours threshold
+    - Fulfillment — SLA-risk hours
+    - Inventory — low-stock units
+    - Wallet — large-transaction ₦ amount
+  - Upserts to DB on every change (no explicit Save button — auto-persist)
+- ✅ Supabase Realtime subscriptions enabled in both `NotificationsInboxPage` and `NotificationPanel` — new system notifications push into both places without refresh
+- ⬜ Wire threshold values into the server-side notification-generation triggers (triggers currently use hardcoded/default thresholds; need to JOIN `notification_preferences` before firing)
 
 **5.6 — Login UX** ✅ COMPLETE (bonus)
 

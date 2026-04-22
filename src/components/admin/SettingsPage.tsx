@@ -1,9 +1,29 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useToast } from "../../hooks/useToast";
 import { useAuth } from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabase";
-import { updateUser, logAudit } from "../../lib/api";
+import { updateUser, logAudit, getNotificationPreferences, upsertNotificationPreference } from "../../lib/api";
 import { PORTAL_LABELS, PORTAL_COLORS, type Portal } from "../../data/adminMockData";
+
+interface NotifPref {
+  category: string;
+  enabled: boolean;
+  low_stock_threshold: number | null;
+  large_transaction_threshold: number | null;
+  overdue_hours_threshold: number | null;
+  sla_risk_hours_threshold: number | null;
+}
+
+const ALERT_CATEGORIES: { key: string; label: string; description: string; icon: string; thresholdKey?: keyof NotifPref; thresholdLabel?: string; thresholdUnit?: string; thresholdDefault?: number }[] = [
+  { key: "orders", label: "Orders", description: "New orders, status changes, overdue, cancellations", icon: "receipt_long", thresholdKey: "overdue_hours_threshold", thresholdLabel: "Alert when order pending for", thresholdUnit: "hours", thresholdDefault: 24 },
+  { key: "fulfillment", label: "Fulfillment", description: "Tasks assigned to you, SLA at risk, overdue", icon: "assignment", thresholdKey: "sla_risk_hours_threshold", thresholdLabel: "Alert when fulfillment deadline is within", thresholdUnit: "hours", thresholdDefault: 12 },
+  { key: "requests", label: "Service Requests", description: "New requests, assigned to you, overdue reviews", icon: "description" },
+  { key: "inventory", label: "Inventory", description: "Low stock, out of stock", icon: "inventory_2", thresholdKey: "low_stock_threshold", thresholdLabel: "Notify when stock drops below", thresholdUnit: "units", thresholdDefault: 5 },
+  { key: "wallet", label: "Wallet & Finance", description: "Large transactions, manual adjustments", icon: "account_balance_wallet", thresholdKey: "large_transaction_threshold", thresholdLabel: "Flag transactions above", thresholdUnit: "₦", thresholdDefault: 100000 },
+  { key: "membership", label: "Membership", description: "New subscriptions, expiring, cancellations", icon: "card_membership" },
+  { key: "team", label: "Team", description: "New members, role changes, privilege updates", icon: "people" },
+  { key: "system", label: "System", description: "Settings changed, portal toggled, broadcasts sent", icon: "settings" },
+];
 
 const PORTALS: Portal[] = ["solar", "transport", "groceries", "health", "events", "community", "logistics"];
 const inputClass = "w-full border border-[#E2E8F0] rounded-xl px-3 py-2.5 text-sm text-[#0F172A] outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all";
@@ -26,6 +46,44 @@ export default function SettingsPage() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const avatarRef = useRef<HTMLInputElement>(null);
+  const [prefs, setPrefs] = useState<Record<string, NotifPref>>({});
+  const [savingPref, setSavingPref] = useState<string | null>(null);
+
+  const loadPrefs = useCallback(async () => {
+    if (!user?.id) return;
+    const { data } = await getNotificationPreferences(user.id);
+    const map: Record<string, NotifPref> = {};
+    for (const row of (data ?? []) as NotifPref[]) map[row.category] = row;
+    setPrefs(map);
+  }, [user?.id]);
+
+  useEffect(() => { loadPrefs(); }, [loadPrefs]);
+
+  async function saveAlertPref(category: string, update: Partial<NotifPref>) {
+    if (!user?.id) return;
+    setSavingPref(category);
+    const existing = prefs[category] ?? {
+      category,
+      enabled: true,
+      low_stock_threshold: null,
+      large_transaction_threshold: null,
+      overdue_hours_threshold: null,
+      sla_risk_hours_threshold: null,
+    };
+    const merged = { ...existing, ...update };
+    setPrefs((prev) => ({ ...prev, [category]: merged }));
+    const { error } = await upsertNotificationPreference({
+      admin_id: user.id,
+      category,
+      enabled: merged.enabled,
+      low_stock_threshold: merged.low_stock_threshold,
+      large_transaction_threshold: merged.large_transaction_threshold,
+      overdue_hours_threshold: merged.overdue_hours_threshold,
+      sla_risk_hours_threshold: merged.sla_risk_hours_threshold,
+    });
+    setSavingPref(null);
+    if (error) toast.error(`Save failed: ${error.message}`);
+  }
 
   // Load current avatar from profile on mount
   useEffect(() => {
@@ -123,6 +181,60 @@ export default function SettingsPage() {
               </button>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Alert Preferences */}
+      <div className={`${card} overflow-hidden`}>
+        <div className="px-4 sm:px-5 py-3 border-b border-[#E8ECF1]/60">
+          <h2 className="text-base font-bold text-[#0F172A]">Alert Preferences</h2>
+          <p className="text-xs text-[#64748B] mt-0.5">Configure which system notifications you receive and at what thresholds</p>
+        </div>
+        <div className="divide-y divide-[#F1F5F9]">
+          {ALERT_CATEGORIES.map((cat) => {
+            const pref = prefs[cat.key];
+            const enabled = pref?.enabled ?? true;
+            const currentThreshold = cat.thresholdKey ? (pref?.[cat.thresholdKey] as number | null) ?? cat.thresholdDefault ?? 0 : null;
+            return (
+              <div key={cat.key} className="px-4 sm:px-5 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <div className="size-9 rounded-lg bg-[#F1F5F9] flex items-center justify-center flex-shrink-0">
+                      <span className="material-symbols-outlined text-[18px] text-[#64748B]">{cat.icon}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-[#0F172A]">{cat.label}</p>
+                      <p className="text-[12px] text-[#64748B] mt-0.5">{cat.description}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => saveAlertPref(cat.key, { enabled: !enabled })}
+                    disabled={savingPref === cat.key}
+                    className={`w-11 h-6 rounded-full p-0.5 transition-colors cursor-pointer flex-shrink-0 disabled:opacity-50 ${enabled ? "bg-primary" : "bg-[#E2E8F0]"}`}
+                  >
+                    <div className={`size-5 bg-white rounded-full shadow transition-transform ${enabled ? "translate-x-5" : ""}`} />
+                  </button>
+                </div>
+
+                {/* Threshold config — only for categories with one */}
+                {enabled && cat.thresholdKey && cat.thresholdLabel && (
+                  <div className="mt-3 pl-12 flex items-center gap-2">
+                    <label className="text-[12px] text-[#64748B]">{cat.thresholdLabel}</label>
+                    <input
+                      type="number"
+                      value={currentThreshold ?? ""}
+                      onChange={(e) => {
+                        const n = e.target.value ? Number(e.target.value) : null;
+                        saveAlertPref(cat.key, { [cat.thresholdKey as keyof NotifPref]: n } as Partial<NotifPref>);
+                      }}
+                      className="w-24 border border-[#E2E8F0] rounded-lg px-2 py-1 text-sm outline-none focus:border-primary"
+                    />
+                    <span className="text-[12px] font-semibold text-[#64748B]">{cat.thresholdUnit}</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
