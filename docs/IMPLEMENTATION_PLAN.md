@@ -10,10 +10,12 @@ A step-by-step plan to take both the admin dashboard and user-facing app from fr
 
 - **Supabase project** (`uhrlsvnmoemrakwfrjyf`, West EU Ireland) — linked, 36 tables + RLS + seed data
 - **Admin dashboard** — auth + role-guarded routes, real profile loading from `profiles` table, login supports email/password + magic link + password reset
+- **Netlify deployment** — auto-deploys from `main` branch, SPA fallback via `_redirects` + `netlify.toml`, secret-scan whitelist configured for public Supabase anon key, security headers + long-cache on `/assets/*`. Blank-page-on-refresh bug resolved. `ErrorBoundary` + `ConfigError` screens catch runtime failures.
 - **Product catalog seeded** — 74 products, 29 categories, 10 solar packages, 3 venues, 5 building types, 3 membership tiers + 15 benefits, 7 portals, 5 pricing zones
 - **Resend integration** — domain `lagosapps.com` verified, sending from `hello@lagosapps.com`, Edge Function `send-email` deployed, 6 email templates seeded and editable from `/emails` admin page with banner/logo upload
+- **Welcome email trigger** — fires automatically on every new `profiles` row via `pg_net` + Edge Function (covers both user-app signup and admin-created users)
 - **Email preview system** — dry-run endpoint returns rendered HTML; reusable `EmailPreviewModal` with desktop/mobile views; preview works for both email templates and broadcasts
-- **Storage bucket** `email-assets` — for logo and per-template banner uploads (admin-only write)
+- **Storage buckets** — `email-assets` (admin-only write), `products` (admin-only write), `avatars` (users manage own via `{user_id}/...` path convention)
 - **User-facing app** — schema-aligned (reads from `profiles` extending `auth.users`), docs cross-linked with admin repo
 
 **What's still on mock data / still needs wiring:**
@@ -21,7 +23,7 @@ A step-by-step plan to take both the admin dashboard and user-facing app from fr
 - **Admin pages** — still render from `adminMockData.ts` (fallback hook in place; pages migrate incrementally as real data flows in)
 - **User-facing app** — still uses localStorage auth + hardcoded product arrays; Supabase client installed but not yet wired to DB
 - **Paystack** — not integrated yet (Milestone 3)
-- **Broadcasts + transactional emails** — Edge Function ready, sending works end-to-end with test calls, but not yet triggered by real app events (signup, order placed, etc.)
+- **Broadcasts + transactional emails** — welcome email is live end-to-end; order confirmation / wallet topup / membership renewal triggers wait on Paystack webhook + cron jobs
 - **WhatsApp** — deferred to Milestone 9
 
 ---
@@ -133,12 +135,13 @@ A step-by-step plan to take both the admin dashboard and user-facing app from fr
 - ⬜ Build reusable image upload component (generalize the logic already in `EmailTemplatesPage`)
 - ⬜ Configure Supabase image transformations for thumbnails
 
-**2.2 — Admin inventory CRUD**
-- ⬜ Connect `ProductForm.tsx` to real Supabase insert/update/delete
-- ⬜ Connect `InventoryPortal.tsx` to fetch products per portal from DB (data is already seeded, just needs wiring)
-- ⬜ Wire up stock level management, active/inactive toggles
-- ⬜ Handle portal-specific metadata (solar wattage, transport zone pricing, event venues, etc.)
-- ⬜ Log all product changes to audit log
+**2.2 — Admin inventory CRUD** 🟡 Partial
+- ✅ `ProductForm.tsx` wired to Supabase: create/update/delete via `src/lib/api.ts`, image upload to `products` bucket, category dropdown fetches from `product_categories`, stock status auto-computed from quantity + threshold, Delete button added for edit mode
+- ✅ `InventoryPortal.tsx` fetches real products from Supabase per portal, shows category filter pills built from joined `product_categories`, loading skeletons, empty state with "Add the first one" CTA, live image rendering
+- ✅ Stock level management working (quantity + low-stock threshold → stock_status enum)
+- ✅ Active/inactive toggle wired
+- ⬜ Handle portal-specific metadata (solar wattage, transport zone pricing, event venues, etc.) — current form uses the same fields for all portals
+- ⬜ Log all product changes to `admin_audit_log`
 
 **2.3 — User-facing portal migration**
 - ⬜ Replace hardcoded product arrays in all 7 portal components with Supabase queries
