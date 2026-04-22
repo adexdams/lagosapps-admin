@@ -135,7 +135,7 @@ export default function CreateOrderAdmin() {
     }
 
     // 1. Generate order ID + create order
-    const orderId = await generateOrderId();
+    const orderId = generateOrderId();
     const walletDeduction = paymentMethod === "wallet" ? Math.min(Number(selectedUser.wallet_balance), subtotal) : 0;
     const paymentAmount = subtotal - walletDeduction;
 

@@ -65,21 +65,16 @@ export async function insertOrderTimelineStep(step: Record<string, unknown>) {
   return supabase.from("order_timeline").insert(step);
 }
 
-/**
- * Generates a human-readable order ID in ORD-XXX format. Queries the
- * latest order to find the next sequence number.
- */
-export async function generateOrderId(): Promise<string> {
-  const { data } = await supabase
-    .from("orders")
-    .select("id")
-    .like("id", "ORD-%")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const latest = (data as { id: string } | null)?.id;
-  const num = latest ? parseInt(latest.replace("ORD-", ""), 10) + 1 : 1;
-  return `ORD-${String(num).padStart(4, "0")}`;
+// Shared between admin + user-facing repos — both apps must produce
+// identical 17-char IDs so cross-repo joins and searches work.
+// Format: ORD-{8 chars time32}{4 chars random}
+// Epoch-offset timestamp keeps the time component at 8 chars through ~2058.
+const ORDER_ID_EPOCH = 1704067200000; // 2024-01-01T00:00:00Z
+
+export function generateOrderId(): string {
+  const time = (Date.now() - ORDER_ID_EPOCH).toString(32).toUpperCase().padStart(8, "0").slice(-8);
+  const rand = Math.floor(Math.random() * (32 ** 4)).toString(32).toUpperCase().padStart(4, "0");
+  return `ORD-${time}${rand}`;
 }
 
 // ── Fulfillment ─────────────────────────────────────────────
