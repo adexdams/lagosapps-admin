@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useToast } from "../../hooks/useToast";
 import { useAuth } from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabase";
-import { updateUser, logAudit, getNotificationPreferences, upsertNotificationPreference } from "../../lib/api";
+import { updateUser, logAudit, getNotificationPreferences, upsertNotificationPreference, getPortals, updatePortal } from "../../lib/api";
 import { PORTAL_LABELS, PORTAL_COLORS, type Portal } from "../../data/adminMockData";
 
 interface NotifPref {
@@ -40,8 +40,10 @@ export default function SettingsPage() {
   const [whatsappNumber, setWhatsappNumber] = useState("+234 800 123 4567");
   const [portalStates, setPortalStates] = useState<Record<Portal, boolean>>({
     solar: true, transport: true, groceries: true, health: true,
-    events: true, community: false, logistics: true,
+    events: true, community: true, logistics: true,
   });
+  const [loadingPortals, setLoadingPortals] = useState(true);
+  const [togglingPortal, setTogglingPortal] = useState<Portal | null>(null);
   const [testMode, setTestMode] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -89,6 +91,45 @@ export default function SettingsPage() {
   useEffect(() => {
     if (profile?.avatar_url) setAvatarUrl(profile.avatar_url);
   }, [profile]);
+
+  // Load portal active states from DB on mount
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await getPortals();
+      setLoadingPortals(false);
+      if (error || !data) return;
+      const states: Record<Portal, boolean> = { solar: true, transport: true, groceries: true, health: true, events: true, community: true, logistics: true };
+      for (const p of data as { id: string; is_active: boolean }[]) {
+        if (p.id in states) states[p.id as Portal] = p.is_active;
+      }
+      setPortalStates(states);
+    })();
+  }, []);
+
+  async function handlePortalToggle(portal: Portal) {
+    const next = !portalStates[portal];
+    const prev = portalStates[portal];
+    setTogglingPortal(portal);
+    // Optimistic update
+    setPortalStates((s) => ({ ...s, [portal]: next }));
+    const { error } = await updatePortal(portal, { is_active: next });
+    if (error) {
+      // Rollback
+      setPortalStates((s) => ({ ...s, [portal]: prev }));
+      setTogglingPortal(null);
+      toast.error(`Failed to toggle ${PORTAL_LABELS[portal]}: ${error.message}`);
+      return;
+    }
+    await logAudit({
+      action: "portal.toggle",
+      entity_type: "service_portal",
+      entity_id: portal,
+      old_values: { is_active: prev },
+      new_values: { is_active: next },
+    });
+    setTogglingPortal(null);
+    toast.success(`${PORTAL_LABELS[portal]} ${next ? "enabled" : "disabled"}`);
+  }
 
   const handleSave = (section: string) => toast.success(`${section} saved successfully`);
 
@@ -260,26 +301,32 @@ export default function SettingsPage() {
       <div className={`${card} overflow-hidden`}>
         <div className="px-4 sm:px-5 py-3 border-b border-[#E8ECF1]/60">
           <h2 className="text-base font-bold text-[#0F172A]">Service Portal Toggles</h2>
-          <p className="text-xs text-[#64748B] mt-0.5">Disabled portals are hidden from the user dashboard</p>
+          <p className="text-xs text-[#64748B] mt-0.5">Disabled portals immediately disappear from the user-facing app. Changes save automatically.</p>
         </div>
         <div className="p-3.5 sm:p-5 md:p-7 space-y-3">
-          {PORTALS.map((portal) => (
-            <div key={portal} className="flex items-center justify-between py-2">
-              <div className="flex items-center gap-3">
-                <div className="size-3 rounded-full" style={{ backgroundColor: PORTAL_COLORS[portal] }} />
-                <span className="text-sm font-medium text-[#0F172A]">{PORTAL_LABELS[portal]}</span>
+          {loadingPortals ? (
+            <p className="text-sm text-[#94A3B8] py-2">Loading portal states…</p>
+          ) : (
+            PORTALS.map((portal) => (
+              <div key={portal} className="flex items-center justify-between py-2">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="size-3 rounded-full flex-shrink-0" style={{ backgroundColor: PORTAL_COLORS[portal] }} />
+                  <span className="text-sm font-medium text-[#0F172A] truncate">{PORTAL_LABELS[portal]}</span>
+                  {!portalStates[portal] && (
+                    <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-red-50 text-red-600 flex-shrink-0">HIDDEN</span>
+                  )}
+                </div>
+                <button
+                  onClick={() => handlePortalToggle(portal)}
+                  disabled={togglingPortal === portal}
+                  className={`w-11 h-6 rounded-full p-0.5 transition-colors cursor-pointer flex-shrink-0 disabled:opacity-50 ${portalStates[portal] ? "bg-primary" : "bg-[#E2E8F0]"}`}
+                  title={portalStates[portal] ? "Click to hide this portal from users" : "Click to show this portal to users"}
+                >
+                  <div className={`size-5 bg-white rounded-full shadow transition-transform ${portalStates[portal] ? "translate-x-5" : ""}`} />
+                </button>
               </div>
-              <button
-                onClick={() => setPortalStates((prev) => ({ ...prev, [portal]: !prev[portal] }))}
-                className={`w-10 h-5.5 rounded-full p-0.5 transition-colors cursor-pointer ${portalStates[portal] ? "bg-primary" : "bg-[#E2E8F0]"}`}
-              >
-                <div className={`size-4.5 bg-white rounded-full shadow transition-transform ${portalStates[portal] ? "translate-x-4.5" : ""}`} />
-              </button>
-            </div>
-          ))}
-          <div className="flex justify-end pt-2">
-            <button onClick={() => handleSave("Portal toggles")} className="px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl cursor-pointer hover:brightness-[0.92] transition-all">Save Changes</button>
-          </div>
+            ))
+          )}
         </div>
       </div>
 
