@@ -1,7 +1,15 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../../hooks/useToast";
-import { mockUsers } from "../../data/adminMockData";
+import { useAuth } from "../../hooks/useAuth";
+import { supabase } from "../../lib/supabase";
+import {
+  createBroadcast,
+  resolveBroadcastRecipients,
+  fanOutBroadcast,
+  logAudit,
+} from "../../lib/api";
+import { sendBroadcastEmail } from "../../lib/email";
 import EmailPreviewModal from "./shared/EmailPreviewModal";
 
 type RecipientType = "all" | "tier" | "specific";
@@ -20,9 +28,12 @@ const TIER_PILLS = [
   { value: "gold", label: "Gold", color: "#D97706" },
 ];
 
+interface UserOption { id: string; name: string; email: string; }
+
 export default function BroadcastCompose() {
   const navigate = useNavigate();
   const toast = useToast();
+  const { user: authUser } = useAuth();
 
   const [recipientType, setRecipientType] = useState<RecipientType>("all");
   const [selectedTiers, setSelectedTiers] = useState<string[]>([]);
@@ -33,7 +44,18 @@ export default function BroadcastCompose() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [userOptions, setUserOptions] = useState<UserOption[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Load user options for the "specific user" picker
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("profiles").select("id, name, email").eq("is_active", true).eq("role", "user").order("name").limit(200);
+      if (data) setUserOptions(data as UserOption[]);
+    })();
+  }, []);
 
   const handleImageSelect = (file: File) => {
     if (!file.type.startsWith("image/")) { toast.error("Only image files allowed"); return; }
@@ -46,12 +68,116 @@ export default function BroadcastCompose() {
     setSelectedTiers((prev) => prev.includes(tier) ? prev.filter((t) => t !== tier) : [...prev, tier]);
   };
 
-  const handleSend = () => {
+  async function uploadImageIfPresent(): Promise<string | null> {
+    if (!imageFile) return null;
+    const ext = imageFile.name.split(".").pop() ?? "png";
+    const path = `broadcasts/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const { error } = await supabase.storage.from("email-assets").upload(path, imageFile, { upsert: false });
+    if (error) { toast.error(`Image upload failed: ${error.message}`); return null; }
+    const { data } = supabase.storage.from("email-assets").getPublicUrl(path);
+    return data.publicUrl;
+  }
+
+  function buildFilter(): Record<string, unknown> {
+    if (recipientType === "tier") return { tiers: selectedTiers };
+    if (recipientType === "specific" && selectedUser) return { user_id: selectedUser };
+    return {};
+  }
+
+  function validate(): boolean {
+    if (!title.trim()) { toast.error("Title is required"); return false; }
+    if (!message.trim()) { toast.error("Message is required"); return false; }
+    if (recipientType === "tier" && selectedTiers.length === 0) { toast.error("Pick at least one tier"); return false; }
+    if (recipientType === "specific" && !selectedUser) { toast.error("Pick a user"); return false; }
+    return true;
+  }
+
+  async function handleSaveDraft() {
     if (!title.trim()) { toast.error("Title is required"); return; }
-    if (!message.trim()) { toast.error("Message is required"); return; }
-    toast.success("Broadcast sent successfully");
+    setSavingDraft(true);
+    const imageUrl = await uploadImageIfPresent();
+    const { data, error } = await createBroadcast({
+      title: title.trim(),
+      message: message.trim(),
+      type: notifType,
+      image_url: imageUrl,
+      recipients_type: recipientType,
+      recipients_filter: buildFilter(),
+      status: "draft",
+      sent_by: authUser?.id,
+    });
+    setSavingDraft(false);
+    if (error) { toast.error(`Save failed: ${error.message}`); return; }
+    await logAudit({ action: "broadcast.draft_saved", entity_type: "broadcast", entity_id: (data as { id?: string })?.id });
+    toast.success("Draft saved");
     navigate("/broadcast");
-  };
+  }
+
+  async function handleSend() {
+    if (!validate()) return;
+    setSending(true);
+
+    // 1. Upload image if needed
+    const imageUrl = await uploadImageIfPresent();
+
+    // 2. Resolve recipients FIRST so we can show an accurate count
+    const filter = buildFilter();
+    const recipients = await resolveBroadcastRecipients(recipientType, filter as { tiers?: string[]; user_id?: string });
+
+    if (recipients.length === 0) {
+      setSending(false);
+      toast.error("No recipients match the selected filter");
+      return;
+    }
+
+    // 3. Create the broadcast row
+    const { data, error } = await createBroadcast({
+      title: title.trim(),
+      message: message.trim(),
+      type: notifType,
+      image_url: imageUrl,
+      recipients_type: recipientType,
+      recipients_filter: filter,
+      status: "sent",
+      sent_by: authUser?.id,
+      sent_at: new Date().toISOString(),
+    });
+    if (error || !data) {
+      setSending(false);
+      toast.error(`Send failed: ${error?.message ?? "unknown"}`);
+      return;
+    }
+    const broadcastId = (data as { id: string }).id;
+
+    // 4. Fan out: insert broadcast_recipients + user_notifications
+    const { error: fanErr } = await fanOutBroadcast(broadcastId, recipients, title.trim(), message.trim());
+    if (fanErr) {
+      setSending(false);
+      toast.error(`Fan-out failed: ${fanErr.message}`);
+      return;
+    }
+
+    // 5. Log audit
+    await logAudit({
+      action: "broadcast.send",
+      entity_type: "broadcast",
+      entity_id: broadcastId,
+      new_values: { title, recipients_type: recipientType, recipient_count: recipients.length },
+    });
+
+    // 6. Trigger emails via Resend (fire-and-forget — don't make user wait).
+    //    Batched by the browser; errors logged silently.
+    void sendBroadcastEmail(
+      recipients.map((r) => r.email),
+      title.trim(),
+      message.trim(),
+      imageUrl ?? undefined
+    ).catch((e) => console.warn("Broadcast email send failed (in-app still delivered):", e));
+
+    setSending(false);
+    toast.success(`Broadcast sent to ${recipients.length} user${recipients.length !== 1 ? "s" : ""}`);
+    navigate("/broadcast");
+  }
 
   const inputClass = "w-full border border-[#E2E8F0] rounded-xl px-3 py-2.5 text-sm text-[#0F172A] outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all";
 
@@ -120,10 +246,11 @@ export default function BroadcastCompose() {
             <label className="text-[13px] font-semibold text-[#0F172A] mb-1.5 block">Select User</label>
             <select value={selectedUser} onChange={(e) => setSelectedUser(e.target.value)} className={`${inputClass} cursor-pointer`}>
               <option value="">Choose a user...</option>
-              {mockUsers.map((u) => (
-                <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+              {userOptions.map((u) => (
+                <option key={u.id} value={u.id}>{u.name || u.email} ({u.email})</option>
               ))}
             </select>
+            {userOptions.length === 0 && <p className="text-[11px] text-[#94A3B8] mt-1">No users found — sign-ups will appear here.</p>}
           </div>
         )}
 
@@ -236,16 +363,18 @@ export default function BroadcastCompose() {
             Preview Email
           </button>
           <button
-            onClick={() => { toast.success("Draft saved"); navigate("/broadcast"); }}
-            className="px-6 py-2.5 border border-[#E2E8F0] text-[#334155] text-sm font-semibold rounded-xl cursor-pointer hover:bg-[#F1F5F9] active:scale-[0.98] transition-all"
+            onClick={handleSaveDraft}
+            disabled={sending || savingDraft}
+            className="px-6 py-2.5 border border-[#E2E8F0] text-[#334155] text-sm font-semibold rounded-xl cursor-pointer hover:bg-[#F1F5F9] active:scale-[0.98] transition-all disabled:opacity-50"
           >
-            Save Draft
+            {savingDraft ? "Saving..." : "Save Draft"}
           </button>
           <button
             onClick={handleSend}
-            className="px-6 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl cursor-pointer hover:brightness-[0.92] active:scale-[0.98] transition-all"
+            disabled={sending || savingDraft}
+            className="px-6 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl cursor-pointer hover:brightness-[0.92] active:scale-[0.98] transition-all disabled:opacity-50"
           >
-            Send Broadcast
+            {sending ? "Sending..." : "Send Broadcast"}
           </button>
         </div>
       </div>

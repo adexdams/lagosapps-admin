@@ -281,16 +281,17 @@ A step-by-step plan to take both the admin dashboard and user-facing app from fr
 
 ### Steps
 
-**5.1 — Broadcast system (admin → users)** 🟡 Partial
+**5.1 — Broadcast system (admin → users)** ✅ COMPLETE
 
 - ✅ `broadcasts` + `broadcast_recipients` tables created
 - ✅ Broadcast template seeded in `email_templates` with `{{title}}` + `{{message}}` interpolation
 - ✅ Broadcast Compose UI has working "Preview Email" button (uses real rendering pipeline)
-- ✅ Save as Draft button wired (UI only, not persisting to DB yet)
-- ⬜ Wire Broadcast Compose send button to create `broadcasts` row + fan-out `broadcast_recipients`
-- ⬜ Trigger Resend send for each recipient via the `send-email` Edge Function
-- ⬜ Connect Broadcast list and Broadcast Detail pages to real DB data (read rates from `broadcast_recipients`)
-- ⬜ Implement retract: update broadcast status, mark `retracted: true` on unread recipient rows
+- ✅ **Save as Draft** persists to DB with `status='draft'`
+- ✅ **Send broadcast** → creates `broadcasts` row (status='sent'), resolves recipients via `resolveBroadcastRecipients` (all / by tier / specific user), fans out to `broadcast_recipients` + `user_notifications` in one batch, fires Resend emails via `sendBroadcastEmail` (fire-and-forget), logs audit entry
+- ✅ **Broadcast list** (`NotificationsAdmin.tsx`) reads real data from `broadcasts` table, shows live read rate per row (read_count / recipient_count), status filter (Sent/Draft/Retracted), type filter
+- ✅ **Broadcast Detail** (`BroadcastDetail.tsx`) reads real broadcast + recipient stats + author name, shows total/delivered/read counts, displays banner image if present, shows recipients label (All Users / Gold tier / Specific User)
+- ✅ **Retract** updates broadcast.status='retracted' + retracted_at=now(), also marks `user_notifications.retracted=true` for unread recipients so message disappears from unread inboxes (read ones still see it with a retracted note)
+- ✅ **Delete** option for draft and retracted broadcasts (not sent ones)
 
 **5.2 — Transactional emails (system → users)** 🟡 Infrastructure complete
 

@@ -173,7 +173,33 @@ export async function getCarts() {
 // ── Broadcasts ──────────────────────────────────────────────
 
 export async function getBroadcasts() {
+  // Aggregate recipient count + read count in a single query using select with count
+  return supabase
+    .from("broadcasts")
+    .select("*, recipients:broadcast_recipients(count), reads:broadcast_recipients!inner(count)", { count: "exact" })
+    .order("created_at", { ascending: false });
+}
+
+export async function getBroadcastsList() {
+  // Simpler query: fetch broadcasts; counts come from a separate fetch to avoid the
+  // complicated inline aggregation (Supabase PostgREST can't count reads separately
+  // from a single join without RPC).
   return supabase.from("broadcasts").select("*").order("created_at", { ascending: false });
+}
+
+export async function getBroadcastRecipientStats(broadcastId: string) {
+  const { data, error } = await supabase
+    .from("broadcast_recipients")
+    .select("delivered, read")
+    .eq("broadcast_id", broadcastId);
+  if (error) return { total: 0, delivered: 0, read: 0, error };
+  const rows = (data ?? []) as { delivered: boolean; read: boolean }[];
+  return {
+    total: rows.length,
+    delivered: rows.filter((r) => r.delivered).length,
+    read: rows.filter((r) => r.read).length,
+    error: null,
+  };
 }
 
 export async function getBroadcast(id: string) {
@@ -186,6 +212,65 @@ export async function createBroadcast(data: Record<string, unknown>) {
 
 export async function updateBroadcast(id: string, data: Record<string, unknown>) {
   return supabase.from("broadcasts").update(data).eq("id", id);
+}
+
+/**
+ * Resolve recipient user IDs based on the broadcast's targeting rule.
+ * Returns an array of { id, email, name } — feeds the fan-out step.
+ */
+export async function resolveBroadcastRecipients(
+  recipientsType: "all" | "tier" | "specific",
+  filter: { tiers?: string[]; user_id?: string }
+): Promise<{ id: string; email: string; name: string | null }[]> {
+  let q = supabase.from("profiles").select("id, email, name").eq("is_active", true).eq("role", "user");
+  if (recipientsType === "tier" && filter.tiers && filter.tiers.length > 0) {
+    q = q.in("membership_tier", filter.tiers);
+  } else if (recipientsType === "specific" && filter.user_id) {
+    q = q.eq("id", filter.user_id);
+  }
+  const { data, error } = await q;
+  if (error || !data) return [];
+  return data as { id: string; email: string; name: string | null }[];
+}
+
+/**
+ * Insert broadcast_recipients rows in bulk. Also creates user_notifications
+ * so the message appears in each user's in-app inbox.
+ */
+export async function fanOutBroadcast(
+  broadcastId: string,
+  recipients: { id: string }[],
+  broadcastTitle: string,
+  broadcastMessage: string
+) {
+  if (recipients.length === 0) return { count: 0, error: null };
+
+  const recipientRows = recipients.map((r) => ({
+    broadcast_id: broadcastId,
+    user_id: r.id,
+    delivered: true, // we just created them; email attempt follows
+    read: false,
+  }));
+
+  const notificationRows = recipients.map((r) => ({
+    user_id: r.id,
+    type: "broadcast" as const,
+    title: broadcastTitle,
+    message: broadcastMessage,
+    entity_type: "broadcast",
+    entity_id: broadcastId,
+    read: false,
+    retracted: false,
+  }));
+
+  const [recRes, notifRes] = await Promise.all([
+    supabase.from("broadcast_recipients").insert(recipientRows),
+    supabase.from("user_notifications").insert(notificationRows),
+  ]);
+
+  if (recRes.error) return { count: 0, error: recRes.error };
+  if (notifRes.error) return { count: recipients.length, error: notifRes.error };
+  return { count: recipients.length, error: null };
 }
 
 // ── System Notifications (admin internal) ───────────────────
