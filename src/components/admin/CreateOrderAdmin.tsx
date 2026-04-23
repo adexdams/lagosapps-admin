@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useToast } from "../../hooks/useToast";
 import { useAuth } from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabase";
-import { createOrder, insertOrderItems, insertOrderTimelineStep, generateOrderId, logAudit, getProducts } from "../../lib/api";
+import { createOrder, insertOrderItems, insertOrderTimelineStep, generateOrderId, logAudit, getProducts, updateCustomRequestStatus } from "../../lib/api";
 import {
   formatNaira,
   PORTAL_LABELS,
@@ -48,10 +48,21 @@ interface CartItem {
 
 const inputClass = "w-full border border-[#E2E8F0] rounded-xl px-3 py-2.5 text-sm text-[#0F172A] outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all";
 
+interface ConvertState {
+  userId?: string;
+  portalId?: Portal;
+  description?: string;
+  requestId?: string;
+  requestType?: "custom" | "service";
+}
+
 export default function CreateOrderAdmin() {
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
   const { user: authUser } = useAuth();
+  const convertState = (location.state ?? {}) as ConvertState;
+  const prefillApplied = useRef(false);
 
   const [step, setStep] = useState<Step>(1);
   const [channel, setChannel] = useState("");
@@ -61,14 +72,32 @@ export default function CreateOrderAdmin() {
   const [showResults, setShowResults] = useState(false);
   const [searching, setSearching] = useState(false);
 
-  const [activePortal, setActivePortal] = useState<Portal>("solar");
+  const [activePortal, setActivePortal] = useState<Portal>(convertState.portalId ?? "solar");
   const [portalProducts, setPortalProducts] = useState<DbProduct[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
 
   const [paymentMethod, setPaymentMethod] = useState("wallet");
-  const [adminNotes, setAdminNotes] = useState("");
+  const [adminNotes, setAdminNotes] = useState(convertState.description ?? "");
   const [submitting, setSubmitting] = useState(false);
+
+  // Pre-fill from convert-to-order navigation state
+  useEffect(() => {
+    if (!convertState.userId || prefillApplied.current) return;
+    prefillApplied.current = true;
+    (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, name, email, phone, membership_tier, avatar_url, wallet_balance")
+        .eq("id", convertState.userId)
+        .single();
+      if (data) {
+        setSelectedUser(data as DbUser);
+        setChannel("walkin");
+        setStep(2);
+      }
+    })();
+  }, [convertState.userId]);
 
   // Customer search debounce
   useEffect(() => {
@@ -189,12 +218,20 @@ export default function CreateOrderAdmin() {
       created_by: authUser?.id,
     });
 
-    // 4. Audit
+    // 4. If converted from a request, mark it as converted
+    if (convertState.requestId && convertState.requestType === "custom") {
+      await updateCustomRequestStatus(convertState.requestId, {
+        status: "converted",
+        converted_order_id: orderId,
+      });
+    }
+
+    // 5. Audit
     await logAudit({
       action: "order.create",
       entity_type: "order",
       entity_id: orderId,
-      new_values: { portal_id: orderPortal, total_amount: subtotal, channel, customer: selectedUser.email },
+      new_values: { portal_id: orderPortal, total_amount: subtotal, channel, customer: selectedUser.email, source_request: convertState.requestId ?? null },
     });
 
     setSubmitting(false);

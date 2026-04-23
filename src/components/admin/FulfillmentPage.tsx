@@ -480,7 +480,10 @@ export default function FulfillmentPage() {
                                   )}
                                   <div className="flex gap-2 pt-2">
                                     {cr.status !== "converted" && cr.status !== "declined" && (
-                                      <button onClick={() => navigate("/orders/create")} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-white hover:bg-primary/90 cursor-pointer">Convert to Order</button>
+                                      <button
+                                        onClick={() => navigate("/orders/create", { state: { userId: cr.user_id, portalId: cr.portal_id, description: cr.description, requestId: cr.id, requestType: "custom" } })}
+                                        className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-white hover:bg-primary/90 cursor-pointer"
+                                      >Convert to Order</button>
                                     )}
                                     <button onClick={() => navigate(`/users/${cr.user_id}`)} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[#64748B] border border-[#E2E8F0] hover:bg-[#F1F5F9] cursor-pointer">View Customer</button>
                                   </div>

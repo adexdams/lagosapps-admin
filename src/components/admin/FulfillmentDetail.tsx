@@ -391,7 +391,10 @@ export default function FulfillmentDetail() {
           </div>
           {isRequest && reqStatus !== "declined" && reqStatus !== "completed" && (
             <div className="flex items-center gap-2">
-              <button onClick={() => navigate("/orders/create")} className="px-3 py-2 rounded-xl text-sm font-semibold bg-primary text-white hover:bg-primary/90 cursor-pointer">Convert to Order</button>
+              <button
+                onClick={() => navigate("/orders/create", { state: { userId: request!.user_id, portalId: request!.portal_id, requestId: request!.id, requestType: "service" } })}
+                className="px-3 py-2 rounded-xl text-sm font-semibold bg-primary text-white hover:bg-primary/90 cursor-pointer"
+              >Convert to Order</button>
               <button onClick={() => setShowDecline(!showDecline)} className="px-3 py-2 rounded-xl text-sm font-semibold bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer">Decline</button>
             </div>
           )}
