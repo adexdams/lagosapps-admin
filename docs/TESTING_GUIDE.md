@@ -2,6 +2,8 @@
 
 End-to-end checklist for verifying every feature on both the **admin dashboard** and **user-facing app**, via browser and API/CLI. Work through each section in order — many checks are dependencies for later ones.
 
+> **Last run: 2026-04-25.** Bugs found and fixed during run: `flag_overdue_fulfillment()` used wrong enum value (`delivered` → `completed`); `send-email` Edge Function logo pointed to GitHub raw instead of Supabase Storage; `config.toml` template paths resolved from wrong directory.
+
 ---
 
 ## Environment Reference
@@ -15,19 +17,45 @@ End-to-end checklist for verifying every feature on both the **admin dashboard**
 | Edge Function: send-email | `https://uhrlsvnmoemrakwfrjyf.supabase.co/functions/v1/send-email` |
 | Edge Function: paystack-webhook | `https://uhrlsvnmoemrakwfrjyf.supabase.co/functions/v1/paystack-webhook` |
 | Paystack test dashboard | `https://dashboard.paystack.com/#/test` |
-| Paystack test card | `4084 0840 8408 4081`, expiry any future, CVV `408`, PIN `0000`, OTP `123456` |
+| Paystack test card (success) | `4084 0840 8408 4081`, expiry any future, CVV `408`, PIN `0000`, OTP `123456` |
+| Paystack test card (fail) | `4084 0840 8408 4087`, CVV `408` |
 
 ### CLI prerequisites
 
 ```bash
-# Supabase CLI (already installed)
-supabase --version           # should be ≥ 2.90.0
+# Supabase CLI (already installed — confirmed v2.90.0)
+supabase --version
 
-# Link to project (if not already)
+# Link to project (run once from admin repo)
+cd lagosapps-admin
 supabase link --project-ref uhrlsvnmoemrakwfrjyf
+```
 
-# Direct DB queries via psql (optional — use Supabase Studio otherwise)
-supabase db connect          # opens psql session
+> **Important:** All `supabase db query` commands require `--linked` to run against the remote project (Docker is not required). Running without `--linked` will try to connect to a local Docker container and fail.
+
+```bash
+supabase db query --linked "SELECT 1;"
+```
+
+### Edge Function deployment
+
+After any change to `supabase/functions/`, redeploy before testing — Netlify does **not** deploy Edge Functions:
+
+```bash
+supabase functions deploy send-email --project-ref uhrlsvnmoemrakwfrjyf
+supabase functions deploy paystack-webhook --project-ref uhrlsvnmoemrakwfrjyf
+```
+
+### Admin account setup
+
+> **First-time setup only.** The DB starts with no admin users. Before browser testing:
+>
+> 1. Sign up on the user app (or use Supabase Dashboard → Auth → Users → Invite)
+> 2. Promote the account to `super_admin`:
+> 3. Use **Magic Link** or **Forgot Password** to sign into the admin dashboard (no password is set on newly invited accounts).
+
+```bash
+supabase db query --linked "UPDATE profiles SET role = 'super_admin' WHERE email = 'YOUR_EMAIL';"
 ```
 
 ---
@@ -49,24 +77,24 @@ supabase db connect          # opens psql session
 - [ ] Open user app → click **Sign Up**
 - [ ] Submit with mismatched passwords → inline error shown
 - [ ] Submit valid credentials → account created, user lands on dashboard
-- [ ] Verify welcome email arrives in inbox
+- [ ] Verify welcome email arrives in inbox from `hello@lagosapps.com`
 - [ ] Verify `profiles` row created in DB:
 
 ```bash
-supabase db query "SELECT id, name, email, referral_code, role FROM profiles ORDER BY created_at DESC LIMIT 3;"
+supabase db query --linked "SELECT id, name, email, referral_code, role FROM profiles ORDER BY created_at DESC LIMIT 3;"
 ```
 
 ### 1C · Referral signup (browser)
 
-- [ ] Log into user app as existing user → go to **Account** → copy referral code (e.g. `ABC123`)
-- [ ] Open incognito window → navigate to `http://localhost:5174/?ref=ABC123`
-- [ ] Complete signup → verify:
+- [ ] Log into user app as existing user → go to **Account** → copy referral code (e.g. `LA65664D`)
+- [ ] Open incognito window → sign up with that code in the referral field
+- [ ] Verify:
   - Welcome email arrives
   - `referrals` row created with `referrer_id` = existing user, `gifted_tier = 'bronze'`
   - New user has `membership_tier = 'bronze'` in `profiles`
 
 ```bash
-supabase db query "SELECT id, referrer_id, referred_id, gifted_tier, status FROM referrals ORDER BY created_at DESC LIMIT 3;"
+supabase db query --linked "SELECT id, referrer_id, referred_id, gifted_tier, status FROM referrals ORDER BY created_at DESC LIMIT 3;"
 ```
 
 ### 1D · Password reset (browser)
@@ -94,14 +122,14 @@ supabase db query "SELECT id, referrer_id, referred_id, gifted_tier, status FROM
 - [ ] Wallet tab shows that user's transactions
 - [ ] Suspend / Activate user → toast confirmation
 
-### 2C · CLI verification
+### 2C · CLI verification ✅ verified 2026-04-25
 
 ```bash
-# Count users
-supabase db query "SELECT role, COUNT(*) FROM profiles GROUP BY role;"
+# Count users by role
+supabase db query --linked "SELECT role, COUNT(*) FROM profiles GROUP BY role;"
 
-# Check a specific user's wallet balance
-supabase db query "SELECT name, email, wallet_balance, membership_tier FROM profiles WHERE role = 'user' LIMIT 5;"
+# Check user wallet balances
+supabase db query --linked "SELECT name, email, wallet_balance, membership_tier FROM profiles WHERE role = 'user' LIMIT 5;"
 ```
 
 ---
@@ -124,8 +152,7 @@ supabase db query "SELECT name, email, wallet_balance, membership_tier FROM prof
 - [ ] **Refund to Wallet** flow: click Refund → enter amount → confirm → check wallet balance increases for that user
 
 ```bash
-# Verify wallet balance after refund
-supabase db query "SELECT user_id, description, amount, type, running_balance FROM wallet_transactions ORDER BY created_at DESC LIMIT 5;"
+supabase db query --linked "SELECT user_id, description, amount, type, running_balance FROM wallet_transactions ORDER BY created_at DESC LIMIT 5;"
 ```
 
 ### 3C · Create Order (browser)
@@ -137,7 +164,7 @@ supabase db query "SELECT user_id, description, amount, type, running_balance FR
 - [ ] Step 4: Submit → order appears in orders list with status `pending`
 
 ```bash
-supabase db query "SELECT id, status, total_amount, created_at FROM orders ORDER BY created_at DESC LIMIT 3;"
+supabase db query --linked "SELECT id, status, total_amount, created_at FROM orders ORDER BY created_at DESC LIMIT 3;"
 ```
 
 ---
@@ -158,14 +185,14 @@ supabase db query "SELECT id, status, total_amount, created_at FROM orders ORDER
 - [ ] Add a **Solar** product → solar-specific fields visible (capacity, voltage, warranty)
 - [ ] Add a **Health** product → health-specific fields visible
 
-### 4C · CLI verification
+### 4C · CLI verification ✅ verified 2026-04-25
 
 ```bash
-# Count products per portal
-supabase db query "SELECT sp.name, COUNT(p.id) as products FROM products p JOIN service_portals sp ON sp.id = p.portal_id GROUP BY sp.name;"
+# Count products per portal — expected: 74 total across 7 portals
+supabase db query --linked "SELECT sp.name, COUNT(p.id) as products FROM products p JOIN service_portals sp ON sp.id = p.portal_id GROUP BY sp.name ORDER BY sp.name;"
 
-# Check a product's details
-supabase db query "SELECT id, name, price, is_active, portal_id FROM products ORDER BY updated_at DESC LIMIT 5;"
+# Check recent products
+supabase db query --linked "SELECT id, name, price, is_active, portal_id FROM products ORDER BY updated_at DESC LIMIT 5;"
 ```
 
 ---
@@ -179,17 +206,20 @@ supabase db query "SELECT id, name, price, is_active, portal_id FROM products OR
 - [ ] Click **Edit Benefits** → add a new benefit → save → benefit appears
 - [ ] Change a tier price → save → price visible on user-facing membership panel
 
+### 5B · CLI verification ✅ verified 2026-04-25
+
 ```bash
-supabase db query "SELECT t.name, t.annual_price, t.quarterly_price, COUNT(b.id) as benefits FROM membership_tiers t LEFT JOIN membership_tier_benefits b ON b.tier_id = t.id GROUP BY t.id, t.name, t.annual_price, t.quarterly_price;"
+# Expected: Bronze (₦24k/yr, 4 benefits), Silver (₦42k/yr, 5), Gold (₦60k/yr, 6)
+supabase db query --linked "SELECT t.name, t.annual_price, t.quarterly_price, COUNT(b.id) as benefits FROM membership_tiers t LEFT JOIN membership_tier_benefits b ON b.tier_id = t.id GROUP BY t.id, t.name, t.annual_price, t.quarterly_price ORDER BY t.annual_price;"
 ```
 
-### 5B · Subscriptions tab (browser)
+### 5C · Subscriptions tab (browser)
 
 - [ ] Active subscriptions listed with tier, billing cycle, expiry
 - [ ] Cancel a subscription → status changes to `cancelled`
 - [ ] Verify system notification fired to ops team (check notification bell)
 
-### 5C · Benefit usage tab (browser)
+### 5D · Benefit usage tab (browser)
 
 - [ ] Usage counts display (may be 0 until users consume benefits)
 
@@ -212,8 +242,8 @@ supabase db query "SELECT t.name, t.annual_price, t.quarterly_price, COUNT(b.id)
 - [ ] User's wallet balance updated in DB
 
 ```bash
-supabase db query "SELECT description, amount, type, running_balance FROM wallet_transactions ORDER BY created_at DESC LIMIT 5;"
-supabase db query "SELECT name, wallet_balance FROM profiles WHERE role = 'user' ORDER BY wallet_balance DESC LIMIT 5;"
+supabase db query --linked "SELECT description, amount, type, running_balance FROM wallet_transactions ORDER BY created_at DESC LIMIT 5;"
+supabase db query --linked "SELECT name, wallet_balance FROM profiles WHERE role = 'user' ORDER BY wallet_balance DESC LIMIT 5;"
 ```
 
 ---
@@ -228,7 +258,7 @@ supabase db query "SELECT name, wallet_balance FROM profiles WHERE role = 'user'
 - [ ] Filter by status (pending / confirmed / expired)
 
 ```bash
-supabase db query "SELECT r.id, rp.name as referrer, ep.name as referred, r.gifted_tier, r.status FROM referrals r JOIN profiles rp ON rp.id = r.referrer_id LEFT JOIN profiles ep ON ep.id = r.referred_id ORDER BY r.created_at DESC LIMIT 10;"
+supabase db query --linked "SELECT r.id, rp.name as referrer, ep.name as referred, r.gifted_tier, r.status FROM referrals r JOIN profiles rp ON rp.id = r.referrer_id LEFT JOIN profiles ep ON ep.id = r.referred_id ORDER BY r.created_at DESC LIMIT 10;"
 ```
 
 ---
@@ -272,18 +302,21 @@ supabase db query "SELECT r.id, rp.name as referrer, ep.name as referred, r.gift
 - [ ] Open user app → that portal should not appear (filtered by `is_active = true`)
 - [ ] Toggle back on → portal reappears on user app
 
+### 9B · CLI verification ✅ verified 2026-04-25
+
 ```bash
-supabase db query "SELECT id, name, is_active FROM service_portals;"
+# Expected: 7 portals, all is_active = true
+supabase db query --linked "SELECT id, name, is_active FROM service_portals ORDER BY sort_order;"
 ```
 
-### 9B · Alert preferences (browser)
+### 9C · Alert preferences (browser)
 
 - [ ] Alert Preferences card visible in Settings
 - [ ] Toggle individual category (e.g. Inventory) off → setting saves to DB
 - [ ] Change Low Stock threshold → saves immediately (no Submit button)
 
 ```bash
-supabase db query "SELECT user_id, inventory_enabled, low_stock_threshold, wallet_enabled, large_txn_threshold FROM notification_preferences LIMIT 5;"
+supabase db query --linked "SELECT user_id, inventory_enabled, low_stock_threshold, wallet_enabled, large_txn_threshold FROM notification_preferences LIMIT 5;"
 ```
 
 ---
@@ -298,7 +331,7 @@ supabase db query "SELECT user_id, inventory_enabled, low_stock_threshold, walle
 - [ ] **Preview** → modal shows rendered HTML with sample variables
 - [ ] **Save** → toast confirms; changes reflected immediately on next send
 
-### 10B · API preview
+### 10B · API dry-run ✅ verified 2026-04-25
 
 ```bash
 curl -s -X POST https://uhrlsvnmoemrakwfrjyf.supabase.co/functions/v1/send-email \
@@ -310,10 +343,11 @@ curl -s -X POST https://uhrlsvnmoemrakwfrjyf.supabase.co/functions/v1/send-email
 
 Expected: `"success": true` and `"subject": "Welcome to LagosApps!"`
 
+> Logo in output should reference `supabase.co/storage/v1/object/public/public-assets/brand-logo.png` — not GitHub raw.
+
 ### 10C · Send test email (API)
 
 ```bash
-# Replace with your real email address
 curl -s -X POST https://uhrlsvnmoemrakwfrjyf.supabase.co/functions/v1/send-email \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVocmxzdm5tb2VtcmFrd2ZyanlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2ODY2ODQsImV4cCI6MjA5MjI2MjY4NH0.VN59kY6Mb5_n2cjejx-wyiTcz_G_VmYjhq5w8P4A0lI" \
   -H "Content-Type: application/json" \
@@ -346,8 +380,8 @@ curl -s -X POST https://uhrlsvnmoemrakwfrjyf.supabase.co/functions/v1/send-email
 - [ ] **Convert to Order** button → navigates to Create Order wizard (pre-filled if wired)
 
 ```bash
-supabase db query "SELECT id, type, status, assigned_to FROM service_requests ORDER BY created_at DESC LIMIT 5;"
-supabase db query "SELECT id, description, status FROM custom_order_requests ORDER BY created_at DESC LIMIT 5;"
+supabase db query --linked "SELECT id, type, status, assigned_to FROM service_requests ORDER BY created_at DESC LIMIT 5;"
+supabase db query --linked "SELECT id, description, status FROM custom_order_requests ORDER BY created_at DESC LIMIT 5;"
 ```
 
 ---
@@ -363,7 +397,7 @@ supabase db query "SELECT id, description, status FROM custom_order_requests ORD
 - [ ] Expand a row → shows `new_values` / `old_values` JSON diff
 
 ```bash
-supabase db query "SELECT action, entity_type, entity_id, created_at FROM admin_audit_log ORDER BY created_at DESC LIMIT 10;"
+supabase db query --linked "SELECT action, entity_type, entity_id, created_at FROM admin_audit_log ORDER BY created_at DESC LIMIT 10;"
 ```
 
 ---
@@ -430,7 +464,7 @@ supabase db query "SELECT action, entity_type, entity_id, created_at FROM admin_
 - [ ] Close app and reopen (or refresh) → cart persists (DB-backed)
 
 ```bash
-supabase db query "SELECT c.id, p.name as user, COUNT(ci.id) as items FROM carts c JOIN profiles p ON p.id = c.user_id JOIN cart_items ci ON ci.cart_id = c.id GROUP BY c.id, p.name ORDER BY c.updated_at DESC LIMIT 5;"
+supabase db query --linked "SELECT c.id, p.name as user, COUNT(ci.id) as items FROM carts c JOIN profiles p ON p.id = c.user_id JOIN cart_items ci ON ci.cart_id = c.id GROUP BY c.id, p.name ORDER BY c.updated_at DESC LIMIT 5;"
 ```
 
 ### 14B · Checkout — card payment (browser)
@@ -444,7 +478,7 @@ supabase db query "SELECT c.id, p.name as user, COUNT(ci.id) as items FROM carts
 - [ ] Order appears in admin `/orders`
 
 ```bash
-supabase db query "SELECT id, status, payment_method, total_amount FROM orders ORDER BY created_at DESC LIMIT 3;"
+supabase db query --linked "SELECT id, status, payment_method, total_amount FROM orders ORDER BY created_at DESC LIMIT 3;"
 ```
 
 ### 14C · Checkout — wallet payment (browser)
@@ -460,6 +494,16 @@ supabase db query "SELECT id, status, payment_method, total_amount FROM orders O
 - [ ] Checkout → wallet balance auto-applied as partial; Paystack opens for remainder
 - [ ] Complete payment → order confirmed; wallet debited; card charged for difference
 
+### 14E · Failed payment (browser)
+
+- [ ] Cart → Pay → enter failing card `4084 0840 8408 4087`
+- [ ] Paystack shows error → user closes popup → cart is still intact
+- [ ] Order stays `pending` in DB (pre-created but never confirmed)
+
+```bash
+supabase db query --linked "SELECT id, status FROM orders ORDER BY created_at DESC LIMIT 1;"
+```
+
 ---
 
 ## Section 15 — User App: Wallet
@@ -474,7 +518,7 @@ supabase db query "SELECT id, status, payment_method, total_amount FROM orders O
 - [ ] Transaction appears in wallet history
 
 ```bash
-supabase db query "SELECT description, amount, type, running_balance FROM wallet_transactions ORDER BY created_at DESC LIMIT 5;"
+supabase db query --linked "SELECT description, amount, type, running_balance FROM wallet_transactions ORDER BY created_at DESC LIMIT 5;"
 ```
 
 ### 15B · Transaction history (browser)
@@ -498,7 +542,7 @@ supabase db query "SELECT description, amount, type, running_balance FROM wallet
 - [ ] `membership_subscriptions` row created with correct expiry
 
 ```bash
-supabase db query "SELECT user_id, tier, billing_cycle, amount_paid, starts_at, expires_at, status FROM membership_subscriptions ORDER BY created_at DESC LIMIT 3;"
+supabase db query --linked "SELECT user_id, tier, billing_cycle, amount_paid, starts_at, expires_at, status FROM membership_subscriptions ORDER BY created_at DESC LIMIT 3;"
 ```
 
 ### 16B · Admin view (browser)
@@ -526,7 +570,7 @@ supabase db query "SELECT user_id, tier, billing_cycle, amount_paid, starts_at, 
 
 ## Section 18 — Paystack Webhook
 
-### 18A · Signature verification (CLI)
+### 18A · Signature verification (CLI) ✅ verified 2026-04-25 — returns 401
 
 ```bash
 # Unsigned request should return 401
@@ -553,31 +597,38 @@ Expected: `401`
 
 ## Section 19 — Cron Jobs
 
-### 19A · Verify schedules registered
+### 19A · Verify schedules registered ✅ verified 2026-04-25
 
 ```bash
-supabase db query "SELECT jobname, schedule, command, active FROM cron.job ORDER BY jobname;"
+supabase db query --linked "SELECT jobname, schedule, command, active FROM cron.job ORDER BY jobname;"
 ```
 
-Expected: 5 rows — `expire-memberships`, `expire-referrals`, `flag-overdue-orders`, `membership-renewal-reminders`, `reset-benefit-usage`
+Expected: 5 rows — all `active = true`
 
-### 19B · Manual trigger (CLI)
+| jobname | schedule |
+| --- | --- |
+| `expire-memberships` | `0 1 * * *` |
+| `expire-referrals` | `0 1 * * *` |
+| `flag-overdue-orders` | `0 * * * *` |
+| `membership-renewal-reminders` | `0 8 * * *` |
+| `reset-benefit-usage` | `0 2 1 * *` |
+
+### 19B · Manual trigger (CLI) ✅ all pass as of 2026-04-25
 
 ```bash
-# Manually run expiry function to confirm it executes without error
-supabase db query "SELECT expire_memberships();"
-supabase db query "SELECT expire_referrals();"
-supabase db query "SELECT flag_overdue_fulfillment();"
-supabase db query "SELECT send_membership_renewal_reminders();"
+supabase db query --linked "SELECT expire_memberships();"
+supabase db query --linked "SELECT expire_referrals();"
+supabase db query --linked "SELECT flag_overdue_fulfillment();"
+supabase db query --linked "SELECT send_membership_renewal_reminders();"
 ```
 
-All should return without SQL errors. `send_membership_renewal_reminders` will only send emails if subscriptions expiring in 3 days exist.
+All should return without SQL errors.
 
 ### 19C · Trigger renewal reminder manually
 
 ```bash
-# Create a test subscription expiring in 3 days to verify the reminder fires
-supabase db query "
+# Create a test subscription expiring in 3 days
+supabase db query --linked "
   INSERT INTO membership_subscriptions (id, user_id, tier, billing_cycle, amount_paid, starts_at, expires_at, status)
   SELECT gen_random_uuid(), id, 'silver', 'annual', 50000,
          now() - interval '362 days',
@@ -586,39 +637,40 @@ supabase db query "
   FROM profiles WHERE role = 'user' LIMIT 1
   RETURNING id, user_id, expires_at;
 "
-# Then trigger the cron function
-supabase db query "SELECT send_membership_renewal_reminders();"
-# Check inbox for renewal reminder email
-# Clean up
-supabase db query "DELETE FROM membership_subscriptions WHERE expires_at BETWEEN now() + interval '2 days' AND now() + interval '4 days' AND tier = 'silver';"
+supabase db query --linked "SELECT send_membership_renewal_reminders();"
+# Check inbox for renewal reminder email, then clean up:
+supabase db query --linked "DELETE FROM membership_subscriptions WHERE expires_at BETWEEN now() + interval '2 days' AND now() + interval '4 days' AND tier = 'silver';"
 ```
 
 ---
 
 ## Section 20 — RLS (Row-Level Security)
 
-### 20A · User cannot see other users' data (CLI)
+### 20A · Unauthenticated access blocked ✅ verified 2026-04-25
 
 ```bash
-# Get two user IDs
-supabase db query "SELECT id, email FROM profiles WHERE role = 'user' LIMIT 2;"
+ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVocmxzdm5tb2VtcmFrd2ZyanlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2ODY2ODQsImV4cCI6MjA5MjI2MjY4NH0.VN59kY6Mb5_n2cjejx-wyiTcz_G_VmYjhq5w8P4A0lI"
 
-# As unauthenticated anon, verify orders returns empty
+# Unauthenticated anon → orders should return []
 curl -s "https://uhrlsvnmoemrakwfrjyf.supabase.co/rest/v1/orders?select=id,user_id" \
-  -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVocmxzdm5tb2VtcmFrd2ZyanlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2ODY2ODQsImV4cCI6MjA5MjI2MjY4NH0.VN59kY6Mb5_n2cjejx-wyiTcz_G_VmYjhq5w8P4A0lI" \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVocmxzdm5tb2VtcmFrd2ZyanlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2ODY2ODQsImV4cCI6MjA5MjI2MjY4NH0.VN59kY6Mb5_n2cjejx-wyiTcz_G_VmYjhq5w8P4A0lI"
+  -H "apikey: $ANON_KEY" -H "Authorization: Bearer $ANON_KEY"
+
+# Unauthenticated anon → wallet_transactions should return []
+curl -s "https://uhrlsvnmoemrakwfrjyf.supabase.co/rest/v1/wallet_transactions?select=id" \
+  -H "apikey: $ANON_KEY" -H "Authorization: Bearer $ANON_KEY"
+
+# Products are public — should return 74 items
+curl -s "https://uhrlsvnmoemrakwfrjyf.supabase.co/rest/v1/products?select=id" \
+  -H "apikey: $ANON_KEY" -H "Authorization: Bearer $ANON_KEY" \
+  | python3 -c "import sys,json; print(len(json.load(sys.stdin)))"
 ```
 
-Expected: `[]` (empty — no authenticated user)
+Expected: `[]`, `[]`, `74`
 
-### 20B · Admin can read all rows (CLI)
+### 20B · User JWT only sees own rows (browser)
 
-```bash
-# Using service role key bypasses RLS — verifies data exists
-supabase db query "SELECT COUNT(*) FROM orders;"
-supabase db query "SELECT COUNT(*) FROM wallet_transactions;"
-supabase db query "SELECT COUNT(*) FROM profiles;"
-```
+- [ ] Log in as User A → place an order → note order ID
+- [ ] Log in as User B → try to access `/rest/v1/orders?id=eq.<User A order ID>` with User B's JWT → returns `[]`
 
 ---
 
@@ -627,7 +679,7 @@ supabase db query "SELECT COUNT(*) FROM profiles;"
 ### 21A · Admin action → user sees it (browser — two windows)
 
 - [ ] Open admin app and user app side by side
-- [ ] Admin changes order status → user's order detail updates (or refreshes to show new status)
+- [ ] Admin changes order status → user's order detail updates (Realtime — no refresh)
 - [ ] Admin sends broadcast → user's notification badge increments (Realtime)
 - [ ] Admin toggles a portal off → user app portal disappears on next load
 
@@ -647,14 +699,14 @@ supabase db query "SELECT COUNT(*) FROM profiles;"
 
 ## Section 22 — Database Health Checks (CLI)
 
-Run these queries to verify data integrity after all tests:
+Run after testing to verify data integrity:
 
 ```bash
-# Orphaned order items (should return 0)
-supabase db query "SELECT COUNT(*) FROM order_items oi LEFT JOIN orders o ON o.id = oi.order_id WHERE o.id IS NULL;"
+# Orphaned order items — expected: 0
+supabase db query --linked "SELECT COUNT(*) as orphaned FROM order_items oi LEFT JOIN orders o ON o.id = oi.order_id WHERE o.id IS NULL;"
 
-# Wallet running balance accuracy — last txn balance should equal profile balance (spot check)
-supabase db query "
+# Wallet running balance drift — expected: 0 rows
+supabase db query --linked "
   SELECT p.name, p.wallet_balance, wt.running_balance as last_txn_balance
   FROM profiles p
   JOIN wallet_transactions wt ON wt.id = (
@@ -663,23 +715,20 @@ supabase db query "
   WHERE ABS(p.wallet_balance - wt.running_balance) > 1
   LIMIT 5;
 "
-# Should return 0 rows
 
-# Active subscriptions without a valid profile
-supabase db query "SELECT COUNT(*) FROM membership_subscriptions ms LEFT JOIN profiles p ON p.id = ms.user_id WHERE p.id IS NULL;"
+# Orphaned subscriptions — expected: 0
+supabase db query --linked "SELECT COUNT(*) FROM membership_subscriptions ms LEFT JOIN profiles p ON p.id = ms.user_id WHERE p.id IS NULL;"
 
-# Cron job last run times
-supabase db query "SELECT jobname, last_run FROM cron.job_run_details jrd JOIN cron.job j ON j.jobid = jrd.jobid ORDER BY last_run DESC LIMIT 10;" 2>/dev/null || echo "cron.job_run_details not available on this plan"
+# Row counts by table (baseline after full test run)
+supabase db query --linked "SELECT relname, n_live_tup FROM pg_stat_user_tables WHERE schemaname = 'public' ORDER BY n_live_tup DESC;"
 
-# Recent audit log entries
-supabase db query "SELECT action, entity_type, entity_id, created_at FROM admin_audit_log ORDER BY created_at DESC LIMIT 10;"
+# Recent audit log
+supabase db query --linked "SELECT action, entity_type, entity_id, created_at FROM admin_audit_log ORDER BY created_at DESC LIMIT 10;"
 ```
 
 ---
 
 ## Quick Smoke Test (15 minutes)
-
-If you only have limited time, run this condensed sequence:
 
 1. [ ] Admin: log in → verify dashboard loads with real data
 2. [ ] Admin: toggle one portal off → verify it disappears on user app
@@ -701,7 +750,16 @@ If you only have limited time, run this condensed sequence:
 |------|--------|
 | WhatsApp notifications | Deferred to M9 — not yet implemented |
 | Per-user benefit usage progress bars | Deferred — benefit consumption not yet wired to orders |
-| Supabase Auth emails via Resend SMTP | Optional — configure in Supabase Dashboard → Auth → SMTP if needed |
-| pg_cron job run history | May not be available on free plan; check Supabase Dashboard → Database → Cron |
+| Supabase Auth emails | SMTP configured via Resend; branded templates applied in Dashboard → Auth → Email Templates |
+| pg_cron job run history | `cron.job_run_details` not available on free plan; verify via Supabase Dashboard → Database → Cron instead |
 | Analytics page | Still on mock data — M7 not yet started |
 | Finance page | Still on mock data — M7 not yet started |
+| Edge Function auto-deploy | Not handled by Netlify — must run `supabase functions deploy` manually after changes |
+
+## Bugs Found & Fixed (2026-04-25)
+
+| Bug | Fix |
+| --- | --- |
+| `flag_overdue_fulfillment()` used `'delivered'` which is not in `order_status` enum | Migration `20260425200000` replaced with `'completed'` |
+| `send-email` Edge Function `DEFAULT_LOGO_URL` pointed to GitHub raw (webp) | Updated to Supabase Storage PNG URL; redeployed |
+| `config.toml` template `content_path` resolved from `supabase/` dir instead of project root | Paths updated to `./supabase/templates/…` |
