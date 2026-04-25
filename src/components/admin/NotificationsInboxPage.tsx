@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { useToast } from "../../hooks/useToast";
@@ -52,22 +52,27 @@ export default function NotificationsInboxPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
   const [notifications, setNotifications] = useState<SystemNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("all");
   const [unreadOnly, setUnreadOnly] = useState(false);
 
   const load = useCallback(async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const { data, error } = await getSystemNotifications(user.id);
     setLoading(false);
     if (error) {
-      toast.error(`Failed to load: ${error.message}`);
+      toastRef.current.error(`Failed to load: ${error.message}`);
       return;
     }
     setNotifications((data as SystemNotification[]) ?? []);
-  }, [user?.id, toast]);
+  }, [user?.id]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -194,11 +199,21 @@ export default function NotificationsInboxPage() {
       {/* Notification list */}
       <div className={card}>
         {loading ? (
-          <div className="py-12 text-center text-sm text-[#94A3B8]">Loading…</div>
+          <div className="py-16 flex flex-col items-center gap-3">
+            <span className="size-5 border-2 border-[#E2E8F0] border-t-primary rounded-full animate-spin" />
+            <p className="text-sm text-[#94A3B8]">Loading notifications…</p>
+          </div>
         ) : filtered.length === 0 ? (
           <div className="py-16 text-center">
-            <span className="material-symbols-outlined text-[48px] text-[#CBD5E1] block mb-2">notifications</span>
-            <p className="text-sm text-[#64748B]">{unreadOnly ? "No unread notifications" : "You're all caught up"}</p>
+            <span className="material-symbols-outlined text-[48px] text-[#CBD5E1] block mb-2">
+              {unreadOnly ? "mark_email_read" : "notifications_off"}
+            </span>
+            <p className="text-sm font-semibold text-[#64748B]">
+              {unreadOnly ? "No unread notifications" : category !== "all" ? `No ${category} notifications` : "No notifications yet"}
+            </p>
+            <p className="text-[12px] text-[#94A3B8] mt-1">
+              {unreadOnly ? "All caught up — everything has been read" : "Notifications will appear here as activity happens on the platform"}
+            </p>
           </div>
         ) : (
           <div className="divide-y divide-[#F1F5F9]">

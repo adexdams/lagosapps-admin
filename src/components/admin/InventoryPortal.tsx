@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import ProductForm, { type ProductFormRecord } from "./ProductForm";
 import StatusBadge from "./shared/StatusBadge";
 import { useToast } from "../../hooks/useToast";
@@ -27,6 +27,8 @@ interface DbProduct {
 
 export default function InventoryPortal({ portal }: InventoryPortalProps) {
   const toast = useToast();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [editingProduct, setEditingProduct] = useState<DbProduct | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -38,11 +40,11 @@ export default function InventoryPortal({ portal }: InventoryPortalProps) {
     const { data, error } = await getProducts(portal);
     setLoading(false);
     if (error) {
-      toast.error(`Failed to load products: ${error.message}`);
+      toastRef.current.error(`Failed to load products: ${error.message}`);
       return;
     }
     setProducts((data as DbProduct[]) ?? []);
-  }, [portal, toast]);
+  }, [portal]);
 
   useEffect(() => {
     fetchProducts();
@@ -154,13 +156,22 @@ export default function InventoryPortal({ portal }: InventoryPortalProps) {
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 text-[#94A3B8]">
-          <p className="text-sm">No products in this category</p>
+        <div className="bg-white rounded-xl sm:rounded-2xl border border-[#E8ECF1]/60 py-16 text-center">
+          <span className="material-symbols-outlined text-[48px] text-[#CBD5E1] block mb-2">inventory_2</span>
+          <p className="text-sm font-semibold text-[#64748B]">
+            {selectedCategory === "all" ? "No products yet" : `No products in "${selectedCategory}"`}
+          </p>
+          <p className="text-[12px] text-[#94A3B8] mt-1 mb-4">
+            {selectedCategory === "all"
+              ? "Add the first product to this portal"
+              : "Try selecting a different category or add a new product"}
+          </p>
           <button
             onClick={() => handleOpenForm()}
-            className="mt-3 text-sm font-semibold text-primary hover:underline cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-white text-[13px] font-semibold rounded-xl cursor-pointer hover:brightness-[0.92] transition-all"
           >
-            Add the first one
+            <span className="material-symbols-outlined text-[16px]">add</span>
+            Add Product
           </button>
         </div>
       ) : (
