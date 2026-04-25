@@ -1,21 +1,17 @@
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import StatCard from "./shared/StatCard";
-import {
-  mockOrders,
-  mockUsers,
-  mockServiceRequests,
-  mockSubscriptions,
-  formatNaira,
-} from "../../data/adminMockData";
+import { getOrders, getUsers, getServiceRequestsList, getSubscriptions } from "../../lib/api";
+import { formatNaira } from "../../data/adminMockData";
 
-const completedOrders = mockOrders.filter((o) => o.status === "completed").length;
-const pendingOrders = mockOrders.filter((o) => o.status === "pending").length;
-const processingOrders = mockOrders.filter((o) => o.status === "processing" || o.status === "confirmed").length;
-const activeMembers = mockSubscriptions.filter((s) => s.status === "active").length;
-const newRequests = mockServiceRequests.filter((r) => r.status === "new").length;
-
-const recentOrders = mockOrders
-  .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-  .slice(0, 5);
+interface DbOrder {
+  id: string;
+  portal_id: string;
+  total_amount: number;
+  status: string;
+  created_at: string;
+  profiles: { name: string | null; email: string } | null;
+}
 
 const statusStyles: Record<string, string> = {
   completed: "bg-[#ECFDF5] text-[#059669]",
@@ -33,14 +29,48 @@ const quickActions = [
 ];
 
 export default function AdminOverview() {
+  const navigate = useNavigate();
+  const [orders, setOrders] = useState<DbOrder[]>([]);
+  const [userCount, setUserCount] = useState(0);
+  const [activeMembers, setActiveMembers] = useState(0);
+  const [newRequests, setNewRequests] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [ordersRes, usersRes, requestsRes, subsRes] = await Promise.all([
+        getOrders(),
+        getUsers(),
+        getServiceRequestsList(),
+        getSubscriptions(),
+      ]);
+      if (cancelled) return;
+      setOrders((ordersRes.data as DbOrder[]) ?? []);
+      setUserCount((usersRes.data ?? []).filter((u: { role: string }) => u.role === "user").length);
+      setActiveMembers(((subsRes.data ?? []) as { status: string }[]).filter((s) => s.status === "active").length);
+      setNewRequests(((requestsRes.data ?? []) as { status: string }[]).filter((r) => r.status === "new").length);
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const processingOrders = orders.filter((o) => o.status === "processing" || o.status === "confirmed").length;
+  const pendingOrders = orders.filter((o) => o.status === "pending").length;
+  const completedOrders = orders.filter((o) => o.status === "completed").length;
+  const cancelledOrders = orders.filter((o) => o.status === "cancelled").length;
+  const recentOrders = [...orders].slice(0, 5);
+  const completionRate = orders.length > 0 ? Math.round((completedOrders / orders.length) * 100) : 0;
+  const cancellationRate = orders.length > 0 ? Math.round((cancelledOrders / orders.length) * 100) : 0;
+
   return (
     <div className="space-y-4 sm:space-y-6 md:space-y-8">
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-6">
-        <StatCard label="Total Users" value={mockUsers.length.toLocaleString()} icon="group" color="#0D47A1" trend={{ value: `${activeMembers} members`, positive: true }} />
-        <StatCard label="Active Orders" value={String(processingOrders)} icon="receipt_long" color="#E65100" trend={{ value: `${pendingOrders} pending`, positive: false }} />
-        <StatCard label="Completed" value={String(completedOrders)} icon="check_circle" color="#1B5E20" trend={{ value: `${Math.round((completedOrders / mockOrders.length) * 100)}% rate`, positive: true }} />
-        <StatCard label="New Requests" value={String(newRequests)} icon="description" color="#7C3AED" trend={{ value: "Awaiting review", positive: false }} />
+        <StatCard label="Total Users" value={loading ? "—" : userCount.toLocaleString()} icon="group" color="#0D47A1" trend={{ value: `${activeMembers} members`, positive: true }} />
+        <StatCard label="Active Orders" value={loading ? "—" : String(processingOrders)} icon="receipt_long" color="#E65100" trend={{ value: `${pendingOrders} pending`, positive: false }} />
+        <StatCard label="Completed" value={loading ? "—" : String(completedOrders)} icon="check_circle" color="#1B5E20" trend={{ value: `${completionRate}% rate`, positive: true }} />
+        <StatCard label="New Requests" value={loading ? "—" : String(newRequests)} icon="description" color="#7C3AED" trend={{ value: "Awaiting review", positive: false }} />
       </div>
 
       {/* Orders + Fulfillment snapshot */}
@@ -63,13 +93,17 @@ export default function AdminOverview() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E8ECF1]/50">
-                {recentOrders.map((order) => (
-                  <tr key={order.id} className="hover:bg-[#F8FAFC]/60 transition-colors cursor-pointer">
+                {loading ? (
+                  <tr><td colSpan={5} className="px-5 py-10 text-center text-[#94A3B8] text-sm">Loading…</td></tr>
+                ) : recentOrders.length === 0 ? (
+                  <tr><td colSpan={5} className="px-5 py-10 text-center text-[#94A3B8] text-sm">No orders yet</td></tr>
+                ) : recentOrders.map((order) => (
+                  <tr key={order.id} onClick={() => navigate(`/orders/${order.id}`)} className="hover:bg-[#F8FAFC]/60 transition-colors cursor-pointer">
                     <td className="px-2.5 sm:px-4 py-3.5 font-semibold text-[#057a55]">{order.id}</td>
-                    <td className="px-2.5 sm:px-4 py-3.5 text-[#334155] hidden sm:table-cell">{order.userName}</td>
-                    <td className="px-2.5 sm:px-4 py-3.5 text-[#64748B] hidden md:table-cell capitalize">{order.portal}</td>
+                    <td className="px-2.5 sm:px-4 py-3.5 text-[#334155] hidden sm:table-cell">{order.profiles?.name ?? order.profiles?.email ?? "—"}</td>
+                    <td className="px-2.5 sm:px-4 py-3.5 text-[#64748B] hidden md:table-cell capitalize">{order.portal_id}</td>
                     <td className="px-2.5 sm:px-4 py-3.5 text-right font-semibold text-[#0F172A]">
-                      {order.amount === 0 ? "Free" : formatNaira(order.amount)}
+                      {order.total_amount === 0 ? "Free" : formatNaira(order.total_amount)}
                     </td>
                     <td className="px-2.5 sm:px-4 py-3.5 text-center">
                       <span className={`inline-block text-[11px] font-semibold px-2.5 py-1 rounded-full capitalize ${statusStyles[order.status] ?? "bg-[#F1F5F9] text-[#64748B]"}`}>
@@ -93,33 +127,33 @@ export default function AdminOverview() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-[13px] text-[#334155]">Orders in Progress</span>
-                <span className="text-sm font-bold text-[#EA580C]">{processingOrders}</span>
+                <span className="text-sm font-bold text-[#EA580C]">{loading ? "—" : processingOrders}</span>
               </div>
               <div className="h-2.5 bg-[#F1F5F9] rounded-full overflow-hidden">
-                <div className="h-full rounded-full bg-[#EA580C]" style={{ width: `${(processingOrders / mockOrders.length) * 100}%` }} />
+                <div className="h-full rounded-full bg-[#EA580C]" style={{ width: orders.length > 0 ? `${(processingOrders / orders.length) * 100}%` : "0%" }} />
               </div>
             </div>
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-[13px] text-[#334155]">Service Requests Pending</span>
-                <span className="text-sm font-bold text-[#7C3AED]">{newRequests}</span>
+                <span className="text-sm font-bold text-[#7C3AED]">{loading ? "—" : newRequests}</span>
               </div>
               <div className="h-2.5 bg-[#F1F5F9] rounded-full overflow-hidden">
-                <div className="h-full rounded-full bg-[#7C3AED]" style={{ width: `${mockServiceRequests.length > 0 ? (newRequests / mockServiceRequests.length) * 100 : 0}%` }} />
+                <div className="h-full rounded-full bg-[#7C3AED]" style={{ width: newRequests > 0 ? "100%" : "0%" }} />
               </div>
             </div>
             <div className="pt-3 border-t border-[#F1F5F9] space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-[13px] text-[#64748B]">Completion Rate</span>
-                <span className="text-sm font-bold text-[#059669]">{Math.round((completedOrders / mockOrders.length) * 100)}%</span>
+                <span className="text-sm font-bold text-[#059669]">{loading ? "—" : `${completionRate}%`}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[13px] text-[#64748B]">Cancellation Rate</span>
-                <span className="text-sm font-bold text-[#DC2626]">{Math.round((mockOrders.filter((o) => o.status === "cancelled").length / mockOrders.length) * 100)}%</span>
+                <span className="text-sm font-bold text-[#DC2626]">{loading ? "—" : `${cancellationRate}%`}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[13px] text-[#64748B]">Active Members</span>
-                <span className="text-sm font-bold text-[#0F172A]">{activeMembers}</span>
+                <span className="text-sm font-bold text-[#0F172A]">{loading ? "—" : activeMembers}</span>
               </div>
             </div>
           </div>
