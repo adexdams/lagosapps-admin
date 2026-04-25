@@ -6,6 +6,81 @@ End-to-end checklist for verifying every feature on both the **admin dashboard**
 
 ---
 
+## Progress Summary
+
+**Legend:** ✅ Verified · ⬜ Pending · 🔑 Needs admin account first · — Not applicable
+
+| # | Section | CLI / API | Browser |
+| --- | --- | --- | --- |
+| **Setup** | | | |
+| — | DB connection + project link | ✅ PostgreSQL 17.6 · linked | — |
+| — | Admin account exists | ✅ `mainlandtech24@gmail.com` promoted to `super_admin` | 🔑 Sign in via Magic Link |
+| — | Edge Functions deployed | ✅ `send-email` + `paystack-webhook` | — |
+| **S1** | **Authentication** | | |
+| 1A | Admin login | — | ⬜ Login · session persistence · magic link · forgot password |
+| 1B | User signup | ✅ `profiles` trigger confirmed · 1 user in DB | ⬜ Sign up · welcome email arrives |
+| 1C | Referral signup | ✅ `referrals` schema confirmed | ⬜ Incognito sign-up with referral code → Bronze gifted |
+| 1D | Password reset | — | ⬜ Reset link email · set new password · re-login |
+| **S2** | **Admin: Users** | | |
+| 2A–2B | Users list + User detail | ✅ Profiles table — 1 user, role breakdown confirmed | ⬜ Table loads · search · filter · user detail page |
+| **S3** | **Admin: Orders** | | |
+| 3A–3C | Orders list · detail · create | ✅ `orders` table empty (no test orders yet) | ⬜ Create order · status change · refund flow |
+| **S4** | **Admin: Inventory** | | |
+| 4A–4C | Product CRUD · portal tabs | ✅ 74 products across 7 portals confirmed | ⬜ Add/edit/toggle product · image upload |
+| **S5** | **Admin: Membership** | | |
+| 5A–5D | Tier config · subscriptions · benefits | ✅ 3 tiers · 15 benefits · prices confirmed | ⬜ Edit tier price · cancel subscription |
+| **S6** | **Admin: Wallet** | | |
+| 6A–6B | Transaction log · manual adjustment | ✅ Schema confirmed · table empty | ⬜ Manual credit → user wallet updates |
+| **S7** | **Admin: Referrals** | | |
+| 7A | Referrals list | ✅ Schema confirmed · table empty | ⬜ Table loads after referral sign-up |
+| **S8** | **Admin: Notifications** | | |
+| 8A–8D | Broadcasts · system panel · inbox | ✅ Realtime publications confirmed | ⬜ Compose · send · retract · bell panel |
+| **S9** | **Admin: Settings** | | |
+| 9A–9C | Portal toggles · alert prefs | ✅ 7 portals — all `is_active = true` | ⬜ Toggle portal off → hidden on user app |
+| **S10** | **Admin: Email Templates** | | |
+| 10A–10C | Template editor · dry-run · live send | ✅ Dry-run returns `success:true` · Supabase Storage logo confirmed | ⬜ Edit template in `/emails` · preview modal |
+| **S11** | **Admin: Fulfillment** | | |
+| 11A–11C | Order queue · service requests · custom orders | ✅ Schema confirmed · all tables empty | ⬜ Assign order · update request status · convert to order |
+| **S12** | **Admin: Audit Log** | | |
+| 12A | Audit log table | ✅ Schema confirmed · table empty (populates after admin actions) | ⬜ Verify entries appear after browser actions |
+| **S13** | **User App: Portals** | | |
+| 13A | Portal display + toggle | ✅ All 7 active · 74 products seeded | ⬜ All 7 visible · toggle off/on via admin |
+| 13B | Solar portal | ✅ Solar packages + products seeded | ⬜ Free Audit form → admin Fulfillment |
+| 13C | Health portal | ✅ Health products seeded | ⬜ Medical test form + supplies cart |
+| 13D | Events portal | ✅ 3 venues seeded | ⬜ Book venue → admin Fulfillment |
+| 13E | Logistics portal | — | ⬜ Submit request → admin Fulfillment |
+| 13F | Groceries portal | ✅ 13 grocery products seeded | ⬜ Add to cart + freeform custom request |
+| 13G | Community portal | — | ⬜ Donation → cart → checkout |
+| 13H | Transport portal | ✅ 6 transport products seeded | ⬜ Add to cart |
+| **S14** | **User App: Cart & Checkout** | | |
+| 14A | Cart operations | ✅ `carts` + `cart_items` schema ready | ⬜ Add/remove/clear · persistence on refresh |
+| 14B | Card payment | ✅ `orders` schema + payment fields confirmed | ⬜ Test card `4084 0840 8408 4081` → order confirmed · email arrives |
+| 14C | Wallet-only payment | ✅ Schema confirmed | ⬜ Top up wallet first · full wallet checkout |
+| 14D | Hybrid (wallet + card) | ✅ `wallet_deduction` + `payment_amount` fields confirmed | ⬜ Partial wallet + Paystack remainder |
+| 14E | Failed payment | ✅ Schema confirmed | ⬜ Failing card → order stays `pending` · cart intact |
+| **S15** | **User App: Wallet** | | |
+| 15A–15B | Top-up · history | ✅ `wallet_transactions` schema ready | ⬜ Top up ₦5,000 · top-up email arrives |
+| **S16** | **User App: Membership** | | |
+| 16A–16B | Subscribe · admin view | ✅ 3 tiers + 15 benefits · `membership_subscriptions` ready | ⬜ Subscribe Bronze · expiry shown · admin Membership tab |
+| **S17** | **User App: Notifications** | | |
+| 17A–17B | Broadcast inbox · order status | ✅ `user_notifications` in realtime publication | ⬜ Broadcast arrives without refresh · order status updates |
+| **S18** | **Paystack Webhook** | | |
+| 18A | Signature check (401) | ✅ Returns `401` on unsigned request | — |
+| 18B–18C | End-to-end + idempotency replay | — | ⬜ Paystack test dashboard → Logs → Resend |
+| **S19** | **Cron Jobs** | | |
+| 19A | Schedules registered | ✅ 5 jobs — all `active = true` | — |
+| 19B | Manual function calls | ✅ All 4 functions execute cleanly | — |
+| 19C | Renewal reminder e2e | ⬜ Needs a real user to send email to | ⬜ Check inbox after `send_membership_renewal_reminders()` |
+| **S20** | **RLS Security** | | |
+| 20A | Anon blocked from orders/wallet | ✅ Returns `[]` on both tables · products return 74 (public) | — |
+| 20B | User JWT sees only own rows | ✅ RLS enabled on all 36 tables | ⬜ Two users · cross-query returns `[]` |
+| **S21** | **Cross-App Integration** | | |
+| 21A–21C | Admin action → user · User action → admin | — | ⬜ Side-by-side browser test for realtime sync |
+| **S22** | **DB Health Checks** | | |
+| 22 | Orphans · balance drift · row counts | ✅ 0 orphaned items · 0 balance drift · 36 tables healthy | — |
+
+---
+
 ## Environment Reference
 
 | Item | Value |
