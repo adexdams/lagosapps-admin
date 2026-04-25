@@ -80,7 +80,7 @@ export default function SettingsPage() {
   // Sync profile fields when profile loads
   useEffect(() => {
     if (profile?.name) setDisplayName(profile.name);
-    if ((profile as unknown as { phone?: string })?.phone) setDisplayPhone((profile as unknown as { phone?: string }).phone ?? "");
+    if (profile?.phone) setDisplayPhone(profile.phone ?? "");
     if (profile?.avatar_url) setAvatarUrl(profile.avatar_url);
   }, [profile]);
 

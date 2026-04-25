@@ -17,7 +17,7 @@ export default function AuthProvider({ children }: Props) {
     // Load user profile
     const { data: userData } = await supabase
       .from("profiles")
-      .select("id, name, email, avatar_url, role")
+      .select("id, name, email, phone, avatar_url, role")
       .eq("id", userId)
       .single();
 
@@ -44,9 +44,10 @@ export default function AuthProvider({ children }: Props) {
       id: userData.id,
       name: userData.name,
       email: userData.email,
+      phone: userData.phone,
       avatar_url: userData.avatar_url,
       role: userData.role,
-      teamRole: teamData?.role ?? "support",
+      teamRole: teamData?.role ?? userData.role,
       privileges,
     });
   }, []);

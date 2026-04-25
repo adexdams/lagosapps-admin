@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../hooks/useAuth";
 import { supabase } from "../../../lib/supabase";
@@ -49,20 +49,23 @@ export default function NotificationPanel() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<SystemNotification[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  const load = useCallback(async () => {
-    if (!user?.id) return;
-    setLoading(true);
-    const { data } = await getSystemNotifications(user.id);
-    const rows = (data as SystemNotification[]) ?? [];
-    setNotifications(rows.slice(0, 15)); // top 15 in the dropdown
-    setLoading(false);
+  useEffect(() => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    getSystemNotifications(user.id).then(({ data }) => {
+      if (cancelled) return;
+      setNotifications(((data as SystemNotification[]) ?? []).slice(0, 15));
+      setLoading(false);
+    });
+    return () => { cancelled = true; };
   }, [user?.id]);
-
-  useEffect(() => { load(); }, [load]);
 
   // Realtime: new notifications for this admin push into the panel
   useEffect(() => {
