@@ -26,22 +26,13 @@ export default function LoginPage() {
     <div className="min-h-screen flex">
       {/* Left panel — brand/visual */}
       <div className="hidden lg:flex flex-col flex-1 relative overflow-hidden bg-[#0A2540]">
-        {/* Gradient blobs */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute -top-32 -left-32 w-[480px] h-[480px] rounded-full bg-primary/30 blur-[120px]" />
-          <div className="absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full bg-[#0D47A1]/30 blur-[100px]" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] rounded-full bg-primary/10 blur-[80px]" />
-        </div>
-
-        {/* Fine grid overlay */}
+        {/* Civic Towers background image */}
         <div
-          className="absolute inset-0 opacity-[0.07]"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
-            backgroundSize: "40px 40px",
-          }}
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url('/civic-towers.jpg')" }}
         />
+        {/* Dark gradient overlay so text stays readable */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#050f1c]/95 via-[#0A2540]/70 to-[#0A2540]/40" />
 
         {/* Content */}
         <div className="relative z-10 flex flex-col h-full px-12 py-10">
