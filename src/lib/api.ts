@@ -77,6 +77,12 @@ export function generateOrderId(): string {
   return `ORD-${time}${rand}`;
 }
 
+export function generateTxnId(): string {
+  const time = (Date.now() - ORDER_ID_EPOCH).toString(32).toUpperCase().padStart(8, "0").slice(-8);
+  const rand = Math.floor(Math.random() * (32 ** 4)).toString(32).toUpperCase().padStart(4, "0");
+  return `TXN-${time}${rand}`;
+}
+
 // ── Fulfillment ─────────────────────────────────────────────
 
 export async function getFulfillmentOrders() {
@@ -175,13 +181,19 @@ export async function getCategories(portalId?: string) {
 // ── Wallet Transactions ─────────────────────────────────────
 
 export async function getWalletTransactions(userId?: string) {
-  let query = supabase.from("wallet_transactions").select("*").order("created_at", { ascending: false });
+  let query = supabase.from("wallet_transactions")
+    .select("*, profiles(name, email, avatar_url)")
+    .order("created_at", { ascending: false });
   if (userId) query = query.eq("user_id", userId);
   return query;
 }
 
 export async function createWalletTransaction(data: Record<string, unknown>) {
   return supabase.from("wallet_transactions").insert(data).select().single();
+}
+
+export async function updateUserWalletBalance(userId: string, newBalance: number) {
+  return supabase.from("profiles").update({ wallet_balance: newBalance }).eq("id", userId);
 }
 
 // ── Membership ──────────────────────────────────────────────
@@ -207,7 +219,29 @@ export async function getBenefitUsage(userId?: string) {
 // ── Referrals ───────────────────────────────────────────────
 
 export async function getReferrals() {
-  return supabase.from("referrals").select("*").order("created_at", { ascending: false });
+  return supabase.from("referrals")
+    .select("*, referrer:profiles!referrer_id(name, email), referred:profiles!referred_id(name, email)")
+    .order("created_at", { ascending: false });
+}
+
+export async function updateMembershipTierBenefit(id: string, data: Record<string, unknown>) {
+  return supabase.from("membership_tier_benefits").update(data).eq("id", id);
+}
+
+export async function createMembershipTierBenefit(data: Record<string, unknown>) {
+  return supabase.from("membership_tier_benefits").insert(data).select().single();
+}
+
+export async function deleteMembershipTierBenefit(id: string) {
+  return supabase.from("membership_tier_benefits").delete().eq("id", id);
+}
+
+export async function createMembershipSubscription(data: Record<string, unknown>) {
+  return supabase.from("membership_subscriptions").insert(data).select().single();
+}
+
+export async function cancelMembershipSubscription(id: string) {
+  return supabase.from("membership_subscriptions").update({ status: "cancelled" }).eq("id", id);
 }
 
 // ── Service Requests ────────────────────────────────────────

@@ -220,10 +220,29 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
-# Uncomment to customize email template
-# [auth.email.template.invite]
-# subject = "You have been invited"
-# content_path = "./supabase/templates/invite.html"
+[auth.email.template.confirmation]
+subject = "Confirm your LagosApps email address"
+content_path = "./templates/confirm_signup.html"
+
+[auth.email.template.invite]
+subject = "You've been invited to LagosApps"
+content_path = "./templates/invite.html"
+
+[auth.email.template.recovery]
+subject = "Reset your LagosApps password"
+content_path = "./templates/reset_password.html"
+
+[auth.email.template.magic_link]
+subject = "Your LagosApps sign-in link"
+content_path = "./templates/magic_link.html"
+
+[auth.email.template.email_change]
+subject = "Confirm your new LagosApps email address"
+content_path = "./templates/change_email.html"
+
+[auth.email.template.reauthentication]
+subject = "Your LagosApps verification code"
+content_path = "./templates/email_otp.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]

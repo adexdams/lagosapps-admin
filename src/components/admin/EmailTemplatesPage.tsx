@@ -159,7 +159,7 @@ export default function EmailTemplatesPage() {
             {logoUrl ? (
               <img src={logoUrl} alt="Logo" className="max-h-12 max-w-12 object-contain" />
             ) : (
-              <img src="/lagosapp-logo.webp" alt="Default logo" className="max-h-12 max-w-12 object-contain" />
+              <img src="/lagosapp-logo.png" alt="Default logo" className="max-h-12 max-w-12 object-contain" />
             )}
           </div>
           <div className="flex-1 min-w-0">

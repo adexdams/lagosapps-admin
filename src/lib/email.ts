@@ -11,7 +11,8 @@ type EmailTemplate =
 
 interface SendEmailOptions {
   template: EmailTemplate;
-  to: string | string[];
+  to?: string | string[];
+  batchRecipients?: string[];
   data?: Record<string, unknown>;
   subject?: string; // for "custom"
   html?: string; // for "custom"
@@ -114,7 +115,12 @@ export async function sendBroadcastEmail(
   message: string,
   imageUrl?: string
 ) {
-  return sendEmail({ template: "broadcast", to, data: { title, message, imageUrl } });
+  const recipients = Array.isArray(to) ? to : [to];
+  if (recipients.length > 1) {
+    // Batch mode: each recipient gets a private email (separate To: header per address)
+    return sendEmail({ template: "broadcast", batchRecipients: recipients, data: { title, message, imageUrl } });
+  }
+  return sendEmail({ template: "broadcast", to: recipients[0], data: { title, message, imageUrl } });
 }
 
 export async function sendCustomEmail(to: string | string[], subject: string, html: string) {

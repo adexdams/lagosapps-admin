@@ -60,7 +60,7 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2.5 mb-3">
-            <img src="/lagosapp-logo.webp" alt="LagosApps" className="h-10 w-auto" />
+            <img src="/lagosapp-logo.png" alt="LagosApps" className="h-10 w-auto" />
             <span className="text-[10px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-md tracking-wide uppercase">Admin</span>
           </div>
           <p className="text-sm text-[#64748B]">Sign in to the admin dashboard</p>

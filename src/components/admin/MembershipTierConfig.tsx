@@ -1,66 +1,39 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../../hooks/useToast";
+import {
+  getMembershipTiers,
+  updateMembershipTier,
+  updateMembershipTierBenefit,
+  createMembershipTierBenefit,
+  deleteMembershipTierBenefit,
+  logAudit,
+} from "../../lib/api";
 
 interface TierBenefit {
   id: string;
+  tier_id: string;
   label: string;
-  measureType: "count" | "percentage" | "boolean";
-  value: string;
-  period: "month" | "quarter" | "year" | "lifetime";
+  benefit_key: string;
+  limit_count: number | null;
+  limit_period: "month" | "quarter" | "year" | null;
+  sort_order: number;
+  isNew?: boolean;
+  isDeleted?: boolean;
 }
 
 interface TierConfig {
   id: string;
   name: string;
   color: string;
-  annualPrice: number;
-  quarterlyPrice: number;
+  annual_price: number;
+  quarterly_price: number;
   benefits: TierBenefit[];
 }
 
-const INITIAL_TIERS: TierConfig[] = [
-  {
-    id: "bronze",
-    name: "Bronze",
-    color: "#CD7F32",
-    annualPrice: 24000,
-    quarterlyPrice: 8000,
-    benefits: [
-      { id: "b1", label: "Free Deliveries", measureType: "count", value: "3", period: "month" },
-      { id: "b2", label: "Grocery Discount", measureType: "percentage", value: "5", period: "month" },
-      { id: "b3", label: "Priority Support", measureType: "boolean", value: "true", period: "lifetime" },
-    ],
-  },
-  {
-    id: "silver",
-    name: "Silver",
-    color: "#94A3B8",
-    annualPrice: 42000,
-    quarterlyPrice: 13500,
-    benefits: [
-      { id: "s1", label: "Free Deliveries", measureType: "count", value: "10", period: "month" },
-      { id: "s2", label: "Grocery Discount", measureType: "percentage", value: "10", period: "month" },
-      { id: "s3", label: "Priority Support", measureType: "boolean", value: "true", period: "lifetime" },
-      { id: "s4", label: "Event Tickets Discount", measureType: "percentage", value: "15", period: "quarter" },
-    ],
-  },
-  {
-    id: "gold",
-    name: "Gold",
-    color: "#D97706",
-    annualPrice: 72000,
-    quarterlyPrice: 22000,
-    benefits: [
-      { id: "g1", label: "Free Deliveries", measureType: "count", value: "Unlimited", period: "month" },
-      { id: "g2", label: "Grocery Discount", measureType: "percentage", value: "20", period: "month" },
-      { id: "g3", label: "Priority Support", measureType: "boolean", value: "true", period: "lifetime" },
-      { id: "g4", label: "Event Tickets Discount", measureType: "percentage", value: "25", period: "quarter" },
-      { id: "g5", label: "Health Checkup", measureType: "count", value: "1", period: "quarter" },
-      { id: "g6", label: "Solar Maintenance Visit", measureType: "count", value: "2", period: "year" },
-    ],
-  },
-];
+function labelToKey(label: string): string {
+  return label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || "benefit";
+}
 
 const inputClass =
   "w-full border border-[#E2E8F0] rounded-xl px-3 py-2.5 text-sm text-[#0F172A] outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all";
@@ -68,23 +41,45 @@ const inputClass =
 export default function MembershipTierConfig() {
   const navigate = useNavigate();
   const toast = useToast();
-  const [tiers, setTiers] = useState<TierConfig[]>(INITIAL_TIERS);
+  const [tiers, setTiers] = useState<TierConfig[]>([]);
+  const [loading, setLoading] = useState(true);
   const [editingTier, setEditingTier] = useState<string | null>(null);
+  const [saving, setSaving] = useState<string | null>(null);
 
-  const updateTierPrice = (tierId: string, field: "annualPrice" | "quarterlyPrice", value: string) => {
+  useEffect(() => {
+    (async () => {
+      const { data } = await getMembershipTiers();
+      if (data) {
+        setTiers(
+          (data as Array<{
+            id: string; name: string; color: string;
+            annual_price: number; quarterly_price: number;
+            membership_tier_benefits?: TierBenefit[];
+          }>).map((t) => ({
+            id: t.id,
+            name: t.name,
+            color: t.color,
+            annual_price: t.annual_price,
+            quarterly_price: t.quarterly_price,
+            benefits: (t.membership_tier_benefits ?? []).map((b) => ({ ...b })),
+          }))
+        );
+      }
+      setLoading(false);
+    })();
+  }, []);
+
+  const updatePrice = (tierId: string, field: "annual_price" | "quarterly_price", value: string) => {
     setTiers((prev) =>
-      prev.map((t) => (t.id === tierId ? { ...t, [field]: parseInt(value) || 0 } : t))
+      prev.map((t) => t.id === tierId ? { ...t, [field]: parseFloat(value) || 0 } : t)
     );
   };
 
-  const updateBenefit = (tierId: string, benefitId: string, field: keyof TierBenefit, value: string) => {
+  const updateBenefit = (tierId: string, benefitId: string, field: keyof TierBenefit, value: unknown) => {
     setTiers((prev) =>
       prev.map((t) =>
         t.id === tierId
-          ? {
-              ...t,
-              benefits: t.benefits.map((b) => (b.id === benefitId ? { ...b, [field]: value } : b)),
-            }
+          ? { ...t, benefits: t.benefits.map((b) => b.id === benefitId ? { ...b, [field]: value } : b) }
           : t
       )
     );
@@ -92,33 +87,113 @@ export default function MembershipTierConfig() {
 
   const addBenefit = (tierId: string) => {
     const newBenefit: TierBenefit = {
-      id: `${tierId}-${Date.now()}`,
+      id: `new-${Date.now()}`,
+      tier_id: tierId,
       label: "New Benefit",
-      measureType: "count",
-      value: "1",
-      period: "month",
+      benefit_key: `benefit_${Date.now()}`,
+      limit_count: 1,
+      limit_period: "month",
+      sort_order: 99,
+      isNew: true,
     };
     setTiers((prev) =>
-      prev.map((t) => (t.id === tierId ? { ...t, benefits: [...t.benefits, newBenefit] } : t))
+      prev.map((t) => t.id === tierId ? { ...t, benefits: [...t.benefits, newBenefit] } : t)
     );
   };
 
   const removeBenefit = (tierId: string, benefitId: string) => {
     setTiers((prev) =>
       prev.map((t) =>
-        t.id === tierId ? { ...t, benefits: t.benefits.filter((b) => b.id !== benefitId) } : t
+        t.id === tierId
+          ? {
+              ...t,
+              benefits: t.benefits.map((b) =>
+                b.id === benefitId ? { ...b, isDeleted: true } : b
+              ),
+            }
+          : t
       )
     );
   };
 
-  const handleSave = (tierName: string) => {
-    toast.success(`${tierName} tier configuration saved`);
+  const handleSave = async (tier: TierConfig) => {
+    setSaving(tier.id);
+
+    const { error: priceErr } = await updateMembershipTier(tier.id, {
+      annual_price: tier.annual_price,
+      quarterly_price: tier.quarterly_price,
+    });
+
+    if (priceErr) { toast.error(`Failed to save ${tier.name} prices`); setSaving(null); return; }
+
+    // Save benefit changes
+    const benefitErrors: string[] = [];
+    for (const b of tier.benefits) {
+      if (b.isDeleted && !b.isNew) {
+        const { error } = await deleteMembershipTierBenefit(b.id);
+        if (error) benefitErrors.push(b.label);
+      } else if (b.isNew && !b.isDeleted) {
+        const { error } = await createMembershipTierBenefit({
+          tier_id: tier.id,
+          label: b.label,
+          benefit_key: labelToKey(b.label),
+          limit_count: b.limit_period ? (b.limit_count ?? null) : null,
+          limit_period: b.limit_period ?? null,
+          sort_order: b.sort_order,
+        });
+        if (error) benefitErrors.push(b.label);
+      } else if (!b.isDeleted && !b.isNew) {
+        const { error } = await updateMembershipTierBenefit(b.id, {
+          label: b.label,
+          benefit_key: labelToKey(b.label),
+          limit_count: b.limit_period ? (b.limit_count ?? null) : null,
+          limit_period: b.limit_period ?? null,
+        });
+        if (error) benefitErrors.push(b.label);
+      }
+    }
+
+    logAudit({
+      action: "membership_tier.update",
+      entity_type: "membership_tier",
+      entity_id: tier.id,
+      new_values: { annual_price: tier.annual_price, quarterly_price: tier.quarterly_price },
+    });
+
+    if (benefitErrors.length > 0) {
+      toast.error(`Prices saved, but some benefits failed: ${benefitErrors.join(", ")}`);
+    } else {
+      toast.success(`${tier.name} tier saved`);
+    }
+
+    // Refresh to get clean server state
+    const { data } = await getMembershipTiers();
+    if (data) {
+      setTiers(
+        (data as Array<{
+          id: string; name: string; color: string;
+          annual_price: number; quarterly_price: number;
+          membership_tier_benefits?: TierBenefit[];
+        }>).map((t) => ({
+          id: t.id, name: t.name, color: t.color,
+          annual_price: t.annual_price, quarterly_price: t.quarterly_price,
+          benefits: (t.membership_tier_benefits ?? []).map((b) => ({ ...b })),
+        }))
+      );
+    }
+
     setEditingTier(null);
+    setSaving(null);
   };
+
+  if (loading) {
+    return (
+      <div className="p-8 text-center text-sm text-[#94A3B8]">Loading tier configuration...</div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-3xl">
-      {/* Back button */}
       <button
         onClick={() => navigate("/membership")}
         className="inline-flex items-center gap-1 text-sm font-semibold text-[#64748B] hover:text-[#0F172A] cursor-pointer transition-colors"
@@ -132,12 +207,13 @@ export default function MembershipTierConfig() {
         <p className="text-sm text-[#64748B] mt-0.5">Configure pricing and benefits for each membership tier</p>
       </div>
 
-      {/* Tier cards */}
       {tiers.map((tier) => {
         const isEditing = editingTier === tier.id;
+        const isSaving = saving === tier.id;
+        const visibleBenefits = tier.benefits.filter((b) => !b.isDeleted);
+
         return (
           <div key={tier.id} className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden">
-            {/* Colored header */}
             <div className="px-5 py-3 flex items-center justify-between" style={{ backgroundColor: `${tier.color}15` }}>
               <h3 className="text-base font-bold" style={{ color: tier.color }}>{tier.name}</h3>
               <button
@@ -150,16 +226,15 @@ export default function MembershipTierConfig() {
             </div>
 
             <div className="p-5 space-y-5">
-              {/* Pricing inputs */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <label className="text-[13px] font-semibold text-[#0F172A] mb-1.5 block">Annual Price</label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-[#64748B]">{"\u20A6"}</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-[#64748B]">₦</span>
                     <input
                       type="number"
-                      value={tier.annualPrice}
-                      onChange={(e) => updateTierPrice(tier.id, "annualPrice", e.target.value)}
+                      value={tier.annual_price}
+                      onChange={(e) => updatePrice(tier.id, "annual_price", e.target.value)}
                       className={`${inputClass} pl-7`}
                     />
                   </div>
@@ -167,22 +242,21 @@ export default function MembershipTierConfig() {
                 <div>
                   <label className="text-[13px] font-semibold text-[#0F172A] mb-1.5 block">Quarterly Price</label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-[#64748B]">{"\u20A6"}</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-[#64748B]">₦</span>
                     <input
                       type="number"
-                      value={tier.quarterlyPrice}
-                      onChange={(e) => updateTierPrice(tier.id, "quarterlyPrice", e.target.value)}
+                      value={tier.quarterly_price}
+                      onChange={(e) => updatePrice(tier.id, "quarterly_price", e.target.value)}
                       className={`${inputClass} pl-7`}
                     />
                   </div>
                 </div>
               </div>
 
-              {/* Benefits */}
               <div>
                 <label className="text-[13px] font-semibold text-[#0F172A] mb-2 block">Benefits</label>
                 <div className="space-y-2">
-                  {tier.benefits.map((benefit) => (
+                  {visibleBenefits.map((benefit) => (
                     <div key={benefit.id} className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2">
                       {isEditing ? (
                         <>
@@ -191,35 +265,29 @@ export default function MembershipTierConfig() {
                             value={benefit.label}
                             onChange={(e) => updateBenefit(tier.id, benefit.id, "label", e.target.value)}
                             className={`${inputClass} flex-1`}
+                            placeholder="Benefit label"
                           />
-                          <select
-                            value={benefit.measureType}
-                            onChange={(e) => updateBenefit(tier.id, benefit.id, "measureType", e.target.value)}
-                            className="border border-[#E2E8F0] rounded-xl px-2 py-2.5 text-sm text-[#334155] bg-white outline-none cursor-pointer"
-                          >
-                            <option value="count">Count</option>
-                            <option value="percentage">Percentage</option>
-                            <option value="boolean">Boolean</option>
-                          </select>
                           <input
-                            type="text"
-                            value={benefit.value}
-                            onChange={(e) => updateBenefit(tier.id, benefit.id, "value", e.target.value)}
+                            type="number"
+                            value={benefit.limit_count ?? ""}
+                            onChange={(e) => updateBenefit(tier.id, benefit.id, "limit_count", e.target.value ? parseInt(e.target.value) : null)}
                             className="w-20 border border-[#E2E8F0] rounded-xl px-2 py-2.5 text-sm text-[#0F172A] outline-none"
+                            placeholder="∞"
+                            min="1"
                           />
                           <select
-                            value={benefit.period}
-                            onChange={(e) => updateBenefit(tier.id, benefit.id, "period", e.target.value)}
+                            value={benefit.limit_period ?? ""}
+                            onChange={(e) => updateBenefit(tier.id, benefit.id, "limit_period", e.target.value || null)}
                             className="border border-[#E2E8F0] rounded-xl px-2 py-2.5 text-sm text-[#334155] bg-white outline-none cursor-pointer"
                           >
-                            <option value="month">Month</option>
-                            <option value="quarter">Quarter</option>
-                            <option value="year">Year</option>
-                            <option value="lifetime">Lifetime</option>
+                            <option value="">No period</option>
+                            <option value="month">per Month</option>
+                            <option value="quarter">per Quarter</option>
+                            <option value="year">per Year</option>
                           </select>
                           <button
                             onClick={() => removeBenefit(tier.id, benefit.id)}
-                            className="size-8 flex items-center justify-center rounded-lg hover:bg-[#FEF2F2] cursor-pointer transition-colors"
+                            className="size-8 flex items-center justify-center rounded-lg hover:bg-[#FEF2F2] cursor-pointer transition-colors flex-shrink-0"
                           >
                             <span className="material-symbols-outlined text-[16px] text-[#DC2626]">delete</span>
                           </button>
@@ -228,7 +296,8 @@ export default function MembershipTierConfig() {
                         <div className="flex items-center gap-2 py-1.5">
                           <span className="material-symbols-outlined text-[16px] text-[#059669]">check_circle</span>
                           <span className="text-sm text-[#334155]">
-                            {benefit.label}: {benefit.value}{benefit.measureType === "percentage" ? "%" : ""} / {benefit.period}
+                            {benefit.label}
+                            {benefit.limit_count ? ` · ${benefit.limit_count}/${benefit.limit_period}` : " · Unlimited"}
                           </span>
                         </div>
                       )}
@@ -247,18 +316,17 @@ export default function MembershipTierConfig() {
                 )}
               </div>
 
-              {/* Info text */}
               <p className="text-[12px] text-[#94A3B8]">
-                Changes will apply to new subscriptions. Existing subscribers keep their current benefits until renewal.
+                Price changes take effect immediately for the user-facing app. Benefits apply to new subscriptions only.
               </p>
 
-              {/* Save */}
               <div className="flex justify-end">
                 <button
-                  onClick={() => handleSave(tier.name)}
-                  className="px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl cursor-pointer hover:brightness-[0.92] active:scale-[0.98] transition-all"
+                  onClick={() => handleSave(tier)}
+                  disabled={isSaving}
+                  className="px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl cursor-pointer hover:brightness-[0.92] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Save {tier.name}
+                  {isSaving ? "Saving..." : `Save ${tier.name}`}
                 </button>
               </div>
             </div>

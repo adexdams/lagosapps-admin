@@ -24,7 +24,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 // Default logo (admin can override via platform_settings or email_templates)
-const DEFAULT_LOGO_URL = "https://raw.githubusercontent.com/adexdams/lagosapps-admin/main/public/lagosapp-logo.webp";
+const DEFAULT_LOGO_URL = "https://raw.githubusercontent.com/adexdams/lagosapps-admin/main/public/lagosapp-logo.png";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -42,6 +42,7 @@ interface InlineTemplate {
 interface EmailPayload {
   template: string;
   to?: string | string[];
+  batchRecipients?: string[]; // send one private email per address via Resend batch API
   data?: Record<string, unknown>;
   subject?: string;
   html?: string;
@@ -119,8 +120,8 @@ serve(async (req: Request) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    if (!payload.dryRun && !payload.to) {
-      return new Response(JSON.stringify({ error: "Missing 'to' field (required unless dryRun)" }), {
+    if (!payload.dryRun && !payload.to && !payload.batchRecipients?.length) {
+      return new Response(JSON.stringify({ error: "Missing 'to' or 'batchRecipients' field (required unless dryRun)" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -209,6 +210,49 @@ serve(async (req: Request) => {
       });
     }
 
+    // Batch send — one private email per address (recipients cannot see each other)
+    if (payload.batchRecipients?.length) {
+      const CHUNK = 100; // Resend batch limit
+      const chunks: string[][] = [];
+      for (let i = 0; i < payload.batchRecipients.length; i += CHUNK) {
+        chunks.push(payload.batchRecipients.slice(i, i + CHUNK));
+      }
+
+      let totalSent = 0;
+      for (const chunk of chunks) {
+        const batchPayload = chunk.map((addr) => ({
+          from: `${FROM_NAME} <${FROM_EMAIL}>`,
+          to: [addr],
+          subject,
+          html,
+        }));
+
+        const batchRes = await fetch("https://api.resend.com/emails/batch", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${RESEND_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(batchPayload),
+        });
+
+        if (!batchRes.ok) {
+          const err = await batchRes.json();
+          return new Response(JSON.stringify({ error: "Resend batch API error", details: err, sent: totalSent }), {
+            status: batchRes.status,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        totalSent += chunk.length;
+      }
+
+      return new Response(JSON.stringify({ success: true, sent: totalSent }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Single / small send
     const resendResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {

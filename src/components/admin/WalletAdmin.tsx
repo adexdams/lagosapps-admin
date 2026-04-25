@@ -1,46 +1,121 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import DataTable, { type Column } from "./shared/DataTable";
 import FilterBar, { type FilterConfig } from "./shared/FilterBar";
 import StatCard from "./shared/StatCard";
 import StatusBadge from "./shared/StatusBadge";
 import { useToast } from "../../hooks/useToast";
-import { mockWalletTxns, mockUsers, formatNaira, formatDate, type MockWalletTxn } from "../../data/adminMockData";
+import { formatNaira, formatDate } from "../../data/adminMockData";
+import {
+  getWalletTransactions,
+  createWalletTransaction,
+  updateUserWalletBalance,
+  getUsers,
+  generateTxnId,
+  logAudit,
+} from "../../lib/api";
 
-type TxnRow = MockWalletTxn & Record<string, unknown>;
+interface TxnRow extends Record<string, unknown> {
+  id: string;
+  user_id: string;
+  description: string;
+  amount: number;
+  type: "credit" | "debit";
+  running_balance: number;
+  created_at: string;
+  profiles?: { name: string; email: string };
+}
+
+interface UserRow {
+  id: string;
+  name: string;
+  email: string;
+  wallet_balance: number;
+}
+
+const inputClass =
+  "w-full border border-[#E2E8F0] rounded-xl px-3 py-2.5 text-sm text-[#0F172A] outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all";
 
 export default function WalletAdmin() {
   const toast = useToast();
+  const [txns, setTxns] = useState<TxnRow[]>([]);
+  const [users, setUsers] = useState<UserRow[]>([]);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [showAdjust, setShowAdjust] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  // Adjustment form state
   const [adjUserId, setAdjUserId] = useState("");
   const [adjAmount, setAdjAmount] = useState("");
   const [adjType, setAdjType] = useState<"credit" | "debit">("credit");
   const [adjReason, setAdjReason] = useState("");
 
-  const totalBalance = mockUsers.reduce((sum, u) => sum + u.walletBalance, 0);
-  const totalCredits = mockWalletTxns.filter((t) => t.type === "credit").reduce((sum, t) => sum + t.amount, 0);
-  const totalDebits = mockWalletTxns.filter((t) => t.type === "debit").reduce((sum, t) => sum + t.amount, 0);
+  const loadData = useCallback(async () => {
+    const [txnRes, userRes] = await Promise.all([getWalletTransactions(), getUsers()]);
+    if (txnRes.data) setTxns(txnRes.data as TxnRow[]);
+    if (userRes.data) setUsers(userRes.data as UserRow[]);
+  }, []);
 
-  const filtered = mockWalletTxns.filter((t) => {
-    const matchSearch = !search || t.userName.toLowerCase().includes(search.toLowerCase()) || t.description.toLowerCase().includes(search.toLowerCase());
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const totalCredits = txns.filter((t) => t.type === "credit").reduce((s, t) => s + t.amount, 0);
+  const totalDebits = txns.filter((t) => t.type === "debit").reduce((s, t) => s + t.amount, 0);
+  const totalBalance = users.reduce((s, u) => s + (u.wallet_balance ?? 0), 0);
+
+  const filtered = txns.filter((t) => {
+    const name = t.profiles?.name ?? "";
+    const matchSearch =
+      !search ||
+      name.toLowerCase().includes(search.toLowerCase()) ||
+      t.description.toLowerCase().includes(search.toLowerCase());
     const matchType = !typeFilter || t.type === typeFilter;
     return matchSearch && matchType;
   });
 
-  const handleAdjust = () => {
-    if (!adjUserId || !adjAmount || !adjReason) {
-      toast.error("All fields are required");
-      return;
-    }
-    const user = mockUsers.find((u) => u.id === adjUserId);
-    toast.success(`${adjType === "credit" ? "Credited" : "Debited"} ${formatNaira(parseInt(adjAmount))} ${adjType === "credit" ? "to" : "from"} ${user?.name ?? adjUserId}`);
+  const handleAdjust = async () => {
+    if (!adjUserId || !adjAmount || !adjReason) { toast.error("All fields are required"); return; }
+    const amount = parseFloat(adjAmount);
+    if (isNaN(amount) || amount <= 0) { toast.error("Enter a valid positive amount"); return; }
+
+    const user = users.find((u) => u.id === adjUserId);
+    if (!user) { toast.error("User not found"); return; }
+
+    setSubmitting(true);
+    const currentBalance = user.wallet_balance ?? 0;
+    const newBalance = adjType === "credit"
+      ? currentBalance + amount
+      : Math.max(0, currentBalance - amount);
+    const txnId = generateTxnId();
+
+    const { error } = await createWalletTransaction({
+      id: txnId,
+      user_id: adjUserId,
+      description: `Admin adjustment: ${adjReason}`,
+      amount,
+      type: adjType,
+      running_balance: newBalance,
+      reference: txnId,
+    });
+
+    if (error) { toast.error("Failed to create transaction"); setSubmitting(false); return; }
+
+    await updateUserWalletBalance(adjUserId, newBalance);
+
+    logAudit({
+      action: "wallet.manual_adjustment",
+      entity_type: "wallet",
+      entity_id: txnId,
+      new_values: { user_id: adjUserId, type: adjType, amount, reason: adjReason, new_balance: newBalance },
+    });
+
+    toast.success(
+      `${adjType === "credit" ? "Credited" : "Debited"} ${formatNaira(amount)} ${adjType === "credit" ? "to" : "from"} ${user.name}`
+    );
     setShowAdjust(false);
     setAdjUserId("");
     setAdjAmount("");
     setAdjReason("");
+    setSubmitting(false);
+    loadData();
   };
 
   const columns: Column<TxnRow>[] = [
@@ -51,10 +126,15 @@ export default function WalletAdmin() {
       render: (row) => <span className="text-[13px] font-mono text-[#64748B]">{row.id}</span>,
     },
     {
-      key: "userName",
+      key: "profiles",
       label: "User",
-      sortable: true,
-      render: (row) => <span className="text-sm font-semibold text-[#0F172A]">{row.userName}</span>,
+      sortable: false,
+      render: (row) => (
+        <div>
+          <p className="text-sm font-semibold text-[#0F172A]">{row.profiles?.name ?? "—"}</p>
+          <p className="text-[11px] text-[#94A3B8]">{row.profiles?.email ?? ""}</p>
+        </div>
+      ),
     },
     {
       key: "description",
@@ -66,7 +146,7 @@ export default function WalletAdmin() {
       key: "type",
       label: "Type",
       align: "center",
-      render: (row) => <StatusBadge status={row.type as string} />,
+      render: (row) => <StatusBadge status={row.type} />,
     },
     {
       key: "amount",
@@ -74,25 +154,26 @@ export default function WalletAdmin() {
       align: "right",
       sortable: true,
       render: (row) => (
-        <span className={`text-sm font-semibold ${(row.type as string) === "credit" ? "text-[#059669]" : "text-[#DC2626]"}`}>
-          {(row.type as string) === "credit" ? "+" : "-"}{formatNaira(row.amount as number)}
+        <span className={`text-sm font-semibold ${row.type === "credit" ? "text-[#059669]" : "text-[#DC2626]"}`}>
+          {row.type === "credit" ? "+" : "-"}{formatNaira(row.amount)}
         </span>
       ),
     },
     {
-      key: "balance",
+      key: "running_balance",
       label: "Balance After",
       align: "right",
       hideOnMobile: true,
-      sortable: true,
-      render: (row) => <span className="text-sm text-[#0F172A]">{formatNaira(row.balance as number)}</span>,
+      render: (row) => <span className="text-sm text-[#0F172A]">{formatNaira(row.running_balance)}</span>,
     },
     {
-      key: "createdAt",
+      key: "created_at",
       label: "Date",
       sortable: true,
       hideOnMobile: true,
-      render: (row) => <span className="text-[13px] text-[#64748B] whitespace-nowrap">{formatDate(row.createdAt as string)}</span>,
+      render: (row) => (
+        <span className="text-[13px] text-[#64748B] whitespace-nowrap">{formatDate(row.created_at)}</span>
+      ),
     },
   ];
 
@@ -108,9 +189,6 @@ export default function WalletAdmin() {
       ],
     },
   ];
-
-  const inputClass =
-    "w-full border border-[#E2E8F0] rounded-xl px-3 py-2.5 text-sm text-[#0F172A] outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all";
 
   return (
     <div className="space-y-5">
@@ -128,14 +206,12 @@ export default function WalletAdmin() {
         </button>
       </div>
 
-      {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard label="Total Balance (All Users)" value={formatNaira(totalBalance)} icon="account_balance_wallet" color="#0D47A1" />
         <StatCard label="Total Credits" value={formatNaira(totalCredits)} icon="arrow_downward" color="#1B5E20" />
         <StatCard label="Total Debits" value={formatNaira(totalDebits)} icon="arrow_upward" color="#B71C1C" />
       </div>
 
-      {/* Collapsible adjustment form */}
       {showAdjust && (
         <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
           <h3 className="text-sm font-bold text-[#0F172A] mb-4">Manual Wallet Adjustment</h3>
@@ -144,14 +220,21 @@ export default function WalletAdmin() {
               <label className="text-[13px] font-semibold text-[#0F172A] mb-1.5 block">User</label>
               <select value={adjUserId} onChange={(e) => setAdjUserId(e.target.value)} className={`${inputClass} cursor-pointer`}>
                 <option value="">Select user...</option>
-                {mockUsers.slice(0, 20).map((u) => (
-                  <option key={u.id} value={u.id}>{u.name}</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>{u.name} ({formatNaira(u.wallet_balance ?? 0)})</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="text-[13px] font-semibold text-[#0F172A] mb-1.5 block">Amount</label>
-              <input type="number" value={adjAmount} onChange={(e) => setAdjAmount(e.target.value)} className={inputClass} placeholder="0" />
+              <label className="text-[13px] font-semibold text-[#0F172A] mb-1.5 block">Amount (₦)</label>
+              <input
+                type="number"
+                value={adjAmount}
+                onChange={(e) => setAdjAmount(e.target.value)}
+                className={inputClass}
+                placeholder="0"
+                min="1"
+              />
             </div>
             <div>
               <label className="text-[13px] font-semibold text-[#0F172A] mb-1.5 block">Type</label>
@@ -168,15 +251,22 @@ export default function WalletAdmin() {
             </div>
             <div>
               <label className="text-[13px] font-semibold text-[#0F172A] mb-1.5 block">Reason</label>
-              <input type="text" value={adjReason} onChange={(e) => setAdjReason(e.target.value)} className={inputClass} placeholder="Reason..." />
+              <input
+                type="text"
+                value={adjReason}
+                onChange={(e) => setAdjReason(e.target.value)}
+                className={inputClass}
+                placeholder="Reason for adjustment..."
+              />
             </div>
           </div>
           <div className="flex justify-end mt-4">
             <button
               onClick={handleAdjust}
-              className="px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl cursor-pointer hover:brightness-[0.92] active:scale-[0.98] transition-all"
+              disabled={submitting}
+              className="px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl cursor-pointer hover:brightness-[0.92] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Submit Adjustment
+              {submitting ? "Submitting..." : "Submit Adjustment"}
             </button>
           </div>
         </div>
@@ -191,8 +281,8 @@ export default function WalletAdmin() {
 
       <DataTable<TxnRow>
         columns={columns}
-        data={filtered as TxnRow[]}
-        pageSize={10}
+        data={filtered}
+        pageSize={15}
       />
     </div>
   );

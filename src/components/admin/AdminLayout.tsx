@@ -62,7 +62,7 @@ export default function AdminLayout() {
       <aside className="hidden md:flex flex-col w-[260px] bg-white border-r border-[#E8ECF1] flex-shrink-0 fixed inset-y-0 left-0 z-40">
         {/* Logo */}
         <div className="px-6 py-5 flex items-center gap-2.5">
-          <img src="/lagosapp-logo.webp" alt="LagosApps" className="h-8 w-auto" />
+          <img src="/lagosapp-logo.png" alt="LagosApps" className="h-8 w-auto" />
           <span className="text-[10px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-md tracking-wide uppercase">Admin</span>
         </div>
 
@@ -103,7 +103,7 @@ export default function AdminLayout() {
           <aside className="relative w-[280px] bg-white flex flex-col h-full shadow-2xl" style={{ animation: "slide-in-left 200ms ease-out" }}>
             <div className="px-5 py-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <img src="/lagosapp-logo.webp" alt="LagosApps" className="h-7 w-auto" />
+                <img src="/lagosapp-logo.png" alt="LagosApps" className="h-7 w-auto" />
                 <span className="text-[10px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-md uppercase">Admin</span>
               </div>
               <button onClick={() => setSidebarOpen(false)} className="text-[#94A3B8] cursor-pointer hover:text-[#64748B]">
