@@ -72,34 +72,44 @@ export default function TeamPage() {
   useEffect(() => { loadTeam(); }, [loadTeam]);
 
   async function handleAddMember() {
-    if (!newEmail.trim()) { toastRef.current.error("Email is required"); return; }
+    const trimmedEmail = newEmail.trim().toLowerCase();
+    if (!trimmedEmail) { toastRef.current.error("Email is required"); return; }
     setAdding(true);
-    // Find profile by email
+
+    // Send magic link to admin dashboard
+    const { error: otpErr } = await supabase.auth.signInWithOtp({
+      email: trimmedEmail,
+      options: { emailRedirectTo: `${window.location.origin}/` },
+    });
+    if (otpErr) { toastRef.current.error(`Failed to send invite: ${otpErr.message}`); setAdding(false); return; }
+
+    // Try to find an existing profile and grant access immediately
     const { data: profileData } = await supabase
       .from("profiles")
       .select("id, name, email")
-      .eq("email", newEmail.trim().toLowerCase())
+      .eq("email", trimmedEmail)
       .maybeSingle();
-    if (!profileData) {
-      toastRef.current.error("No user found with that email. They must sign up first.");
-      setAdding(false);
-      return;
+
+    if (profileData) {
+      const already = team.find((m) => m.user_id === profileData.id);
+      if (already) {
+        toastRef.current.error("This user is already on the team");
+        setAdding(false);
+        return;
+      }
+      const { error } = await supabase.from("admin_team_members").insert({
+        user_id: profileData.id,
+        role: newRole,
+        is_active: true,
+      });
+      if (error) { toastRef.current.error(`Invite sent but team record failed: ${error.message}`); setAdding(false); return; }
+      await logAudit({ action: "team.add_member", entity_type: "admin_team_members", entity_id: profileData.id, new_values: { role: newRole, email: profileData.email } });
+      toastRef.current.success(`Invite sent — ${profileData.name || profileData.email} added as ${ROLE_CONFIG[newRole].label}`);
+    } else {
+      // New user — access will be granted after they sign up via the link
+      toastRef.current.success(`Invite sent to ${trimmedEmail}. Once they sign in, add them here to grant the ${ROLE_CONFIG[newRole].label} role.`);
     }
-    // Check not already a team member
-    const already = team.find((m) => m.user_id === profileData.id);
-    if (already) {
-      toastRef.current.error("This user is already on the team");
-      setAdding(false);
-      return;
-    }
-    const { error } = await supabase.from("admin_team_members").insert({
-      user_id: profileData.id,
-      role: newRole,
-      is_active: true,
-    });
-    if (error) { toastRef.current.error(`Failed: ${error.message}`); setAdding(false); return; }
-    await logAudit({ action: "team.add_member", entity_type: "admin_team_members", entity_id: profileData.id, new_values: { role: newRole, email: profileData.email } });
-    toastRef.current.success(`${profileData.name || profileData.email} added as ${ROLE_CONFIG[newRole].label}`);
+
     setShowAddForm(false);
     setNewEmail("");
     setNewRole("support");
@@ -146,7 +156,7 @@ export default function TeamPage() {
           className="inline-flex items-center gap-1.5 px-2.5 sm:px-4 py-2 sm:py-2.5 bg-primary text-white text-sm font-semibold rounded-xl cursor-pointer hover:brightness-[0.92] active:scale-[0.98] transition-all"
         >
           <span className="material-symbols-outlined text-[18px]">person_add</span>
-          <span className="hidden sm:inline">Add Member</span>
+          <span className="hidden sm:inline">Invite Member</span>
         </button>
       </div>
 
@@ -171,13 +181,13 @@ export default function TeamPage() {
 
       <div className="flex items-center gap-2 px-4 py-2.5 bg-[#EFF6FF] rounded-xl border border-[#BFDBFE]/40">
         <span className="material-symbols-outlined text-[18px] text-[#2563EB]">info</span>
-        <p className="text-[13px] text-[#1E40AF]">Team members must have a LagosApps account first. Add them by email address.</p>
+        <p className="text-[13px] text-[#1E40AF]">Enter an email to send a magic link invite. If they already have an account, access is granted immediately.</p>
       </div>
 
       {/* Add member form */}
       {showAddForm && (
         <div className={`${card} p-4 sm:p-5`}>
-          <h3 className="text-sm font-semibold text-[#0F172A] mb-4">Add Team Member</h3>
+          <h3 className="text-sm font-semibold text-[#0F172A] mb-4">Invite Team Member</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="sm:col-span-2">
               <label className={labelClass}>Email Address</label>
@@ -201,7 +211,7 @@ export default function TeamPage() {
           </div>
           <div className="flex items-center gap-2 mt-3">
             <button onClick={handleAddMember} disabled={adding} className="px-4 py-2.5 bg-primary text-white text-[13px] font-semibold rounded-xl cursor-pointer hover:brightness-[0.92] transition-all disabled:opacity-50">
-              {adding ? "Adding…" : "Add Member"}
+              {adding ? "Sending…" : "Send Invite"}
             </button>
             <button onClick={() => { setShowAddForm(false); setNewEmail(""); }} className="px-4 py-2.5 text-[13px] font-semibold text-[#64748B] hover:text-[#334155] cursor-pointer transition-colors">Cancel</button>
           </div>

@@ -193,7 +193,7 @@ export default function MembershipTierConfig() {
   }
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6">
       <button
         onClick={() => navigate("/membership")}
         className="inline-flex items-center gap-1 text-sm font-semibold text-[#64748B] hover:text-[#0F172A] cursor-pointer transition-colors"
@@ -207,13 +207,30 @@ export default function MembershipTierConfig() {
         <p className="text-sm text-[#64748B] mt-0.5">Configure pricing and benefits for each membership tier</p>
       </div>
 
+      <div className="flex gap-6 items-start">
+        {/* Sticky sidebar nav */}
+        <nav className="hidden lg:flex flex-col gap-1 w-40 flex-shrink-0 sticky top-20 self-start">
+          {tiers.map((tier) => (
+            <button
+              key={tier.id}
+              onClick={() => document.getElementById(`tier-${tier.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-[13px] font-medium text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#334155] transition-all text-left cursor-pointer"
+            >
+              <span className="size-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: tier.color }} />
+              {tier.name}
+            </button>
+          ))}
+        </nav>
+
+        {/* Tier cards */}
+        <div className="flex-1 space-y-6 min-w-0">
       {tiers.map((tier) => {
         const isEditing = editingTier === tier.id;
         const isSaving = saving === tier.id;
         const visibleBenefits = tier.benefits.filter((b) => !b.isDeleted);
 
         return (
-          <div key={tier.id} className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden">
+          <div key={tier.id} id={`tier-${tier.id}`} className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden scroll-mt-24">
             <div className="px-5 py-3 flex items-center justify-between" style={{ backgroundColor: `${tier.color}15` }}>
               <h3 className="text-base font-bold" style={{ color: tier.color }}>{tier.name}</h3>
               <button
@@ -333,6 +350,8 @@ export default function MembershipTierConfig() {
           </div>
         );
       })}
+        </div>{/* end tier cards */}
+      </div>{/* end flex row */}
     </div>
   );
 }

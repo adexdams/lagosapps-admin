@@ -89,7 +89,7 @@ export default function AdminLayout() {
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-[#E8ECF1] space-y-2">
-          <a href="/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-[13px] text-[#94A3B8] hover:text-[#64748B] transition-colors">
+          <a href="https://lagosapps.com/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-[13px] text-[#94A3B8] hover:text-[#64748B] transition-colors">
             <span className="material-symbols-outlined text-[18px]">open_in_new</span>
             Back to Site
           </a>
