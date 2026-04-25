@@ -17,10 +17,9 @@ End-to-end checklist for verifying every feature on both the **admin dashboard**
 | — | Admin account exists | ✅ `mainlandtech24@gmail.com` promoted to `super_admin` | 🔑 Sign in via Magic Link |
 | — | Edge Functions deployed | ✅ `send-email` + `paystack-webhook` | — |
 | **S1** | **Authentication** | | |
-| 1A | Admin login | — | ⬜ Login · session persistence · magic link · forgot password |
+| 1A | Admin login | — | ⬜ Login via magic link · session persistence |
 | 1B | User signup | ✅ `profiles` trigger confirmed · 1 user in DB | ⬜ Sign up · welcome email arrives |
 | 1C | Referral signup | ✅ `referrals` schema confirmed | ⬜ Incognito sign-up with referral code → Bronze gifted |
-| 1D | Password reset | — | ⬜ Reset link email · set new password · re-login |
 | **S2** | **Admin: Users** | | |
 | 2A–2B | Users list + User detail | ✅ Profiles table — 1 user, role breakdown confirmed | ⬜ Table loads · search · filter · user detail page |
 | **S3** | **Admin: Orders** | | |
@@ -38,7 +37,7 @@ End-to-end checklist for verifying every feature on both the **admin dashboard**
 | **S9** | **Admin: Settings** | | |
 | 9A–9C | Portal toggles · alert prefs | ✅ 7 portals — all `is_active = true` | ⬜ Toggle portal off → hidden on user app |
 | **S10** | **Admin: Email Templates** | | |
-| 10A–10C | Template editor · dry-run · live send | ✅ Dry-run returns `success:true` · Supabase Storage logo confirmed | ⬜ Edit template in `/emails` · preview modal |
+| 10A–10C | Template editor · dry-run · live send | ✅ Dry-run returns `success:true` · Supabase Storage logo confirmed | — Page removed from admin nav; templates managed via Supabase Dashboard |
 | **S11** | **Admin: Fulfillment** | | |
 | 11A–11C | Order queue · service requests · custom orders | ✅ Schema confirmed · all tables empty | ⬜ Assign order · update request status · convert to order |
 | **S12** | **Admin: Audit Log** | | |
@@ -125,9 +124,11 @@ supabase functions deploy paystack-webhook --project-ref uhrlsvnmoemrakwfrjyf
 
 > **First-time setup only.** The DB starts with no admin users. Before browser testing:
 >
-> 1. Sign up on the user app (or use Supabase Dashboard → Auth → Users → Invite)
-> 2. Promote the account to `super_admin`:
-> 3. Use **Magic Link** or **Forgot Password** to sign into the admin dashboard (no password is set on newly invited accounts).
+> 1. Go to Supabase Dashboard → Auth → Users → **Invite user** (or sign up via the user-facing app)
+> 2. Promote the account to `super_admin` via CLI (see command below)
+> 3. Navigate to the admin login page → enter the email → click **Email Me a Magic Link** → click the link in your inbox
+>
+> There is no password login on the admin dashboard. All team members sign in via magic link. Additional team members are invited from **Admin → Team → Invite Member** — this sends a magic link directly and grants role access automatically if the account already exists.
 
 ```bash
 supabase db query --linked "UPDATE profiles SET role = 'super_admin' WHERE email = 'YOUR_EMAIL';"
@@ -141,11 +142,9 @@ supabase db query --linked "UPDATE profiles SET role = 'super_admin' WHERE email
 
 - [ ] Navigate to admin app → `/`
 - [ ] Unauthenticated → redirected to `/login`
-- [ ] Enter wrong password → error toast shown
-- [ ] Enter correct admin email + password → redirected to dashboard `/`
+- [ ] Enter email → click **Email Me a Magic Link** → "Check your inbox" confirmation shown
+- [ ] Click link in email → redirected to dashboard `/`
 - [ ] Refresh page → session persists, still logged in
-- [ ] Click **Magic Link** tab → enter email → "Magic link sent" toast
-- [ ] Click **Forgot password?** → enter email → "Reset link sent" toast
 
 ### 1B · User signup (browser)
 
@@ -171,10 +170,6 @@ supabase db query --linked "SELECT id, name, email, referral_code, role FROM pro
 ```bash
 supabase db query --linked "SELECT id, referrer_id, referred_id, gifted_tier, status FROM referrals ORDER BY created_at DESC LIMIT 3;"
 ```
-
-### 1D · Password reset (browser)
-
-- [ ] On user login page → **Forgot password?** → enter email → check inbox → click reset link → set new password → login with new password
 
 ---
 
@@ -396,15 +391,11 @@ supabase db query --linked "SELECT user_id, inventory_enabled, low_stock_thresho
 
 ---
 
-## Section 10 — Admin Dashboard: Email Templates
+## Section 10 — Email Templates (Supabase Dashboard only)
 
-### 10A · Template editing (browser)
+> **Note:** The `/emails` page has been removed from the admin dashboard. Email templates are managed directly in **Supabase Dashboard → Edge Functions → `send-email`** source, or via the `supabase/templates/` directory in the admin repo. Redeploy the function after any template change.
 
-- [ ] Navigate to `/emails`
-- [ ] Six templates listed (welcome, password_reset, order_confirmation, wallet_topup, membership_renewal, broadcast)
-- [ ] Click a template → edit subject / heading / body
-- [ ] **Preview** → modal shows rendered HTML with sample variables
-- [ ] **Save** → toast confirms; changes reflected immediately on next send
+### 10A · Template editing
 
 ### 10B · API dry-run ✅ verified 2026-04-25
 
@@ -808,7 +799,7 @@ supabase db query --linked "SELECT action, entity_type, entity_id, created_at FR
 1. [ ] Admin: log in → verify dashboard loads with real data
 2. [ ] Admin: toggle one portal off → verify it disappears on user app
 3. [ ] Admin: toggle it back on
-4. [ ] User: sign up fresh account → verify welcome email arrives
+4. [ ] User: sign up on the user-facing app → verify welcome email arrives
 5. [ ] User: add Solar product to cart → checkout with Paystack test card
 6. [ ] Verify: order in admin Orders list; order confirmation email arrives
 7. [ ] User: top up wallet ₦5,000 → verify wallet top-up email arrives
@@ -827,8 +818,8 @@ supabase db query --linked "SELECT action, entity_type, entity_id, created_at FR
 | Per-user benefit usage progress bars | Deferred — benefit consumption not yet wired to orders |
 | Supabase Auth emails | SMTP configured via Resend; branded templates applied in Dashboard → Auth → Email Templates |
 | pg_cron job run history | `cron.job_run_details` not available on free plan; verify via Supabase Dashboard → Database → Cron instead |
-| Analytics page | Still on mock data — M7 not yet started |
-| Finance page | Still on mock data — M7 not yet started |
+| Analytics page | ✅ Wired to real DB — orders, users, wallet transactions |
+| Finance page | ✅ Wired to real DB — orders and wallet transactions |
 | Edge Function auto-deploy | Not handled by Netlify — must run `supabase functions deploy` manually after changes |
 
 ## Bugs Found & Fixed (2026-04-25)
