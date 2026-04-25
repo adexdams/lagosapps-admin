@@ -1,9 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import DataTable, { type Column } from "./shared/DataTable";
 import FilterBar, { type FilterConfig } from "./shared/FilterBar";
 import StatusBadge from "./shared/StatusBadge";
-import { useToast } from "../../hooks/useToast";
 import { getOrders } from "../../lib/api";
 import {
   formatNaira,
@@ -29,25 +28,23 @@ type OrderRow = DbOrder & Record<string, unknown>;
 
 export default function OrdersPage() {
   const navigate = useNavigate();
-  const toast = useToast();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [portalFilter, setPortalFilter] = useState("");
   const [orders, setOrders] = useState<DbOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const mountedRef = useRef(true);
 
-  const loadOrders = useCallback(async () => {
+  useEffect(() => {
+    mountedRef.current = true;
     setLoading(true);
-    const { data, error } = await getOrders();
-    setLoading(false);
-    if (error) {
-      toast.error(`Failed to load orders: ${error.message}`);
-      return;
-    }
-    setOrders((data as DbOrder[]) ?? []);
-  }, [toast]);
-
-  useEffect(() => { loadOrders(); }, [loadOrders]);
+    getOrders().then(({ data }) => {
+      if (!mountedRef.current) return;
+      setOrders((data as DbOrder[]) ?? []);
+      setLoading(false);
+    });
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const filtered = orders.filter((o) => {
     const userName = o.profiles?.name ?? o.profiles?.email ?? "";

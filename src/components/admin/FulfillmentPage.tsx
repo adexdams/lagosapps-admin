@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import StatCard from "./shared/StatCard";
 import FilterBar, { type FilterConfig } from "./shared/FilterBar";
@@ -81,6 +81,8 @@ const STATUS_DOT: Record<string, string> = {
 export default function FulfillmentPage() {
   const navigate = useNavigate();
   const toast = useToast();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
   const [tab, setTab] = useState<FulfillmentTab>("orders");
 
   // Shared team member list for assignment dropdowns
@@ -116,25 +118,25 @@ export default function FulfillmentPage() {
     setLoadingOrders(true);
     const { data, error } = await getFulfillmentOrders();
     setLoadingOrders(false);
-    if (error) { toast.error(error.message); return; }
+    if (error) { toastRef.current.error(error.message); return; }
     setOrders((data as unknown as DbFulfillmentOrder[]) ?? []);
-  }, [toast]);
+  }, []);
 
   const loadRequests = useCallback(async () => {
     setLoadingRequests(true);
     const { data, error } = await getServiceRequestsList();
     setLoadingRequests(false);
-    if (error) { toast.error(error.message); return; }
+    if (error) { toastRef.current.error(error.message); return; }
     setServiceRequests((data as unknown as DbServiceRequest[]) ?? []);
-  }, [toast]);
+  }, []);
 
   const loadCustom = useCallback(async () => {
     setLoadingCustom(true);
     const { data, error } = await getCustomRequestsList();
     setLoadingCustom(false);
-    if (error) { toast.error(error.message); return; }
+    if (error) { toastRef.current.error(error.message); return; }
     setCustomRequests((data as unknown as DbCustomRequest[]) ?? []);
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     loadTeam();
@@ -157,8 +159,8 @@ export default function FulfillmentPage() {
       priority: "medium",
       progress: 0,
     });
-    if (error) { toast.error(error.message); return; }
-    toast.success("Assigned");
+    if (error) { toastRef.current.error(error.message); return; }
+    toastRef.current.success("Assigned");
     loadOrders();
   }
 

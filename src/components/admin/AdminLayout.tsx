@@ -24,7 +24,6 @@ import FulfillmentPage from "./FulfillmentPage";
 import FulfillmentDetail from "./FulfillmentDetail";
 import MembershipTierConfig from "./MembershipTierConfig";
 import LiveCartsPage from "./LiveCartsPage";
-import EmailTemplatesPage from "./EmailTemplatesPage";
 import NotificationsInboxPage from "./NotificationsInboxPage";
 import NotificationPanel from "./shared/NotificationPanel";
 
@@ -44,15 +43,16 @@ const navItems = [
   { path: "/team", label: "Team", icon: "people" },
   { path: "/audit", label: "Audit Log", icon: "history" },
   { path: "/notifications", label: "Notifications", icon: "notifications" },
-  { path: "/emails", label: "Email Templates", icon: "mail" },
   { path: "/settings", label: "Settings", icon: "settings" },
 ];
 
 export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
-  const { profile, signOut } = useAuth();
-  const initials = profile?.name?.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "AD";
+  const { user, profile, signOut } = useAuth();
+  const initials = profile?.name
+    ? profile.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
+    : (profile?.email ?? user?.email ?? "AD").slice(0, 2).toUpperCase();
 
   const currentPage = navItems.find((item) => item.path === location.pathname)?.label || "Overview";
 
@@ -204,7 +204,6 @@ export default function AdminLayout() {
             <Route path="team" element={<TeamPage />} />
             <Route path="audit" element={<AuditLog />} />
             <Route path="notifications" element={<NotificationsInboxPage />} />
-            <Route path="emails" element={<EmailTemplatesPage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Routes>
         </main>
