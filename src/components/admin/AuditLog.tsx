@@ -12,6 +12,7 @@ interface AuditRow {
   old_values: Record<string, unknown> | null;
   new_values: Record<string, unknown> | null;
   ip_address: string | null;
+  source: "admin" | "user";
   created_at: string;
   profiles?: { name: string } | null;
 }
@@ -65,6 +66,7 @@ export default function AuditLog() {
   const [entries, setEntries] = useState<AuditRow[]>([]);
   const [search, setSearch] = useState("");
   const [actionFilter, setActionFilter] = useState("");
+  const [sourceFilter, setSourceFilter] = useState("");
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
   useEffect(() => {
@@ -83,12 +85,23 @@ export default function AuditLog() {
       (entry.entity_type ?? "").toLowerCase().includes(search.toLowerCase()) ||
       (entry.entity_id ?? "").toLowerCase().includes(search.toLowerCase());
     const matchAction = !actionFilter || entry.action.startsWith(actionFilter);
-    return matchSearch && matchAction;
+    const matchSource = !sourceFilter || entry.source === sourceFilter;
+    return matchSearch && matchAction && matchSource;
   });
 
   const actionPrefixes = Array.from(new Set(entries.map((e) => e.action.split(".")[0])));
 
   const filters: FilterConfig[] = [
+    {
+      key: "source",
+      label: "All Sources",
+      value: sourceFilter,
+      onChange: setSourceFilter,
+      options: [
+        { value: "admin", label: "Admin Portal" },
+        { value: "user", label: "User Portal" },
+      ],
+    },
     {
       key: "action",
       label: "All Actions",
@@ -102,7 +115,7 @@ export default function AuditLog() {
     <div className="space-y-5">
       <div>
         <h1 className="text-xl font-bold text-[#0F172A]">Audit Log</h1>
-        <p className="text-sm text-[#64748B] mt-0.5">Track all admin actions and changes</p>
+        <p className="text-sm text-[#64748B] mt-0.5">Track actions from both the admin dashboard and user portal</p>
       </div>
 
       <FilterBar
@@ -118,7 +131,8 @@ export default function AuditLog() {
             <thead>
               <tr className="bg-[#F8FAFC]">
                 <th className="px-2.5 sm:px-4 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left">Timestamp</th>
-                <th className="px-2.5 sm:px-4 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left hidden sm:table-cell">Admin</th>
+                <th className="px-2.5 sm:px-4 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left hidden sm:table-cell">Actor</th>
+                <th className="px-2.5 sm:px-4 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left hidden md:table-cell">Source</th>
                 <th className="px-2.5 sm:px-4 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left">Action</th>
                 <th className="px-2.5 sm:px-4 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left hidden md:table-cell">Entity</th>
                 <th className="px-2.5 sm:px-4 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-center">Details</th>
@@ -127,7 +141,7 @@ export default function AuditLog() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-5 py-12 text-center text-[#94A3B8]">
+                  <td colSpan={6} className="px-5 py-12 text-center text-[#94A3B8]">
                     {entries.length === 0 ? "No audit entries yet" : "No entries match your search"}
                   </td>
                 </tr>
@@ -143,6 +157,20 @@ export default function AuditLog() {
                         </td>
                         <td className="px-2.5 sm:px-4 py-3 text-sm font-semibold text-[#0F172A] hidden sm:table-cell">
                           {entry.profiles?.name ?? "—"}
+                        </td>
+                        <td className="px-2.5 sm:px-4 py-3 hidden md:table-cell">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold tracking-wide uppercase ${
+                              entry.source === "user"
+                                ? "bg-[#EFF6FF] text-[#2563EB]"
+                                : "bg-[#F1F5F9] text-[#475569]"
+                            }`}
+                          >
+                            <span className="material-symbols-outlined text-[11px]">
+                              {entry.source === "user" ? "person" : "admin_panel_settings"}
+                            </span>
+                            {entry.source === "user" ? "User" : "Admin"}
+                          </span>
                         </td>
                         <td className="px-2.5 sm:px-4 py-3">
                           <span
@@ -170,7 +198,7 @@ export default function AuditLog() {
                       </tr>
                       {isExpanded && (
                         <tr className="bg-[#F8FAFC]">
-                          <td colSpan={5} className="px-2.5 sm:px-5 py-3 border-b border-[#E8ECF1]/60">
+                          <td colSpan={6} className="px-2.5 sm:px-5 py-3 border-b border-[#E8ECF1]/60">
                             <div className="flex flex-col gap-2 text-[12px] sm:text-[13px]">
                               {entry.new_values && (
                                 <div>

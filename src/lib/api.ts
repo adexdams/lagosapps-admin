@@ -115,7 +115,7 @@ export async function addFulfillmentNote(data: Record<string, unknown>) {
 export async function getServiceRequestsList() {
   return supabase
     .from("service_requests")
-    .select("*, profiles!service_requests_user_id_fkey(name, email)")
+    .select("*, profiles(name, email)")
     .order("created_at", { ascending: false });
 }
 
@@ -467,6 +467,7 @@ export async function logAudit(entry: {
   entity_id?: string;
   old_values?: Record<string, unknown>;
   new_values?: Record<string, unknown>;
+  source?: "admin" | "user";
 }): Promise<void> {
   try {
     const { data: sessionData } = await supabase.auth.getSession();
@@ -482,6 +483,7 @@ export async function logAudit(entry: {
       entity_id: entry.entity_id ?? null,
       old_values: entry.old_values ?? null,
       new_values: entry.new_values ?? null,
+      source: entry.source ?? "admin",
     });
     if (error) console.error("logAudit failed:", error);
   } catch (e) {

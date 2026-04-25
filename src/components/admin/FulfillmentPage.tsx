@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import StatCard from "./shared/StatCard";
 import FilterBar, { type FilterConfig } from "./shared/FilterBar";
@@ -439,8 +439,8 @@ export default function FulfillmentPage() {
                       const name = cr.profiles?.name ?? cr.profiles?.email ?? "—";
                       const initials = name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
                       return (
-                        <>
-                          <tr key={cr.id} className="hover:bg-[#F8FAFC] transition-colors cursor-pointer" onClick={() => setExpandedCr(expandedCr === cr.id ? null : cr.id)}>
+                        <React.Fragment key={cr.id}>
+                          <tr className="hover:bg-[#F8FAFC] transition-colors cursor-pointer" onClick={() => setExpandedCr(expandedCr === cr.id ? null : cr.id)}>
                             <td className="px-2.5 sm:px-4 py-3 font-semibold text-primary whitespace-nowrap">{cr.id}</td>
                             <td className="px-2.5 sm:px-4 py-3">
                               <div className="flex items-center gap-2">
@@ -493,7 +493,7 @@ export default function FulfillmentPage() {
                               </td>
                             </tr>
                           )}
-                        </>
+                        </React.Fragment>
                       );
                     })
                   )}
