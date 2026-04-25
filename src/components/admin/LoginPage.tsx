@@ -56,7 +56,7 @@ export default function LoginPage() {
                   { icon: "analytics", label: "Analytics" },
                 ].map((item) => (
                   <div key={item.label} className="flex items-center gap-1.5 bg-white/8 border border-white/10 rounded-full px-3 py-1.5">
-                    <span className="material-symbols-outlined text-[14px] text-primary/90">{item.icon}</span>
+                    <span className="material-symbols-outlined text-[14px] text-white/60">{item.icon}</span>
                     <span className="text-[12px] font-semibold text-white/70">{item.label}</span>
                   </div>
                 ))}
