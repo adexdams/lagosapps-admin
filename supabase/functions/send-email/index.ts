@@ -24,7 +24,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 // Default logo (admin can override via platform_settings or email_templates)
-const DEFAULT_LOGO_URL = "https://raw.githubusercontent.com/adexdams/lagosapps-admin/main/public/lagosapp-logo.png";
+const DEFAULT_LOGO_URL = "https://uhrlsvnmoemrakwfrjyf.supabase.co/storage/v1/object/public/public-assets/brand-logo.png";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
