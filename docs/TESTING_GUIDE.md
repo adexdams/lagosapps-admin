@@ -8,16 +8,16 @@ End-to-end checklist for verifying every feature on both the **admin dashboard**
 
 ## Progress Summary
 
-**Legend:** ✅ Verified · ⬜ Pending · 🔑 Needs admin account first · — Not applicable
+**Legend:** ✅ Verified · 🟡 Partial · ⬜ Pending · — Not applicable
 
 | # | Section | CLI / API | Browser |
 | --- | --- | --- | --- |
 | **Setup** | | | |
 | — | DB connection + project link | ✅ PostgreSQL 17.6 · linked | — |
-| — | Admin account exists | ✅ `mainlandtech24@gmail.com` promoted to `super_admin` | 🔑 Sign in via Magic Link |
+| — | Admin account exists | ✅ `mainlandtech24@gmail.com` promoted to `super_admin` | ✅ Signed in via Magic Link |
 | — | Edge Functions deployed | ✅ `send-email` + `paystack-webhook` | — |
 | **S1** | **Authentication** | | |
-| 1A | Admin login | — | ⬜ Login via magic link · session persistence |
+| 1A | Admin login | — | ✅ Magic link login · session persistence confirmed |
 | 1B | User signup | ✅ `profiles` trigger confirmed · 1 user in DB | ⬜ Sign up · welcome email arrives |
 | 1C | Referral signup | ✅ `referrals` schema confirmed | ⬜ Incognito sign-up with referral code → Bronze gifted |
 | **S2** | **Admin: Users** | | |
@@ -25,58 +25,65 @@ End-to-end checklist for verifying every feature on both the **admin dashboard**
 | **S3** | **Admin: Orders** | | |
 | 3A–3C | Orders list · detail · create | ✅ `orders` table empty (no test orders yet) | ⬜ Create order · status change · refund flow |
 | **S4** | **Admin: Inventory** | | |
-| 4A–4C | Product CRUD · portal tabs | ✅ 74 products across 7 portals confirmed | ⬜ Add/edit/toggle product · image upload |
+| 4A–4C | Product CRUD · portal tabs | ✅ 74 products across 7 portals confirmed | ⬜ Add/edit/toggle product · category filters |
 | **S5** | **Admin: Membership** | | |
-| 5A–5D | Tier config · subscriptions · benefits | ✅ 3 tiers · 15 benefits · prices confirmed | ⬜ Edit tier price · cancel subscription |
+| 5A–5D | Tier config · subscriptions · benefits | ✅ 3 tiers · 15 benefits · prices confirmed | ⬜ Edit tier price · add benefit · cancel subscription |
 | **S6** | **Admin: Wallet** | | |
 | 6A–6B | Transaction log · manual adjustment | ✅ Schema confirmed · table empty | ⬜ Manual credit → user wallet updates |
 | **S7** | **Admin: Referrals** | | |
-| 7A | Referrals list | ✅ Schema confirmed · table empty | ⬜ Table loads after referral sign-up |
+| 7A | Referrals list | ✅ Schema confirmed · table empty | ⬜ Table loads · empty state correct |
 | **S8** | **Admin: Notifications** | | |
 | 8A–8D | Broadcasts · system panel · inbox | ✅ Realtime publications confirmed | ⬜ Compose · send · retract · bell panel |
 | **S9** | **Admin: Settings** | | |
-| 9A–9C | Portal toggles · alert prefs | ✅ 7 portals — all `is_active = true` | ⬜ Toggle portal off → hidden on user app |
+| 9A–9C | Portal toggles · alert prefs · profile | ✅ 7 portals — all `is_active = true` | ⬜ Set name · toggle portal · alert prefs save |
 | **S10** | **Admin: Email Templates** | | |
 | 10A–10C | Template editor · dry-run · live send | ✅ Dry-run returns `success:true` · Supabase Storage logo confirmed | — Page removed from admin nav; templates managed via Supabase Dashboard |
 | **S11** | **Admin: Fulfillment** | | |
 | 11A–11C | Order queue · service requests · custom orders | ✅ Schema confirmed · all tables empty | ⬜ Assign order · update request status · convert to order |
 | **S12** | **Admin: Audit Log** | | |
 | 12A | Audit log table | ✅ Schema confirmed · table empty (populates after admin actions) | ⬜ Verify entries appear after browser actions |
-| **S13** | **User App: Portals** | | |
-| 13A | Portal display + toggle | ✅ All 7 active · 74 products seeded | ⬜ All 7 visible · toggle off/on via admin |
-| 13B | Solar portal | ✅ Solar packages + products seeded | ⬜ Free Audit form → admin Fulfillment |
-| 13C | Health portal | ✅ Health products seeded | ⬜ Medical test form + supplies cart |
-| 13D | Events portal | ✅ 3 venues seeded | ⬜ Book venue → admin Fulfillment |
-| 13E | Logistics portal | — | ⬜ Submit request → admin Fulfillment |
-| 13F | Groceries portal | ✅ 13 grocery products seeded | ⬜ Add to cart + freeform custom request |
-| 13G | Community portal | — | ⬜ Donation → cart → checkout |
-| 13H | Transport portal | ✅ 6 transport products seeded | ⬜ Add to cart |
-| **S14** | **User App: Cart & Checkout** | | |
-| 14A | Cart operations | ✅ `carts` + `cart_items` schema ready | ⬜ Add/remove/clear · persistence on refresh |
-| 14B | Card payment | ✅ `orders` schema + payment fields confirmed | ⬜ Test card `4084 0840 8408 4081` → order confirmed · email arrives |
-| 14C | Wallet-only payment | ✅ Schema confirmed | ⬜ Top up wallet first · full wallet checkout |
-| 14D | Hybrid (wallet + card) | ✅ `wallet_deduction` + `payment_amount` fields confirmed | ⬜ Partial wallet + Paystack remainder |
-| 14E | Failed payment | ✅ Schema confirmed | ⬜ Failing card → order stays `pending` · cart intact |
-| **S15** | **User App: Wallet** | | |
-| 15A–15B | Top-up · history | ✅ `wallet_transactions` schema ready | ⬜ Top up ₦5,000 · top-up email arrives |
-| **S16** | **User App: Membership** | | |
-| 16A–16B | Subscribe · admin view | ✅ 3 tiers + 15 benefits · `membership_subscriptions` ready | ⬜ Subscribe Bronze · expiry shown · admin Membership tab |
-| **S17** | **User App: Notifications** | | |
-| 17A–17B | Broadcast inbox · order status | ✅ `user_notifications` in realtime publication | ⬜ Broadcast arrives without refresh · order status updates |
-| **S18** | **Paystack Webhook** | | |
-| 18A | Signature check (401) | ✅ Returns `401` on unsigned request | — |
-| 18B–18C | End-to-end + idempotency replay | — | ⬜ Paystack test dashboard → Logs → Resend |
-| **S19** | **Cron Jobs** | | |
-| 19A | Schedules registered | ✅ 5 jobs — all `active = true` | — |
-| 19B | Manual function calls | ✅ All 4 functions execute cleanly | — |
-| 19C | Renewal reminder e2e | ⬜ Needs a real user to send email to | ⬜ Check inbox after `send_membership_renewal_reminders()` |
-| **S20** | **RLS Security** | | |
-| 20A | Anon blocked from orders/wallet | ✅ Returns `[]` on both tables · products return 74 (public) | — |
-| 20B | User JWT sees only own rows | ✅ RLS enabled on all 36 tables | ⬜ Two users · cross-query returns `[]` |
-| **S21** | **Cross-App Integration** | | |
-| 21A–21C | Admin action → user · User action → admin | — | ⬜ Side-by-side browser test for realtime sync |
-| **S22** | **DB Health Checks** | | |
-| 22 | Orphans · balance drift · row counts | ✅ 0 orphaned items · 0 balance drift · 36 tables healthy | — |
+| **S13** | **Admin: Team** | | |
+| 13A | Team list · invite | ✅ `admin_team_members` seeded with super_admin | ⬜ Your entry visible · invite a new member |
+| **S14** | **Admin: Analytics & Finance** | | |
+| 14A | Analytics charts | ✅ Wired to real DB | ⬜ Charts populate after orders/users exist |
+| 14B | Finance overview | ✅ Wired to real DB | ⬜ Revenue figures appear after orders exist |
+| **S15** | **Admin: Live Carts** | | |
+| 15A | Live carts page | ✅ Schema confirmed | ⬜ Empty state correct · populates after user adds to cart |
+| **S16** | **User App: Portals** | | |
+| 16A | Portal display + toggle | ✅ All 7 active · 74 products seeded | ⬜ All 7 visible · toggle off/on via admin |
+| 16B | Solar portal | ✅ Solar packages + products seeded | ⬜ Free Audit form → admin Fulfillment |
+| 16C | Health portal | ✅ Health products seeded | ⬜ Medical test form + supplies cart |
+| 16D | Events portal | ✅ 3 venues seeded | ⬜ Book venue → admin Fulfillment |
+| 16E | Logistics portal | — | ⬜ Submit request → admin Fulfillment |
+| 16F | Groceries portal | ✅ 13 grocery products seeded | ⬜ Add to cart + freeform custom request |
+| 16G | Community portal | — | ⬜ Donation → cart → checkout |
+| 16H | Transport portal | ✅ 6 transport products seeded | ⬜ Add to cart |
+| **S17** | **User App: Cart & Checkout** | | |
+| 17A | Cart operations | ✅ `carts` + `cart_items` schema ready | ⬜ Add/remove/clear · persistence on refresh |
+| 17B | Card payment | ✅ `orders` schema + payment fields confirmed | ⬜ Test card `4084 0840 8408 4081` → order confirmed · email arrives |
+| 17C | Wallet-only payment | ✅ Schema confirmed | ⬜ Top up wallet first · full wallet checkout |
+| 17D | Hybrid (wallet + card) | ✅ `wallet_deduction` + `payment_amount` fields confirmed | ⬜ Partial wallet + Paystack remainder |
+| 17E | Failed payment | ✅ Schema confirmed | ⬜ Failing card → order stays `pending` · cart intact |
+| **S18** | **User App: Wallet** | | |
+| 18A–18B | Top-up · history | ✅ `wallet_transactions` schema ready | ⬜ Top up ₦5,000 · top-up email arrives |
+| **S19** | **User App: Membership** | | |
+| 19A–19B | Subscribe · admin view | ✅ 3 tiers + 15 benefits · `membership_subscriptions` ready | ⬜ Subscribe Bronze · expiry shown · admin Membership tab |
+| **S20** | **User App: Notifications** | | |
+| 20A–20B | Broadcast inbox · order status | ✅ `user_notifications` in realtime publication | ⬜ Broadcast arrives without refresh · order status updates |
+| **S21** | **Paystack Webhook** | | |
+| 21A | Signature check (401) | ✅ Returns `401` on unsigned request | — |
+| 21B–21C | End-to-end + idempotency replay | — | ⬜ Paystack test dashboard → Logs → Resend |
+| **S22** | **Cron Jobs** | | |
+| 22A | Schedules registered | ✅ 5 jobs — all `active = true` | — |
+| 22B | Manual function calls | ✅ All 4 functions execute cleanly | — |
+| 22C | Renewal reminder e2e | ⬜ Needs a real user to send email to | ⬜ Check inbox after `send_membership_renewal_reminders()` |
+| **S23** | **RLS Security** | | |
+| 23A | Anon blocked from orders/wallet | ✅ Returns `[]` on both tables · products return 74 (public) | — |
+| 23B | User JWT sees only own rows | ✅ RLS enabled on all 36 tables | ⬜ Two users · cross-query returns `[]` |
+| **S24** | **Cross-App Integration** | | |
+| 24A–24C | Admin action → user · User action → admin | — | ⬜ Side-by-side browser test for realtime sync |
+| **S25** | **DB Health Checks** | | |
+| 25 | Orphans · balance drift · row counts | ✅ 0 orphaned items · 0 balance drift · 36 tables healthy | — |
 
 ---
 
@@ -791,6 +798,190 @@ supabase db query --linked "SELECT relname, n_live_tup FROM pg_stat_user_tables 
 # Recent audit log
 supabase db query --linked "SELECT action, entity_type, entity_id, created_at FROM admin_audit_log ORDER BY created_at DESC LIMIT 10;"
 ```
+
+---
+
+## Admin Dashboard Testing Sequence
+
+Work through these steps in order — each phase builds on the previous one (e.g. you need an order before testing Fulfillment, and a user before creating an order). Tick each checkbox as you go. After completing all phases, check the Audit Log to confirm every action was captured.
+
+---
+
+### Phase 1 — Settings & Profile
+
+**Goal:** Confirm your name saves and appears in the top nav; platform settings round-trip to DB; alert prefs save.
+
+1. [ ] Navigate to `/settings`
+2. [ ] **Profile section** → type your name in the Name field → click **Save Profile** → toast "Profile updated" appears
+3. [ ] Refresh the page → top nav shows your name and "Super Admin" role (not "Support" or blank)
+4. [ ] **Platform section** → note the current Support Email → change it → click **Save** → toast appears → refresh and confirm the change persisted
+5. [ ] **Portals section** → note all 7 are active → toggle one **off** → HIDDEN badge appears next to it → *(leave it off for now — you'll verify the user app effect in Phase 9)*
+6. [ ] **Alert Preferences** → toggle the Inventory category off → no error → refresh and confirm it stayed off → toggle it back on
+
+---
+
+### Phase 2 — Inventory
+
+**Goal:** Confirm all portal tabs load without blinking; products are real DB data; CRUD works.
+
+7. [ ] Navigate to `/inventory`
+8. [ ] Tab through all 7 portal tabs *(Solar, Transport, Groceries, Health, Events, Community, Logistics)* — each should load a product grid **once** with no repeated loading flash
+9. [ ] On the **Groceries** tab → category filter pills appear (Produce, Dairy, etc.) → click each pill → products filter correctly → click **All** to reset
+10. [ ] Click any product card → edit the price → click **Save** → toast confirms → price shown in the grid updates
+11. [ ] Click **Add Product** → fill Name, Price, Stock → click Save → new product appears in the grid
+12. [ ] Click the new product → toggle **Active** off → Save → the product card shows Inactive badge
+13. [ ] Delete the test product (or leave it inactive)
+
+---
+
+### Phase 3 — Users
+
+**Goal:** Confirm real user rows load; search and filters work; user detail page is functional.
+
+14. [ ] Navigate to `/users`
+15. [ ] Table loads with real user rows — no mock data
+16. [ ] Type a name or email in the search bar → list filters live
+17. [ ] Use the membership tier filter dropdown → list narrows
+18. [ ] Click any user row → `/users/:id` opens
+19. [ ] Profile card shows email, wallet balance, membership tier, referral code
+20. [ ] **Orders tab** → shows that user's orders (likely empty at this stage)
+21. [ ] **Wallet tab** → shows that user's transaction history (likely empty)
+22. [ ] Click **Suspend User** → status changes → click **Activate** to restore
+
+---
+
+### Phase 4 — Orders
+
+**Goal:** Create a test order from scratch; verify status changes and refund flow write to DB.
+
+23. [ ] Navigate to `/orders` → table loads (likely empty)
+24. [ ] Click **+ New Order**
+25. [ ] **Step 1:** Search for the test user by name → select from dropdown
+26. [ ] **Step 2:** Select portal **Groceries** → product list loads from DB
+27. [ ] **Step 3:** Add 2–3 items → running total updates
+28. [ ] **Step 4:** Submit → redirected to Orders list → new order row visible with status `pending`
+29. [ ] Click the order row → Order Detail opens
+30. [ ] Change status to **Confirmed** via the dropdown → badge updates · timeline step advances
+31. [ ] Change status to **Processing** → same
+32. [ ] Click **Refund to Wallet** → enter ₦500 → Confirm → toast "Refund issued"
+33. [ ] Go to `/users/:id` for that user → Wallet tab → credit transaction of ₦500 visible
+
+---
+
+### Phase 5 — Fulfillment
+
+**Goal:** Confirm the order queue reflects DB state; assignment and SLA fields persist.
+
+34. [ ] Navigate to `/fulfillment` → **Order Fulfillment** tab
+35. [ ] The order created in Phase 4 (status `confirmed` or `processing`) should appear in the queue
+36. [ ] Click **Assign** → select yourself from the team dropdown → record saves
+37. [ ] Click the order row → Fulfillment Detail opens
+38. [ ] Set an SLA deadline date → set risk level → click **Save** → refresh page → values persist
+39. [ ] **Service Requests tab** → empty state shows cleanly (no loading spin)
+40. [ ] **Custom Orders tab** → same
+
+---
+
+### Phase 6 — Membership
+
+**Goal:** Tier config edits save; sticky sidebar nav works on the config page.
+
+41. [ ] Navigate to `/membership`
+42. [ ] Subscriptions tab → likely empty — empty state shows correctly
+43. [ ] Click **Configure Tiers** → `/membership/tiers` opens
+44. [ ] Sticky sidebar shows tier names (Bronze, Silver, Gold) → click **Silver** → page scrolls to Silver card
+45. [ ] Click **Edit Benefits** on Bronze → add a new benefit with a label → Save → benefit appears in list
+46. [ ] Change the Bronze **Annual Price** → Save → toast "Bronze tier saved"
+47. [ ] Go back to `/membership` → click **Edit** on the Bronze tier row → verify the new price is reflected
+
+---
+
+### Phase 7 — Wallet
+
+**Goal:** Manual adjustment credits a user's wallet and creates a transaction record.
+
+48. [ ] Navigate to `/wallet`
+49. [ ] Transaction log loads (may be empty or show the Phase 4 refund)
+50. [ ] Click **Manual Adjustment**
+51. [ ] Select the test user → Amount: ₦2,000 → Type: **Credit** → Reason: "Test credit" → Submit
+52. [ ] Transaction row appears immediately in the list
+53. [ ] Go to `/users/:id` → Wallet tab → ₦2,000 credit visible; running balance updated
+
+---
+
+### Phase 8 — Referrals
+
+**Goal:** Page loads cleanly with correct empty state.
+
+54. [ ] Navigate to `/referrals`
+55. [ ] Empty state shows correctly (no blinking, no loading spinner stuck)
+56. [ ] *(Will populate once real users sign up with referral codes in Phase 10+)*
+
+---
+
+### Phase 9 — Broadcast & Notifications
+
+**Goal:** Compose and send a broadcast; verify it appears in the notification bell and inbox.
+
+57. [ ] Navigate to `/broadcast`
+58. [ ] Click **Compose Broadcast**
+59. [ ] Title: "Test Broadcast" · Message: "This is a system test." · Audience: **All Users**
+60. [ ] Click **Send** → broadcast appears in list with status **Sent**
+61. [ ] Click the broadcast row → detail page shows · read rate counter shows 0
+62. [ ] Click the **notification bell** in the top nav → panel opens → broadcast notification appears
+63. [ ] Click the notification → marks as read → navigate to `/broadcast/:id`
+64. [ ] Navigate to `/notifications` (inbox page) → broadcast notification listed
+65. [ ] Category filter **System** → only system notifications shown
+66. [ ] Click **Mark all read** → all go grey
+67. [ ] Back on `/broadcast` → click **Retract** on the test broadcast → status changes to Retracted
+
+---
+
+### Phase 10 — Team
+
+**Goal:** Your super_admin entry is visible; magic link invite flow works.
+
+68. [ ] Navigate to `/team`
+69. [ ] Your own entry is visible with role **Super Admin** and status Active
+70. [ ] Click **Invite Member** → enter a real email you can check → select role **Support** → click **Send Invite**
+71. [ ] Toast confirms invite sent → check that email's inbox → magic link email received
+72. [ ] *(Do not click the link yet — full access test is part of cross-app testing)*
+
+---
+
+### Phase 11 — Analytics & Finance
+
+**Goal:** Charts and figures reflect the orders and transactions created in earlier phases.
+
+73. [ ] Navigate to `/analytics`
+74. [ ] Stat cards show real numbers (at least 1 order, 1 user)
+75. [ ] Revenue by portal chart shows a bar for Groceries (the test order)
+76. [ ] Monthly user growth chart has at least one data point
+77. [ ] Navigate to `/finance`
+78. [ ] Overview tab → total revenue and order count match the test order
+79. [ ] Transactions tab → wallet transactions from Phases 4 and 7 appear
+
+---
+
+### Phase 12 — Audit Log
+
+**Goal:** Every action taken in Phases 1–11 is captured with the correct admin name.
+
+80. [ ] Navigate to `/audit`
+81. [ ] Rows appear — your name shown in the Admin column for each
+82. [ ] Actions visible: `profile.update`, `order.create`, `order.status_change`, `wallet.manual_adjustment`, `membership_tier.update`, `portal.toggle`, `broadcast.send`, etc.
+83. [ ] Search for "order" → only order-related rows shown
+84. [ ] Change the Action filter to **wallet** → only wallet rows shown
+85. [ ] Click the expand icon on any row → Before/After values visible in the detail drawer
+
+---
+
+### Phase 13 — Live Carts
+
+**Goal:** Page loads without error; correct empty state.
+
+86. [ ] Navigate to `/carts`
+87. [ ] Empty state shows cleanly *(will populate once users add items via the user app)*
 
 ---
 
