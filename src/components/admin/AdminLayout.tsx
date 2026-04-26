@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { Routes, Route, NavLink, useLocation } from "react-router-dom";
+import { Routes, Route, NavLink, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabase";
+import { hasPrivilege, PAGE_PRIVILEGES } from "../../lib/privileges";
 
 import AdminOverview from "./AdminOverview";
 import UsersPage from "./UsersPage";
@@ -26,22 +27,23 @@ import LiveCartsPage from "./LiveCartsPage";
 import NotificationsInboxPage from "./NotificationsInboxPage";
 import NotificationPanel from "./shared/NotificationPanel";
 
+// Nav items — `privilege` matches PAGE_PRIVILEGES keys in privileges.ts
 const navItems = [
-  { path: "/", label: "Overview", icon: "space_dashboard" },
-  { path: "/users", label: "Users", icon: "group" },
-  { path: "/orders", label: "Orders", icon: "receipt_long" },
-  { path: "/inventory", label: "Inventory", icon: "inventory_2" },
-  { path: "/membership", label: "Membership", icon: "card_membership" },
-  { path: "/wallet", label: "Wallet", icon: "account_balance_wallet" },
-  { path: "/referrals", label: "Referrals", icon: "group_add" },
-  { path: "/broadcast", label: "Broadcast", icon: "campaign" },
-  { path: "/carts", label: "Carts", icon: "shopping_cart" },
-  { path: "/finance", label: "Finance", icon: "payments" },
-  { path: "/analytics", label: "Analytics", icon: "analytics" },
-  { path: "/team", label: "Team", icon: "people" },
-  { path: "/audit", label: "Audit Log", icon: "history" },
-  { path: "/notifications", label: "Notifications", icon: "notifications" },
-  { path: "/settings", label: "Settings", icon: "settings" },
+  { path: "/",             label: "Overview",     icon: "space_dashboard",        privilege: "overview" },
+  { path: "/users",        label: "Users",        icon: "group",                  privilege: "users" },
+  { path: "/orders",       label: "Orders",       icon: "receipt_long",           privilege: "orders" },
+  { path: "/inventory",    label: "Inventory",    icon: "inventory_2",            privilege: "inventory" },
+  { path: "/membership",   label: "Membership",   icon: "card_membership",        privilege: "membership" },
+  { path: "/wallet",       label: "Wallet",       icon: "account_balance_wallet", privilege: "wallet" },
+  { path: "/referrals",    label: "Referrals",    icon: "group_add",              privilege: "referrals" },
+  { path: "/broadcast",    label: "Broadcast",    icon: "campaign",               privilege: "broadcast" },
+  { path: "/carts",        label: "Carts",        icon: "shopping_cart",          privilege: "carts" },
+  { path: "/finance",      label: "Finance",      icon: "payments",               privilege: "finance" },
+  { path: "/analytics",    label: "Analytics",    icon: "analytics",              privilege: "analytics" },
+  { path: "/team",         label: "Team",         icon: "people",                 privilege: "team" },
+  { path: "/audit",        label: "Audit Log",    icon: "history",                privilege: "audit" },
+  { path: "/notifications",label: "Notifications",icon: "notifications",          privilege: "notifications" },
+  { path: "/settings",     label: "Settings",     icon: "settings",               privilege: "settings" },
 ];
 
 export default function AdminLayout() {
@@ -50,16 +52,20 @@ export default function AdminLayout() {
   const location = useLocation();
   const { user, profile, signOut } = useAuth();
 
+  // Privilege helper for the current logged-in admin
+  const can = (key: string) =>
+    hasPrivilege(key, profile?.role ?? "", profile?.privileges ?? {});
+
+  const visibleNav = navItems.filter((item) => can(item.privilege));
+
   useEffect(() => {
     if (!user?.id) return;
-    // Initial count
     supabase
       .from("system_notifications")
       .select("id", { count: "exact", head: true })
       .eq("recipient_id", user.id)
       .eq("read", false)
       .then(({ count }) => setNotifUnread(count ?? 0));
-    // Realtime: only handle new notifications arriving from outside this session
     const ch = supabase
       .channel(`sidebar_notif_count:${user.id}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "system_notifications", filter: `recipient_id=eq.${user.id}` },
@@ -69,7 +75,6 @@ export default function AdminLayout() {
     return () => { supabase.removeChannel(ch); };
   }, [user?.id]);
 
-  // Keep sidebar badge in sync with NotificationPanel read/unread actions
   useEffect(() => {
     const onDelta = (e: Event) => {
       const delta = (e as CustomEvent<number>).detail;
@@ -83,49 +88,56 @@ export default function AdminLayout() {
       window.removeEventListener("notif:badge-reset", onReset);
     };
   }, []);
+
   const initials = profile?.name
     ? profile.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
     : (profile?.email ?? user?.email ?? "AD").slice(0, 2).toUpperCase();
 
   const currentPage = navItems.find((item) => item.path === location.pathname)?.label || "Overview";
 
+  // Gate component — redirects to / when the current admin lacks the privilege
+  const Gate = ({ priv, children }: { priv: string; children: React.ReactNode }) =>
+    can(priv) ? <>{children}</> : <Navigate to="/" replace />;
+
+  const NavList = ({ mobile }: { mobile?: boolean }) => (
+    <>
+      {visibleNav.map((item) => (
+        <NavLink
+          key={item.path}
+          to={item.path}
+          end={item.path === "/"}
+          onClick={mobile ? () => setSidebarOpen(false) : undefined}
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-3 ${mobile ? "py-3" : "py-2.5"} rounded-xl ${mobile ? "text-sm" : "text-[13px]"} font-medium transition-all mb-0.5 ${
+              isActive
+                ? "bg-primary/8 text-primary font-semibold"
+                : "text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#334155]"
+            }`
+          }
+        >
+          <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
+          <span className="flex-1">{item.label}</span>
+          {item.path === "/notifications" && notifUnread > 0 && (
+            <span className="size-5 bg-[#DC2626] text-white text-[10px] font-bold rounded-full flex items-center justify-center flex-shrink-0">
+              {notifUnread > 99 ? "99+" : notifUnread}
+            </span>
+          )}
+        </NavLink>
+      ))}
+    </>
+  );
+
   return (
     <div className="min-h-screen bg-[#F5F6FA] flex">
-      {/* Desktop sidebar — light grey */}
+      {/* Desktop sidebar */}
       <aside className="hidden md:flex flex-col w-[260px] bg-white border-r border-[#E8ECF1] flex-shrink-0 fixed inset-y-0 left-0 z-40">
-        {/* Logo */}
         <div className="px-6 py-5 flex items-center gap-2.5">
           <img src="/lagosapp-logo.png" alt="LagosApps" className="h-8 w-auto" />
           <span className="text-[10px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-md tracking-wide uppercase">Admin</span>
         </div>
-
-        {/* Nav */}
         <nav className="flex-1 px-3 py-2 overflow-y-auto">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              end={item.path === "/"}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all mb-0.5 ${
-                  isActive
-                    ? "bg-primary/8 text-primary font-semibold"
-                    : "text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#334155]"
-                }`
-              }
-            >
-              <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
-              <span className="flex-1">{item.label}</span>
-              {item.path === "/notifications" && notifUnread > 0 && (
-                <span className="size-5 bg-[#DC2626] text-white text-[10px] font-bold rounded-full flex items-center justify-center flex-shrink-0">
-                  {notifUnread > 99 ? "99+" : notifUnread}
-                </span>
-              )}
-            </NavLink>
-          ))}
+          <NavList />
         </nav>
-
-        {/* Footer */}
         <div className="px-6 py-4 border-t border-[#E8ECF1] space-y-2">
           <a href="https://lagosapps.com/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-[13px] text-[#94A3B8] hover:text-[#64748B] transition-colors">
             <span className="material-symbols-outlined text-[18px]">open_in_new</span>
@@ -149,27 +161,7 @@ export default function AdminLayout() {
               </button>
             </div>
             <nav className="flex-1 px-3 py-2 overflow-y-auto">
-              {navItems.map((item) => (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  end={item.path === "/"}
-                  onClick={() => setSidebarOpen(false)}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all mb-0.5 ${
-                      isActive ? "bg-primary/8 text-primary font-semibold" : "text-[#64748B] hover:bg-[#F1F5F9]"
-                    }`
-                  }
-                >
-                  <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
-                  <span className="flex-1">{item.label}</span>
-                  {item.path === "/notifications" && notifUnread > 0 && (
-                    <span className="size-5 bg-[#DC2626] text-white text-[10px] font-bold rounded-full flex items-center justify-center flex-shrink-0">
-                      {notifUnread > 99 ? "99+" : notifUnread}
-                    </span>
-                  )}
-                </NavLink>
-              ))}
+              <NavList mobile />
             </nav>
           </aside>
         </div>
@@ -177,35 +169,21 @@ export default function AdminLayout() {
 
       {/* Main content */}
       <div className="flex-1 md:ml-[260px] flex flex-col min-h-screen min-w-0">
-        {/* Top bar */}
         <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-[#E8ECF1] px-4 md:px-8 h-16 flex items-center gap-4">
           <button onClick={() => setSidebarOpen(true)} className="md:hidden cursor-pointer">
             <span className="material-symbols-outlined text-[24px] text-[#334155]">menu</span>
           </button>
-
           <h1 className="text-base md:text-lg font-semibold text-[#0F172A] tracking-tight">{currentPage}</h1>
-
           <div className="flex-1" />
-
-          {/* Search */}
           <div className="hidden sm:flex items-center gap-2 bg-[#F1F5F9] rounded-xl px-4 py-2.5 max-w-xs flex-1">
             <span className="material-symbols-outlined text-[#94A3B8] text-[18px]">search</span>
             <input type="text" placeholder="Search anything..." className="bg-transparent text-sm outline-none flex-1 text-[#0F172A] placeholder:text-[#94A3B8]" />
           </div>
-
           <div className="flex-1 hidden sm:block" />
-
-          {/* Notifications */}
           <NotificationPanel />
-
-          {/* Admin avatar */}
           <div className="flex items-center gap-3 group relative">
             {profile?.avatar_url ? (
-              <img
-                src={profile.avatar_url}
-                alt={profile.name ?? "Admin"}
-                className="size-9 rounded-full object-cover shadow-sm"
-              />
+              <img src={profile.avatar_url} alt={profile.name ?? "Admin"} className="size-9 rounded-full object-cover shadow-sm" />
             ) : (
               <div className="size-9 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white font-bold text-xs shadow-sm">
                 {initials}
@@ -221,33 +199,35 @@ export default function AdminLayout() {
           </div>
         </header>
 
-        {/* Page content */}
         <main className="flex-1 px-3 sm:px-4 md:px-8 lg:px-10 py-4 sm:py-6 md:py-8 pb-12 md:pb-10 overflow-x-clip">
           <Routes>
             <Route index element={<AdminOverview />} />
-            <Route path="users" element={<UsersPage />} />
-            <Route path="users/:id" element={<UserDetail />} />
-            <Route path="orders" element={<OrdersPage />} />
-            <Route path="orders/create" element={<CreateOrderAdmin />} />
-            <Route path="orders/:id" element={<OrderDetailAdmin />} />
-            <Route path="carts" element={<LiveCartsPage />} />
-            <Route path="inventory" element={<InventoryPage />} />
-            <Route path="membership" element={<MembershipAdmin />} />
-            <Route path="membership/tiers" element={<MembershipTierConfig />} />
-            <Route path="wallet" element={<WalletAdmin />} />
-            <Route path="referrals" element={<ReferralsAdmin />} />
-            <Route path="broadcast" element={<NotificationsAdmin />} />
-            <Route path="broadcast/compose" element={<BroadcastCompose />} />
-            <Route path="broadcast/:id" element={<BroadcastDetail />} />
-            <Route path="finance" element={<FinancePage />} />
-            <Route path="analytics" element={<AnalyticsPage />} />
-            <Route path="team" element={<TeamPage />} />
-            <Route path="audit" element={<AuditLog />} />
-            <Route path="notifications" element={<NotificationsInboxPage />} />
-            <Route path="settings" element={<SettingsPage />} />
+            <Route path="users"            element={<Gate priv="users">        <UsersPage /></Gate>} />
+            <Route path="users/:id"        element={<Gate priv="users">        <UserDetail /></Gate>} />
+            <Route path="orders"           element={<Gate priv="orders">       <OrdersPage /></Gate>} />
+            <Route path="orders/create"    element={<Gate priv="orders">       <CreateOrderAdmin /></Gate>} />
+            <Route path="orders/:id"       element={<Gate priv="orders">       <OrderDetailAdmin /></Gate>} />
+            <Route path="carts"            element={<Gate priv="carts">        <LiveCartsPage /></Gate>} />
+            <Route path="inventory"        element={<Gate priv="inventory">    <InventoryPage /></Gate>} />
+            <Route path="membership"       element={<Gate priv="membership">   <MembershipAdmin /></Gate>} />
+            <Route path="membership/tiers" element={<Gate priv="membership">   <MembershipTierConfig /></Gate>} />
+            <Route path="wallet"           element={<Gate priv="wallet">       <WalletAdmin /></Gate>} />
+            <Route path="referrals"        element={<Gate priv="referrals">    <ReferralsAdmin /></Gate>} />
+            <Route path="broadcast"        element={<Gate priv="broadcast">    <NotificationsAdmin /></Gate>} />
+            <Route path="broadcast/compose" element={<Gate priv="broadcast">  <BroadcastCompose /></Gate>} />
+            <Route path="broadcast/:id"    element={<Gate priv="broadcast">    <BroadcastDetail /></Gate>} />
+            <Route path="finance"          element={<Gate priv="finance">      <FinancePage /></Gate>} />
+            <Route path="analytics"        element={<Gate priv="analytics">    <AnalyticsPage /></Gate>} />
+            <Route path="team"             element={<Gate priv="team">         <TeamPage /></Gate>} />
+            <Route path="audit"            element={<Gate priv="audit">        <AuditLog /></Gate>} />
+            <Route path="notifications"    element={<Gate priv="notifications"><NotificationsInboxPage /></Gate>} />
+            <Route path="settings"         element={<Gate priv="settings">     <SettingsPage /></Gate>} />
           </Routes>
         </main>
       </div>
     </div>
   );
 }
+
+// make PAGE_PRIVILEGES available to TeamPage without a separate import in this file
+export { PAGE_PRIVILEGES };
