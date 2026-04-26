@@ -128,21 +128,25 @@ export default function NotificationsInboxPage() {
   }
 
   function handleClick(n: SystemNotification) {
-    // Deep link to the related entity when we can
-    if (n.entity_type === "service_request" && n.entity_id) {
-      navigate(`/fulfillment`);
-    } else if (n.entity_type === "order" && n.entity_id) {
+    if (n.entity_type === "order" && n.entity_id) {
       navigate(`/orders/${n.entity_id}`);
-    } else if (n.entity_type === "product" && n.entity_id) {
-      navigate(`/inventory`);
+    } else if (n.entity_type === "custom_order_request" && n.entity_id) {
+      navigate(`/orders/requests/${n.entity_id}`);
+    } else if (n.entity_type === "service_request") {
+      navigate(`/orders`);
     } else if (n.entity_type === "broadcast" && n.entity_id) {
       navigate(`/broadcast/${n.entity_id}`);
-    } else if (n.entity_type === "custom_order_request") {
-      navigate(`/fulfillment`);
+    } else if (n.entity_type === "product") {
+      navigate(`/inventory`);
     } else if (n.entity_type === "team_member") {
       navigate(`/team`);
+    } else if (n.entity_type === "wallet_transaction") {
+      navigate(`/wallet`);
+    } else if (n.entity_type === "membership_subscription") {
+      navigate(`/membership`);
+    } else if (n.entity_type === "setting" || n.entity_type === "portal") {
+      navigate(`/settings`);
     }
-    // Mark read
     if (!n.read) void toggleRead(n);
   }
 
