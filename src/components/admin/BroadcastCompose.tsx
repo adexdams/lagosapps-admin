@@ -384,7 +384,11 @@ export default function BroadcastCompose() {
         isOpen={previewOpen}
         onClose={() => setPreviewOpen(false)}
         template="broadcast"
-        sampleData={{ title: title || "Your broadcast title", message: message || "Your message content..." }}
+        sampleData={{
+          title: title || "Your broadcast title",
+          message: message || "Your message content...",
+          ...(imagePreview ? { imageUrl: imagePreview } : {}),
+        }}
         title="Preview — Broadcast Email"
       />
     </div>

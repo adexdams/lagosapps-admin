@@ -119,7 +119,7 @@ export default function EmailPreviewModal({ isOpen, onClose, template, sampleDat
               <iframe
                 srcDoc={html}
                 title="Email preview"
-                sandbox="allow-same-origin"
+                sandbox="allow-same-origin allow-scripts"
                 className="w-full border-0"
                 style={{ height: "70vh", minHeight: "500px" }}
               />

@@ -77,19 +77,28 @@ function layout(opts: {
     : "";
 
   return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  @media only screen and (max-width:620px){
+    .ec-wrap{padding:16px 8px!important;}
+    .ec-cell{padding:20px 24px!important;}
+    .ec-foot{padding:20px 24px!important;}
+  }
+</style>
+</head>
 <body style="margin:0;padding:0;background:#F5F6FA;font-family:'Helvetica Neue',Arial,sans-serif;color:#0F172A;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F5F6FA;padding:40px 20px;">
-    <tr><td align="center">
-      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
-        <tr><td style="padding:24px 40px;border-bottom:1px solid #E8ECF1;">
-          <img src="${opts.logoUrl}" alt="LagosApps" style="height:36px;width:auto;display:block;" />
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F5F6FA;">
+    <tr><td class="ec-wrap" align="center" style="padding:40px 20px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+        <tr><td class="ec-cell" style="padding:24px 40px;border-bottom:1px solid #E8ECF1;">
+          <img src="${opts.logoUrl}" alt="" width="auto" height="36" style="height:36px;width:auto;display:none;" onload="this.style.display='block';this.nextElementSibling.style.display='none';" onerror="this.style.display='none';" />
+          <span style="font-size:22px;font-weight:800;color:#057a55;font-family:'Helvetica Neue',Arial,sans-serif;letter-spacing:-0.5px;">Lagos<span style="color:#0F172A;">Apps</span></span>
         </td></tr>
         ${bannerBlock}
-        <tr><td style="padding:32px 40px;font-size:15px;line-height:1.6;color:#334155;">
+        <tr><td class="ec-cell" style="padding:32px 40px;font-size:15px;line-height:1.6;color:#334155;">
           ${opts.content}
         </td></tr>
-        <tr><td style="padding:24px 40px;background:#F8FAFC;border-top:1px solid #E8ECF1;font-size:12px;color:#94A3B8;text-align:center;">
+        <tr><td class="ec-foot" style="padding:24px 40px;background:#F8FAFC;border-top:1px solid #E8ECF1;font-size:12px;color:#94A3B8;text-align:center;">
           <p style="margin:0 0 8px;">LagosApps — Lagos, Nigeria</p>
           <p style="margin:0;"><a href="https://lagosapps.com" style="color:#64748B;text-decoration:none;">lagosapps.com</a> &nbsp;·&nbsp; <a href="mailto:hello@lagosapps.com" style="color:#64748B;text-decoration:none;">hello@lagosapps.com</a></p>
         </td></tr>
@@ -129,7 +138,15 @@ serve(async (req: Request) => {
 
     let subject: string;
     let html: string;
-    const data = payload.data ?? {};
+    const data: Record<string, unknown> = { ...(payload.data ?? {}) };
+
+    // Pre-build imageBlock for broadcast (interpolate has no conditional support)
+    if (payload.template === "broadcast") {
+      const imgUrl = data.imageUrl as string | undefined;
+      data.imageBlock = imgUrl
+        ? `<div style="margin-top:20px;"><img src="${imgUrl}" alt="" style="width:100%;max-width:520px;border-radius:12px;display:block;margin:0 auto;" /></div>`
+        : "";
+    }
 
     if (payload.template === "custom" && payload.subject && payload.html) {
       // Custom template — bypass DB lookup, use provided subject/html inside the layout
