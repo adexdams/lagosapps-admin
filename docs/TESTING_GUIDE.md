@@ -17,7 +17,7 @@ End-to-end checklist for verifying every feature on both the **admin dashboard**
 | — | Admin account exists | ✅ `mainlandtech24@gmail.com` promoted to `super_admin` | ✅ Signed in via Magic Link |
 | — | Edge Functions deployed | ✅ `send-email` + `paystack-webhook` | — |
 | **S1** | **Authentication** | | |
-| 1A | Admin login | — | ✅ Magic link login · session persistence confirmed |
+| 1A | Admin login | — | ✅ Magic link login · session persistence confirmed · verified 2026-04-26 |
 | 1B | User signup | ✅ `profiles` trigger confirmed · 1 user in DB | ✅ Sign up confirmed · welcome email arrived |
 | 1C | Referral signup | ✅ `referrals` schema confirmed | 🟡 Referral code used · Bronze subscription created · **bug fixed**: membership tier was not showing (race condition in register() — moved processing to loadProfile()) · re-test needed |
 | **S2** | **Admin: Users** | | |
@@ -145,13 +145,13 @@ supabase db query --linked "UPDATE profiles SET role = 'super_admin' WHERE email
 
 ## Section 1 — Authentication
 
-### 1A · Admin login (browser)
+### 1A · Admin login (browser) ✅ verified 2026-04-26
 
-- [ ] Navigate to admin app → `/`
-- [ ] Unauthenticated → redirected to `/login`
-- [ ] Enter email → click **Email Me a Magic Link** → "Check your inbox" confirmation shown
-- [ ] Click link in email → redirected to dashboard `/`
-- [ ] Refresh page → session persists, still logged in
+- [x] Navigate to admin app → `/`
+- [x] Unauthenticated → redirected to `/login`
+- [x] Enter email → click **Email Me a Magic Link** → "Check your inbox" confirmation shown
+- [x] Click link in email → redirected to dashboard `/`
+- [x] Refresh page → session persists, still logged in
 
 ### 1B · User signup (browser) ✅ verified 2026-04-25
 
