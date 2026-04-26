@@ -150,7 +150,7 @@ export default function BroadcastCompose() {
     const broadcastId = (data as { id: string }).id;
 
     // 4. Fan out: insert broadcast_recipients + user_notifications
-    const { error: fanErr } = await fanOutBroadcast(broadcastId, recipients, title.trim(), message.trim());
+    const { error: fanErr } = await fanOutBroadcast(broadcastId, recipients, title.trim(), message.trim(), imageUrl ?? null);
     if (fanErr) {
       setSending(false);
       toast.error(`Fan-out failed: ${fanErr.message}`);

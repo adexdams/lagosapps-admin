@@ -394,7 +394,8 @@ export async function fanOutBroadcast(
   broadcastId: string,
   recipients: { id: string }[],
   broadcastTitle: string,
-  broadcastMessage: string
+  broadcastMessage: string,
+  imageUrl?: string | null
 ) {
   if (recipients.length === 0) return { count: 0, error: null };
 
@@ -412,6 +413,7 @@ export async function fanOutBroadcast(
     message: broadcastMessage,
     entity_type: "broadcast",
     entity_id: broadcastId,
+    image_url: imageUrl ?? null,
     read: false,
     retracted: false,
   }));
