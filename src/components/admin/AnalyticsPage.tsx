@@ -90,7 +90,7 @@ export default function AnalyticsPage() {
   // ── Revenue by portal ──
   const revenueByPortal = useMemo(() => {
     const map: Record<string, number> = {};
-    orders.filter((o) => o.status === "completed").forEach((o) => {
+    orders.filter((o) => o.status !== "cancelled").forEach((o) => {
       map[o.portal_id] = (map[o.portal_id] || 0) + o.total_amount;
     });
     return map;
