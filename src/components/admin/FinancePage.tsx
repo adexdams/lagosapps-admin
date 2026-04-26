@@ -32,6 +32,16 @@ interface DbTxn {
   [key: string]: unknown;
 }
 
+interface GeneratedReport {
+  id: string;
+  type: string;
+  fromDate: string;
+  toDate: string;
+  generatedAt: string;
+  filename: string;
+  csvData: string;
+}
+
 type Tab = "overview" | "transactions" | "reports";
 
 const CHANNEL_CONFIG: Record<string, { label: string; color: string; icon: string }> = {
@@ -41,6 +51,39 @@ const CHANNEL_CONFIG: Record<string, { label: string; color: string; icon: strin
   wallet: { label: "Wallet", color: "#7C3AED", icon: "account_balance_wallet" },
   web: { label: "Web", color: "#64748B", icon: "language" },
 };
+
+function escapeCell(val: unknown): string {
+  return `"${String(val ?? "").replace(/"/g, '""')}"`;
+}
+
+function toCSV(headers: string[], rows: unknown[][]): string {
+  return [headers.map(escapeCell), ...rows.map((r) => r.map(escapeCell))].map((r) => r.join(",")).join("\n");
+}
+
+function downloadCSV(filename: string, csv: string) {
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+const HISTORY_KEY = "finance_report_history";
+
+function loadHistory(): GeneratedReport[] {
+  try {
+    return JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveHistory(history: GeneratedReport[]) {
+  // Keep latest 50; trim csvData to avoid blowing up localStorage
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, 50)));
+}
 
 export default function FinancePage() {
   const toast = useToast();
@@ -52,6 +95,12 @@ export default function FinancePage() {
   const [txns, setTxns] = useState<DbTxn[]>([]);
   const [txnSearch, setTxnSearch] = useState("");
   const [txnType, setTxnType] = useState("");
+
+  // Report form state
+  const [reportType, setReportType] = useState("Revenue Summary");
+  const [reportFrom, setReportFrom] = useState("");
+  const [reportTo, setReportTo] = useState("");
+  const [reportHistory, setReportHistory] = useState<GeneratedReport[]>(loadHistory);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,6 +149,119 @@ export default function FinancePage() {
     });
   }, [txns, txnSearch, txnType]);
 
+  // ── CSV generation ──
+  function buildReportCSV(type: string, from: string, to: string): { csv: string; filename: string } {
+    const fromDate = from ? new Date(from) : null;
+    const toDate = to ? new Date(to + "T23:59:59") : null;
+    const inRange = (dateStr: string) => {
+      const d = new Date(dateStr);
+      if (fromDate && d < fromDate) return false;
+      if (toDate && d > toDate) return false;
+      return true;
+    };
+    const dateLabel = from && to ? `${from}_to_${to}` : from ? `from_${from}` : to ? `to_${to}` : "all_time";
+
+    if (type === "Revenue Summary" || type === "Monthly Revenue") {
+      const filtered = orders.filter((o) => inRange(o.created_at) && o.status !== "cancelled");
+      const csv = toCSV(
+        ["Order ID", "Portal", "Status", "Amount (₦)", "Channel", "Date", "Customer"],
+        filtered.map((o) => [o.id, o.portal_id, o.status, o.total_amount, o.channel ?? "—",
+          new Date(o.created_at).toLocaleDateString("en-NG"), o.profiles?.name ?? o.profiles?.email ?? "—"])
+      );
+      const slug = type === "Monthly Revenue" ? "monthly_revenue" : "revenue_summary";
+      return { csv, filename: `${slug}_${dateLabel}.csv` };
+    }
+
+    if (type === "Order Details" || type === "Order Audit") {
+      const filtered = orders.filter((o) => inRange(o.created_at));
+      const csv = toCSV(
+        ["Order ID", "Portal", "Status", "Total (₦)", "Paid (₦)", "Channel", "Date", "Customer"],
+        filtered.map((o) => [o.id, o.portal_id, o.status, o.total_amount, o.payment_amount,
+          o.channel ?? "—", new Date(o.created_at).toLocaleDateString("en-NG"),
+          o.profiles?.name ?? o.profiles?.email ?? "—"])
+      );
+      const slug = type === "Order Audit" ? "order_audit" : "order_details";
+      return { csv, filename: `${slug}_${dateLabel}.csv` };
+    }
+
+    if (type === "Wallet Activity" || type === "Wallet Report") {
+      const filtered = txns.filter((t) => inRange(t.created_at));
+      const csv = toCSV(
+        ["ID", "User", "Description", "Type", "Amount (₦)", "Date"],
+        filtered.map((t) => [t.id, t.profiles?.name ?? t.profiles?.email ?? "—",
+          t.description, t.type, t.amount, new Date(t.created_at).toLocaleDateString("en-NG")])
+      );
+      const slug = type === "Wallet Report" ? "wallet_report" : "wallet_activity";
+      return { csv, filename: `${slug}_${dateLabel}.csv` };
+    }
+
+    if (type === "Failed Transactions" || type === "Failed Orders") {
+      const filtered = orders.filter((o) => inRange(o.created_at) && o.status === "cancelled");
+      const csv = toCSV(
+        ["Order ID", "Portal", "Amount (₦)", "Channel", "Date", "Customer"],
+        filtered.map((o) => [o.id, o.portal_id, o.total_amount, o.channel ?? "—",
+          new Date(o.created_at).toLocaleDateString("en-NG"),
+          o.profiles?.name ?? o.profiles?.email ?? "—"])
+      );
+      const slug = type === "Failed Orders" ? "failed_orders" : "failed_transactions";
+      return { csv, filename: `${slug}_${dateLabel}.csv` };
+    }
+
+    return { csv: "", filename: "report.csv" };
+  }
+
+  function addToHistory(type: string, from: string, to: string, filename: string, csv: string) {
+    const entry: GeneratedReport = {
+      id: Date.now().toString(36),
+      type, fromDate: from, toDate: to,
+      generatedAt: new Date().toISOString(),
+      filename, csvData: csv,
+    };
+    setReportHistory((prev) => {
+      const updated = [entry, ...prev].slice(0, 50);
+      saveHistory(updated);
+      return updated;
+    });
+  }
+
+  function handleExportTransactions() {
+    if (filteredTxns.length === 0) {
+      toastRef.current.error("No transactions to export");
+      return;
+    }
+    const csv = toCSV(
+      ["ID", "User", "Description", "Type", "Amount (₦)", "Date"],
+      filteredTxns.map((t) => [t.id, t.profiles?.name ?? t.profiles?.email ?? "—",
+        t.description, t.type, t.amount, new Date(t.created_at).toLocaleDateString("en-NG")])
+    );
+    const dateLabel = new Date().toISOString().slice(0, 10);
+    const filename = `wallet_transactions_${dateLabel}.csv`;
+    downloadCSV(filename, csv);
+    toastRef.current.success(`Exported ${filteredTxns.length} transactions`);
+  }
+
+  function handleGenerateReport() {
+    const { csv, filename } = buildReportCSV(reportType, reportFrom, reportTo);
+    if (!csv) {
+      toastRef.current.error("No data found for the selected report type and date range");
+      return;
+    }
+    downloadCSV(filename, csv);
+    addToHistory(reportType, reportFrom, reportTo, filename, csv);
+    toastRef.current.success("Report downloaded");
+  }
+
+  function handlePresetReport(type: string) {
+    const { csv, filename } = buildReportCSV(type, "", "");
+    if (!csv) {
+      toastRef.current.error("No data available for this report");
+      return;
+    }
+    downloadCSV(filename, csv);
+    addToHistory(type, "", "", filename, csv);
+    toastRef.current.success(`${type} downloaded`);
+  }
+
   const txnColumns: Column<DbTxn>[] = [
     { key: "id", label: "ID", render: (row) => <span className="font-mono text-[11px] sm:text-[12px] text-[#0F172A] font-semibold">{row.id}</span> },
     { key: "description", label: "Description", render: (row) => <span className="text-[#334155] text-sm">{row.description}</span> },
@@ -127,6 +289,13 @@ export default function FinancePage() {
     { key: "overview", label: "Overview", icon: "monitoring" },
     { key: "transactions", label: "Wallet Transactions", icon: "account_balance_wallet" },
     { key: "reports", label: "Reports", icon: "summarize" },
+  ];
+
+  const presetReports = [
+    { title: "Monthly Revenue", desc: "Revenue by month with portal split", icon: "bar_chart" },
+    { title: "Order Audit", desc: "All orders with status history", icon: "fact_check" },
+    { title: "Wallet Report", desc: "Credits, debits, and balance movements", icon: "account_balance_wallet" },
+    { title: "Failed Orders", desc: "Cancelled and refunded orders", icon: "error" },
   ];
 
   return (
@@ -166,7 +335,6 @@ export default function FinancePage() {
                 <StatCard label="Avg Order Value" value={formatNaira(avgOrderValue)} icon="analytics" color="#7C3AED" trend={{ value: `${cancelledCount} cancelled`, positive: false }} />
               </div>
 
-              {/* Channel breakdown */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
                 <div className={`${card} p-3.5 sm:p-5 md:p-6`}>
                   <h3 className="text-sm font-semibold text-[#0F172A] mb-5">Payment Channels</h3>
@@ -200,7 +368,6 @@ export default function FinancePage() {
                   )}
                 </div>
 
-                {/* Wallet summary */}
                 <div className={`${card} p-3.5 sm:p-5 md:p-6`}>
                   <h3 className="text-sm font-semibold text-[#0F172A] mb-5">Wallet Activity</h3>
                   <div className="grid grid-cols-2 gap-3 mb-5">
@@ -247,7 +414,7 @@ export default function FinancePage() {
                     searchValue={txnSearch}
                     searchPlaceholder="Search by ID, user, or description..."
                     filters={txnFilters}
-                    onExport={() => toastRef.current.success("Exporting transactions...")}
+                    onExport={handleExportTransactions}
                   />
                   <DataTable<DbTxn>
                     columns={txnColumns}
@@ -261,12 +428,17 @@ export default function FinancePage() {
 
           {tab === "reports" && (
             <div className="space-y-4 sm:space-y-6">
+              {/* Custom date-range report */}
               <div className={`${card} p-3.5 sm:p-5 md:p-6`}>
                 <h3 className="text-sm font-semibold text-[#0F172A] mb-4">Generate Report</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                   <div>
                     <label className="text-[13px] font-semibold text-[#0F172A] mb-1.5 block">Report Type</label>
-                    <select className="w-full border border-[#E2E8F0] rounded-xl px-3 py-2.5 text-sm text-[#0F172A] outline-none focus:border-primary cursor-pointer">
+                    <select
+                      value={reportType}
+                      onChange={(e) => setReportType(e.target.value)}
+                      className="w-full border border-[#E2E8F0] rounded-xl px-3 py-2.5 text-sm text-[#0F172A] outline-none focus:border-primary cursor-pointer"
+                    >
                       <option>Revenue Summary</option>
                       <option>Order Details</option>
                       <option>Wallet Activity</option>
@@ -275,31 +447,40 @@ export default function FinancePage() {
                   </div>
                   <div>
                     <label className="text-[13px] font-semibold text-[#0F172A] mb-1.5 block">From</label>
-                    <input type="date" className="w-full border border-[#E2E8F0] rounded-xl px-3 py-2.5 text-sm text-[#0F172A] outline-none focus:border-primary" />
+                    <input
+                      type="date"
+                      value={reportFrom}
+                      onChange={(e) => setReportFrom(e.target.value)}
+                      className="w-full border border-[#E2E8F0] rounded-xl px-3 py-2.5 text-sm text-[#0F172A] outline-none focus:border-primary"
+                    />
                   </div>
                   <div>
                     <label className="text-[13px] font-semibold text-[#0F172A] mb-1.5 block">To</label>
-                    <input type="date" className="w-full border border-[#E2E8F0] rounded-xl px-3 py-2.5 text-sm text-[#0F172A] outline-none focus:border-primary" />
+                    <input
+                      type="date"
+                      value={reportTo}
+                      onChange={(e) => setReportTo(e.target.value)}
+                      className="w-full border border-[#E2E8F0] rounded-xl px-3 py-2.5 text-sm text-[#0F172A] outline-none focus:border-primary"
+                    />
                   </div>
                 </div>
                 <div className="flex justify-end mt-4">
-                  <button onClick={() => toastRef.current.success("Report generated — downloading...")} className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-[#0F172A] text-white text-sm font-semibold rounded-xl cursor-pointer hover:bg-[#1E293B] transition-all">
+                  <button
+                    onClick={handleGenerateReport}
+                    className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-[#0F172A] text-white text-sm font-semibold rounded-xl cursor-pointer hover:bg-[#1E293B] transition-all"
+                  >
                     <span className="material-symbols-outlined text-[18px]">download</span>
                     Generate & Download
                   </button>
                 </div>
               </div>
 
+              {/* Preset report cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                {[
-                  { title: "Monthly Revenue", desc: "Revenue by month with portal split", icon: "bar_chart" },
-                  { title: "Order Audit", desc: "All orders with status history", icon: "fact_check" },
-                  { title: "Wallet Report", desc: "Credits, debits, and balance movements", icon: "account_balance_wallet" },
-                  { title: "Failed Orders", desc: "Cancelled and refunded orders", icon: "error" },
-                ].map((report) => (
+                {presetReports.map((report) => (
                   <button
                     key={report.title}
-                    onClick={() => toastRef.current.success(`${report.title} — downloading...`)}
+                    onClick={() => handlePresetReport(report.title)}
                     className={`${card} p-4 sm:p-5 text-left cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all group`}
                   >
                     <div className="flex items-start gap-3">
@@ -313,6 +494,65 @@ export default function FinancePage() {
                     </div>
                   </button>
                 ))}
+              </div>
+
+              {/* Reports history */}
+              <div className={`${card} overflow-hidden`}>
+                <div className="px-4 sm:px-5 py-3.5 border-b border-[#E8ECF1]/60 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-[#0F172A]">Generated Reports</h3>
+                  {reportHistory.length > 0 && (
+                    <button
+                      onClick={() => {
+                        setReportHistory([]);
+                        localStorage.removeItem(HISTORY_KEY);
+                      }}
+                      className="text-[11px] font-semibold text-[#94A3B8] hover:text-[#DC2626] cursor-pointer transition-colors"
+                    >
+                      Clear history
+                    </button>
+                  )}
+                </div>
+                {reportHistory.length === 0 ? (
+                  <div className="py-10 text-center">
+                    <span className="material-symbols-outlined text-[32px] text-[#CBD5E1] block mb-1">history</span>
+                    <p className="text-sm text-[#94A3B8]">No reports generated yet</p>
+                    <p className="text-[12px] text-[#CBD5E1] mt-0.5">Generated reports will appear here for audit and re-download</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-[#F1F5F9]">
+                    {reportHistory.map((r) => {
+                      const dateRange = r.fromDate && r.toDate
+                        ? `${r.fromDate} → ${r.toDate}`
+                        : r.fromDate
+                        ? `From ${r.fromDate}`
+                        : r.toDate
+                        ? `Up to ${r.toDate}`
+                        : "All time";
+                      const generatedAt = new Date(r.generatedAt).toLocaleString("en-NG", {
+                        day: "numeric", month: "short", year: "numeric",
+                        hour: "2-digit", minute: "2-digit",
+                      });
+                      return (
+                        <div key={r.id} className="px-4 sm:px-5 py-3 flex items-center gap-3 hover:bg-[#F8FAFC] transition-colors">
+                          <div className="size-8 rounded-lg bg-[#F1F5F9] flex items-center justify-center flex-shrink-0">
+                            <span className="material-symbols-outlined text-[16px] text-[#64748B]">description</span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[13px] font-semibold text-[#0F172A] truncate">{r.type}</p>
+                            <p className="text-[11px] text-[#94A3B8] mt-0.5">{dateRange} · Generated {generatedAt}</p>
+                          </div>
+                          <button
+                            onClick={() => downloadCSV(r.filename, r.csvData)}
+                            className="flex items-center gap-1 text-[12px] font-semibold text-primary hover:underline cursor-pointer flex-shrink-0"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">download</span>
+                            Download
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           )}

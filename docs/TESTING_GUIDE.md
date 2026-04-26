@@ -2,7 +2,7 @@
 
 End-to-end checklist for verifying every feature on both the **admin dashboard** and **user-facing app**, via browser and API/CLI. Work through each section in order — many checks are dependencies for later ones.
 
-> **Last browser test: 2026-04-26 (S3, S4, S1A, S5A, S5C, S5D, S6, S7A, S7B complete). S10 (email templates UI) and S11 (fulfillment page) removed — both features removed from admin nav. S8 test steps updated to reflect correct routes: broadcast list/compose/detail at `/broadcast`, admin inbox at `/notifications`.** Bugs found and fixed during 2026-04-25 run: `flag_overdue_fulfillment()` used wrong enum value (`delivered` → `completed`); `send-email` Edge Function logo pointed to GitHub raw instead of Supabase Storage; `config.toml` template paths resolved from wrong directory; referral Bronze membership not showing after signup (race condition — setTimeout fired before email confirmation, moved to `loadProfile`). Bugs fixed 2026-04-26 (S3 browser test): refund txn ID exceeded `varchar(20)` (base-36 timestamp fix); create order blocked by single-portal guard (removed); duplicate status dropdowns in Order Detail (consolidated — progress now derived from status automatically); internal notes Add button silently failed (race on `currentUserId` state — replaced with `useAuth`); Risk Level in Order Detail was a manual dropdown (now auto-computed from SLA settings in Platform Settings); Fulfillment removed from sidebar nav. Bugs fixed 2026-04-26 (S5 work): membership notification trigger silently failed — `billing_cycle` enum and UUID id needed explicit `::TEXT` casts in `notify_membership_event()`; cancel subscription added to admin Membership page and user Membership panel; referral processing gate in `loadProfile` was blocking users who already had a paid membership tier from having referral row recorded; "Apply referral code" UI added to user Referrals panel. Built 2026-04-26 (S5C verified + promo codes): admin promo code system — `admin_referral_codes` + `admin_code_redemptions` tables, `redeem_admin_code()` RPC, Promo Codes tab in admin Referrals page, user-side fallback redemption in ReferralsPanel. Fixed 2026-04-26 (S6 verified): wallet transactions table was empty due to ambiguous FK embed (`wallet_transactions` has two FKs to `profiles`); fixed with explicit FK hint `profiles!wallet_transactions_user_id_fkey`. Also fixed benefit usage tracking — `doctor_consultations`, `car_rental_days`, `solar_product`, `event_venue_discount` were never tracked; added `PORTAL_BENEFIT` map in CartPanel so the correct benefit key is recorded when an order is confirmed for each portal.
+> **Last browser test: 2026-04-26 (S3, S4, S1A, S5A, S5C, S5D, S6, S7A, S7B, S9A, S9C, S12, S14A, S14B complete). S10 (email templates UI) and S11 (fulfillment page) removed — both features removed from admin nav. S8 test steps updated to reflect correct routes: broadcast list/compose/detail at `/broadcast`, admin inbox at `/notifications`.** Bugs found and fixed during 2026-04-25 run: `flag_overdue_fulfillment()` used wrong enum value (`delivered` → `completed`); `send-email` Edge Function logo pointed to GitHub raw instead of Supabase Storage; `config.toml` template paths resolved from wrong directory; referral Bronze membership not showing after signup (race condition — setTimeout fired before email confirmation, moved to `loadProfile`). Bugs fixed 2026-04-26 (S3 browser test): refund txn ID exceeded `varchar(20)` (base-36 timestamp fix); create order blocked by single-portal guard (removed); duplicate status dropdowns in Order Detail (consolidated — progress now derived from status automatically); internal notes Add button silently failed (race on `currentUserId` state — replaced with `useAuth`); Risk Level in Order Detail was a manual dropdown (now auto-computed from SLA settings in Platform Settings); Fulfillment removed from sidebar nav. Bugs fixed 2026-04-26 (S5 work): membership notification trigger silently failed — `billing_cycle` enum and UUID id needed explicit `::TEXT` casts in `notify_membership_event()`; cancel subscription added to admin Membership page and user Membership panel; referral processing gate in `loadProfile` was blocking users who already had a paid membership tier from having referral row recorded; "Apply referral code" UI added to user Referrals panel. Built 2026-04-26 (S5C verified + promo codes): admin promo code system — `admin_referral_codes` + `admin_code_redemptions` tables, `redeem_admin_code()` RPC, Promo Codes tab in admin Referrals page, user-side fallback redemption in ReferralsPanel. Fixed 2026-04-26 (S6 verified): wallet transactions table was empty due to ambiguous FK embed (`wallet_transactions` has two FKs to `profiles`); fixed with explicit FK hint `profiles!wallet_transactions_user_id_fkey`. Also fixed benefit usage tracking — `doctor_consultations`, `car_rental_days`, `solar_product`, `event_venue_discount` were never tracked; added `PORTAL_BENEFIT` map in CartPanel so the correct benefit key is recorded when an order is confirmed for each portal.
 
 ---
 
@@ -36,16 +36,16 @@ End-to-end checklist for verifying every feature on both the **admin dashboard**
 | **S8** | **Admin: Notifications** | | |
 | 8A–8D | Broadcasts · system panel · inbox | ✅ Realtime publications confirmed | ⬜ Compose · send · retract · bell panel |
 | **S9** | **Admin: Settings** | | |
-| 9A–9C | Portal toggles · alert prefs · profile | ✅ 7 portals — all `is_active = true` | ⬜ Set name · toggle portal · alert prefs save |
+| 9A–9C | Portal toggles · alert prefs · profile | ✅ 7 portals — all `is_active = true` | ✅ verified 2026-04-26 — toggle portal off/on · portal disappears on user app · alert prefs save |
 | ~~**S10**~~ | ~~**Admin: Email Templates**~~ | ~~Page removed — templates managed via Supabase Dashboard / `supabase/templates/`~~ | — |
 | ~~**S11**~~ | ~~**Admin: Fulfillment**~~ | ~~Page removed — fulfillment tracking now embedded in Order Detail sidebar~~ | — |
 | **S12** | **Admin: Audit Log** | | |
-| 12A | Audit log table | ✅ Schema confirmed · table empty (populates after admin actions) | ⬜ Verify entries appear after browser actions |
+| 12A | Audit log table | ✅ Schema confirmed · table empty (populates after admin actions) | ✅ verified 2026-04-26 — entries appear · search + filter work · row expand shows diff |
 | **S13** | **Admin: Team** | | |
 | 13A | Team list · invite | ✅ `admin_team_members` seeded with super_admin | ⬜ Your entry visible · invite a new member |
 | **S14** | **Admin: Analytics & Finance** | | |
-| 14A | Analytics charts | ✅ Wired to real DB | ⬜ Charts populate after orders/users exist |
-| 14B | Finance overview | ✅ Wired to real DB | ⬜ Revenue figures appear after orders exist |
+| 14A | Analytics charts | ✅ Wired to real DB | ✅ verified 2026-04-26 — charts populate with real orders/users/transactions |
+| 14B | Finance overview | ✅ Wired to real DB | ✅ verified 2026-04-26 — revenue figures and wallet activity appear |
 | **S15** | **Admin: Live Carts** | | |
 | 15A | Live carts page | ✅ Schema confirmed | ⬜ Empty state correct · populates after user adds to cart |
 | **S16** | **User App: Portals** | | |
@@ -399,12 +399,12 @@ supabase db query --linked "SELECT acr.user_id, p.name, arc.code, arc.gifted_tie
 
 ## Section 9 — Admin Dashboard: Settings
 
-### 9A · Portal toggles (browser)
+### 9A · Portal toggles (browser) ✅ verified 2026-04-26
 
-- [ ] Navigate to `/settings`
-- [ ] Toggle a portal off → HIDDEN badge appears
-- [ ] Open user app → that portal should not appear (filtered by `is_active = true`)
-- [ ] Toggle back on → portal reappears on user app
+- [x] Navigate to `/settings`
+- [x] Toggle a portal off → HIDDEN badge appears
+- [x] Open user app → that portal should not appear (filtered by `is_active = true`)
+- [x] Toggle back on → portal reappears on user app
 
 ### 9B · CLI verification ✅ verified 2026-04-25
 
@@ -413,11 +413,11 @@ supabase db query --linked "SELECT acr.user_id, p.name, arc.code, arc.gifted_tie
 supabase db query --linked "SELECT id, name, is_active FROM service_portals ORDER BY sort_order;"
 ```
 
-### 9C · Alert preferences (browser)
+### 9C · Alert preferences (browser) ✅ verified 2026-04-26
 
-- [ ] Alert Preferences card visible in Settings
-- [ ] Toggle individual category (e.g. Inventory) off → setting saves to DB
-- [ ] Change Low Stock threshold → saves immediately (no Submit button)
+- [x] Alert Preferences card visible in Settings
+- [x] Toggle individual category (e.g. Membership) off → notification no longer fires when membership is cancelled
+- [x] Change Low Stock threshold → saves immediately (no Submit button)
 
 ```bash
 supabase db query --linked "SELECT user_id, inventory_enabled, low_stock_threshold, wallet_enabled, large_txn_threshold FROM notification_preferences LIMIT 5;"
@@ -437,15 +437,15 @@ supabase db query --linked "SELECT user_id, inventory_enabled, low_stock_thresho
 
 ---
 
-## Section 12 — Admin Dashboard: Audit Log
+## Section 12 — Admin Dashboard: Audit Log ✅ verified 2026-04-26
 
-### 12A · Browser
+### 12A · Browser ✅ verified 2026-04-26
 
-- [ ] Navigate to `/audit`
-- [ ] Real entries load (not mock data) — check that entries from previous test steps appear
-- [ ] Search by admin name → filters
-- [ ] Filter by action type (e.g. `order`) → only order-related actions shown
-- [ ] Expand a row → shows `new_values` / `old_values` JSON diff
+- [x] Navigate to `/audit`
+- [x] Real entries load (not mock data) — check that entries from previous test steps appear
+- [x] Search by admin name → filters
+- [x] Filter by action type (e.g. `order`) → only order-related actions shown
+- [x] Expand a row → shows `new_values` / `old_values` JSON diff
 
 ```bash
 supabase db query --linked "SELECT action, entity_type, entity_id, created_at FROM admin_audit_log ORDER BY created_at DESC LIMIT 10;"
@@ -930,13 +930,13 @@ Work through these steps in order — each phase builds on the previous one (e.g
 
 **Goal:** Charts and figures reflect the orders and transactions created in earlier phases.
 
-73. [ ] Navigate to `/analytics`
-74. [ ] Stat cards show real numbers (at least 1 order, 1 user)
-75. [ ] Revenue by portal chart shows a bar for Groceries (the test order)
-76. [ ] Monthly user growth chart has at least one data point
-77. [ ] Navigate to `/finance`
-78. [ ] Overview tab → total revenue and order count match the test order
-79. [ ] Transactions tab → wallet transactions from Phases 4 and 7 appear
+73. [x] Navigate to `/analytics`
+74. [x] Stat cards show real numbers (at least 1 order, 1 user)
+75. [x] Revenue by portal chart shows a bar for Groceries (the test order)
+76. [x] Monthly user growth chart has at least one data point
+77. [x] Navigate to `/finance`
+78. [x] Overview tab → total revenue and order count match the test order
+79. [x] Transactions tab → wallet transactions from Phases 4 and 7 appear
 
 ---
 
@@ -944,12 +944,12 @@ Work through these steps in order — each phase builds on the previous one (e.g
 
 **Goal:** Every action taken in Phases 1–11 is captured with the correct admin name.
 
-80. [ ] Navigate to `/audit`
-81. [ ] Rows appear — your name shown in the Admin column for each
-82. [ ] Actions visible: `profile.update`, `order.create`, `order.status_change`, `wallet.manual_adjustment`, `membership_tier.update`, `portal.toggle`, `broadcast.send`, etc.
-83. [ ] Search for "order" → only order-related rows shown
-84. [ ] Change the Action filter to **wallet** → only wallet rows shown
-85. [ ] Click the expand icon on any row → Before/After values visible in the detail drawer
+80. [x] Navigate to `/audit`
+81. [x] Rows appear — your name shown in the Admin column for each
+82. [x] Actions visible: `profile.update`, `order.create`, `order.status_change`, `wallet.manual_adjustment`, `membership_tier.update`, `portal.toggle`, `broadcast.send`, etc.
+83. [x] Search for "order" → only order-related rows shown
+84. [x] Change the Action filter to **wallet** → only wallet rows shown
+85. [x] Click the expand icon on any row → Before/After values visible in the detail drawer
 
 ---
 
