@@ -21,9 +21,24 @@ export default function AuthProvider({ children }: Props) {
       .eq("id", userId)
       .single();
 
-    if (!userData || (userData.role !== "admin" && userData.role !== "super_admin")) {
-      setProfile(null);
-      return;
+    if (!userData) { setProfile(null); return; }
+
+    // If profiles.role is still 'user' but an active admin_team_members row exists,
+    // the trigger may not have fired yet (e.g. new sign-up race) — promote now.
+    if (userData.role !== "admin" && userData.role !== "super_admin") {
+      const { data: teamEntry } = await supabase
+        .from("admin_team_members")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("is_active", true)
+        .maybeSingle();
+      if (teamEntry) {
+        await supabase.from("profiles").update({ role: "admin" }).eq("id", userId);
+        userData.role = "admin";
+      } else {
+        setProfile(null);
+        return;
+      }
     }
 
     // Load team member info + privileges

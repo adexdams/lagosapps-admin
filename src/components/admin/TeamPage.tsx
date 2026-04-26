@@ -103,6 +103,9 @@ export default function TeamPage() {
         is_active: true,
       });
       if (error) { toastRef.current.error(`Invite sent but team record failed: ${error.message}`); setAdding(false); return; }
+      // Ensure profiles.role is promoted — trigger handles this but update here too
+      // so the invited user can sign in immediately without waiting for a re-login.
+      await supabase.from("profiles").update({ role: "admin" }).eq("id", profileData.id).eq("role", "user");
       await logAudit({ action: "team.add_member", entity_type: "admin_team_members", entity_id: profileData.id, new_values: { role: newRole, email: profileData.email } });
       toastRef.current.success(`Invite sent — ${profileData.name || profileData.email} added as ${ROLE_CONFIG[newRole].label}`);
     } else {
