@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
 import StatusBadge from "./shared/StatusBadge";
+import Modal from "../ui/Modal";
 import { useToast } from "../../hooks/useToast";
 import { getOrder, updateOrderStatus, insertOrderTimelineStep, createWalletTransaction, logAudit } from "../../lib/api";
 import { supabase } from "../../lib/supabase";
@@ -81,6 +82,7 @@ export default function OrderDetailAdmin() {
   const [loading, setLoading] = useState(true);
   const [savingStatus, setSavingStatus] = useState(false);
   const [refunding, setRefunding] = useState(false);
+  const [showRefundModal, setShowRefundModal] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -137,8 +139,12 @@ export default function OrderDetailAdmin() {
 
   async function handleRefund() {
     if (!order) return;
-    if (!window.confirm(`Refund ${formatNaira(order.payment_amount)} to ${order.profiles?.name ?? "customer"}? This will credit their wallet.`)) return;
+    setShowRefundModal(true);
+  }
 
+  async function executeRefund() {
+    if (!order) return;
+    setShowRefundModal(false);
     setRefunding(true);
 
     // 1. Cancel order
@@ -213,6 +219,7 @@ export default function OrderDetailAdmin() {
   const timeline = order.order_timeline.sort((a, b) => a.sort_order - b.sort_order);
 
   return (
+    <>
     <div className="space-y-6">
       <button
         onClick={() => navigate("/orders")}
@@ -423,5 +430,39 @@ export default function OrderDetailAdmin() {
         </div>
       </div>
     </div>
+
+    {/* Refund confirmation modal */}
+    <Modal isOpen={showRefundModal} onClose={() => setShowRefundModal(false)} size="sm">
+      <div className="text-center space-y-4">
+        <div className="size-14 rounded-full bg-[#FEF2F2] flex items-center justify-center mx-auto">
+          <span className="material-symbols-outlined text-[28px] text-[#DC2626]">undo</span>
+        </div>
+        <div>
+          <h3 className="text-lg font-bold text-[#0F172A]">Confirm Refund</h3>
+          <p className="text-sm text-[#64748B] mt-1">
+            Refund <span className="font-bold text-[#0F172A]">{formatNaira(order?.payment_amount)}</span> to{" "}
+            <span className="font-bold text-[#0F172A]">{order?.profiles?.name ?? "customer"}</span>?
+          </p>
+          <p className="text-xs text-[#94A3B8] mt-2">
+            This will cancel the order and credit the full payment amount to their wallet.
+          </p>
+        </div>
+        <div className="flex gap-3 pt-2">
+          <button
+            onClick={() => setShowRefundModal(false)}
+            className="flex-1 py-2.5 border border-[#E2E8F0] rounded-xl text-sm font-semibold text-[#334155] hover:bg-[#F8FAFC] transition-all cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => { void executeRefund(); }}
+            className="flex-1 py-2.5 bg-[#DC2626] text-white rounded-xl text-sm font-semibold hover:bg-[#B91C1C] transition-all cursor-pointer"
+          >
+            Confirm Refund
+          </button>
+        </div>
+      </div>
+    </Modal>
+    </>
   );
 }

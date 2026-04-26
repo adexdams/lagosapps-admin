@@ -233,23 +233,6 @@ export default function FulfillmentDetail() {
   }
 
   // ── Order-mode handlers ─────────────────────────
-  async function handleSaveSLA() {
-    if (!order) return;
-    const { error } = await upsertFulfillmentTracking({
-      order_id: order.id,
-      assigned_to: assignee || null,
-      risk_level: riskLevel,
-      priority,
-      progress,
-      response_deadline: responseDeadline || null,
-      fulfillment_deadline: fulfillmentDeadline || null,
-    });
-    if (error) { toast.error(error.message); return; }
-    toast.success("SLA settings updated");
-    logAudit({ action: "fulfillment.sla_update", entity_type: "order", entity_id: order.id, new_values: { priority, risk_level: riskLevel, response_deadline: responseDeadline, fulfillment_deadline: fulfillmentDeadline } });
-    loadOrderData(order.id);
-  }
-
   async function handleSaveProgress() {
     if (!order) return;
     const { error } = await upsertFulfillmentTracking({
@@ -332,12 +315,6 @@ export default function FulfillmentDetail() {
     : [];
 
   const timeline = isRequest ? requestTimeline : orderTimeline;
-
-  const riskColors: Record<string, { bg: string; text: string }> = {
-    on_track: { bg: "#ECFDF5", text: "#059669" },
-    at_risk: { bg: "#FFF7ED", text: "#EA580C" },
-    behind: { bg: "#FEF2F2", text: "#DC2626" },
-  };
 
   const notes = isRequest
     ? (request?.service_request_notes ?? []).map((n) => ({
@@ -562,45 +539,6 @@ export default function FulfillmentDetail() {
                   </button>
                 ))}
               </div>
-            </div>
-          )}
-
-          {/* SLA Settings (orders only) */}
-          {!isRequest && (
-            <div className={`${card} p-4 sm:p-6 space-y-4`}>
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-[#0F172A]">SLA Settings</h3>
-                <span className="inline-block px-2 py-0.5 rounded-lg text-[11px] font-semibold uppercase" style={{ backgroundColor: riskColors[riskLevel].bg, color: riskColors[riskLevel].text }}>
-                  {riskLevel.replace("_", " ")}
-                </span>
-              </div>
-              <div>
-                <label className="text-[13px] font-semibold text-[#0F172A] mb-1.5 block">Response Deadline</label>
-                <input type="date" value={responseDeadline} onChange={(e) => setResponseDeadline(e.target.value)} className={inputClass} />
-              </div>
-              <div>
-                <label className="text-[13px] font-semibold text-[#0F172A] mb-1.5 block">Fulfillment Deadline</label>
-                <input type="date" value={fulfillmentDeadline} onChange={(e) => setFulfillmentDeadline(e.target.value)} className={inputClass} />
-              </div>
-              <div>
-                <label className="text-[13px] font-semibold text-[#0F172A] mb-1.5 block">Priority</label>
-                <select value={priority} onChange={(e) => setPriority(e.target.value as "low" | "medium" | "high")} className={`${inputClass} cursor-pointer`}>
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-[13px] font-semibold text-[#0F172A] mb-1.5 block">Risk Level</label>
-                <select value={riskLevel} onChange={(e) => setRiskLevel(e.target.value as "on_track" | "at_risk" | "behind")} className={`${inputClass} cursor-pointer`}>
-                  <option value="on_track">On Track</option>
-                  <option value="at_risk">At Risk</option>
-                  <option value="behind">Behind</option>
-                </select>
-              </div>
-              <button onClick={handleSaveSLA} className="w-full py-2.5 bg-primary text-white text-sm font-semibold rounded-xl cursor-pointer hover:brightness-[0.92] active:scale-[0.98] transition-all">
-                Update SLA
-              </button>
             </div>
           )}
 
