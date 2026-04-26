@@ -2,7 +2,7 @@
 
 End-to-end checklist for verifying every feature on both the **admin dashboard** and **user-facing app**, via browser and API/CLI. Work through each section in order — many checks are dependencies for later ones.
 
-> **Last browser test: 2026-04-26 (S3 complete).** Bugs found and fixed during 2026-04-25 run: `flag_overdue_fulfillment()` used wrong enum value (`delivered` → `completed`); `send-email` Edge Function logo pointed to GitHub raw instead of Supabase Storage; `config.toml` template paths resolved from wrong directory; referral Bronze membership not showing after signup (race condition — setTimeout fired before email confirmation, moved to `loadProfile`). Bugs fixed 2026-04-26 (S3 browser test): refund txn ID exceeded `varchar(20)` (base-36 timestamp fix); create order blocked by single-portal guard (removed); duplicate status dropdowns in Order Detail (consolidated — progress now derived from status automatically); internal notes Add button silently failed (race on `currentUserId` state — replaced with `useAuth`); Risk Level in Order Detail was a manual dropdown (now auto-computed from SLA settings in Platform Settings); Fulfillment removed from sidebar nav.
+> **Last browser test: 2026-04-26 (S3, S4, S1A, S5A complete).** Bugs found and fixed during 2026-04-25 run: `flag_overdue_fulfillment()` used wrong enum value (`delivered` → `completed`); `send-email` Edge Function logo pointed to GitHub raw instead of Supabase Storage; `config.toml` template paths resolved from wrong directory; referral Bronze membership not showing after signup (race condition — setTimeout fired before email confirmation, moved to `loadProfile`). Bugs fixed 2026-04-26 (S3 browser test): refund txn ID exceeded `varchar(20)` (base-36 timestamp fix); create order blocked by single-portal guard (removed); duplicate status dropdowns in Order Detail (consolidated — progress now derived from status automatically); internal notes Add button silently failed (race on `currentUserId` state — replaced with `useAuth`); Risk Level in Order Detail was a manual dropdown (now auto-computed from SLA settings in Platform Settings); Fulfillment removed from sidebar nav. Bugs fixed 2026-04-26 (S5 work): membership notification trigger silently failed — `billing_cycle` enum and UUID id needed explicit `::TEXT` casts in `notify_membership_event()`; cancel subscription added to admin Membership page and user Membership panel; referral processing gate in `loadProfile` was blocking users who already had a paid membership tier from having referral row recorded; "Apply referral code" UI added to user Referrals panel.
 
 ---
 
@@ -27,7 +27,7 @@ End-to-end checklist for verifying every feature on both the **admin dashboard**
 | **S4** | **Admin: Inventory** | | |
 | 4A–4C | Product CRUD · portal tabs | ✅ 74 products across 7 portals confirmed | ✅ Verified 2026-04-26 — add/edit/toggle product · category filters · portal-specific metadata |
 | **S5** | **Admin: Membership** | | |
-| 5A–5D | Tier config · subscriptions · benefits | ✅ 3 tiers · 15 benefits · prices confirmed | ⬜ Edit tier price · add benefit · cancel subscription |
+| 5A–5D | Tier config · subscriptions · benefits | ✅ 3 tiers · 15 benefits · prices confirmed | 🟡 5A ✅ verified 2026-04-26 · 5C cancel button added · 5D pending |
 | **S6** | **Admin: Wallet** | | |
 | 6A–6B | Transaction log · manual adjustment | ✅ Schema confirmed · table empty | ⬜ Manual credit → user wallet updates |
 | **S7** | **Admin: Referrals** | | |
@@ -281,12 +281,12 @@ supabase db query --linked "SELECT id, name, price, is_active, portal_id FROM pr
 
 ## Section 5 — Admin Dashboard: Membership
 
-### 5A · Tier configuration (browser)
+### 5A · Tier configuration (browser) ✅ verified 2026-04-26
 
-- [ ] Navigate to `/membership` → **Configure Tiers** button → `/membership/config`
-- [ ] Annual and quarterly prices load from DB for each tier
-- [ ] Click **Edit Benefits** → add a new benefit → save → benefit appears
-- [ ] Change a tier price → save → price visible on user-facing membership panel
+- [x] Navigate to `/membership` → **Configure Tiers** button → `/membership/tiers`
+- [x] Annual and quarterly prices load from DB for each tier
+- [x] Click **Edit Benefits** → add a new benefit → save → benefit appears
+- [x] Change a tier price → save → price visible on user-facing membership panel
 
 ### 5B · CLI verification ✅ verified 2026-04-25
 
@@ -298,8 +298,9 @@ supabase db query --linked "SELECT t.name, t.annual_price, t.quarterly_price, CO
 ### 5C · Subscriptions tab (browser)
 
 - [ ] Active subscriptions listed with tier, billing cycle, expiry
-- [ ] Cancel a subscription → status changes to `cancelled`
-- [ ] Verify system notification fired to ops team (check notification bell)
+- [ ] Click **Cancel** on an active subscription → confirmation modal → **Yes, Cancel** → status changes to `cancelled`
+- [ ] Verify system notification `membership_cancelled` fired to ops team (check notification bell)
+- [ ] On user app: active membership → **Cancel** button → confirm → tier resets to `none`
 
 ### 5D · Benefit usage tab (browser)
 
