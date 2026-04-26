@@ -37,14 +37,14 @@ export async function updateUser(id: string, data: Record<string, unknown>) {
 export async function getOrders() {
   return supabase
     .from("orders")
-    .select("*, profiles(name, email, avatar_url)")
+    .select("*, profiles!user_id(name, email, avatar_url)")
     .order("created_at", { ascending: false });
 }
 
 export async function getOrder(id: string) {
   return supabase
     .from("orders")
-    .select("*, order_items(*), order_timeline(*), profiles(id, name, email, avatar_url, phone, membership_tier)")
+    .select("*, order_items(*), order_timeline(*), profiles!user_id(id, name, email, avatar_url, phone, membership_tier)")
     .eq("id", id)
     .single();
 }
@@ -89,7 +89,7 @@ export async function getFulfillmentOrders() {
   // Orders that are actively being fulfilled
   return supabase
     .from("orders")
-    .select("*, profiles(name, email), fulfillment_tracking(*)")
+    .select("*, profiles!user_id(name, email), fulfillment_tracking(*)")
     .in("status", ["confirmed", "processing"])
     .order("created_at", { ascending: false });
 }
@@ -275,7 +275,7 @@ export async function updateCustomRequest(id: string, data: Record<string, unkno
 // ── Fulfillment ─────────────────────────────────────────────
 
 export async function getFulfillmentTracking() {
-  return supabase.from("fulfillment_tracking").select("*, orders(*, profiles(name)), fulfillment_notes(*)").order("created_at", { ascending: false });
+  return supabase.from("fulfillment_tracking").select("*, orders(*, profiles!user_id(name)), fulfillment_notes(*)").order("created_at", { ascending: false });
 }
 
 export async function updateFulfillmentTracking(id: string, data: Record<string, unknown>) {
