@@ -314,7 +314,7 @@ export default function FulfillmentPage() {
                         return (
                           <tr key={o.id} className="hover:bg-[#F8FAFC] transition-colors">
                             <td className="px-2.5 sm:px-4 py-3">
-                              <button onClick={() => navigate(`/fulfillment/${o.id}`)} className="font-semibold text-primary cursor-pointer hover:underline">{o.id}</button>
+                              <button onClick={() => navigate(`/orders/${o.id}`)} className="font-semibold text-primary cursor-pointer hover:underline">{o.id}</button>
                             </td>
                             <td className="px-2.5 sm:px-4 py-3 text-[#334155] hidden sm:table-cell">{o.profiles?.name ?? o.profiles?.email ?? "—"}</td>
                             <td className="px-2.5 sm:px-4 py-3 text-[#64748B] hidden md:table-cell">{PORTAL_LABELS[o.portal_id]}</td>
@@ -373,7 +373,7 @@ export default function FulfillmentPage() {
                     <tr><td colSpan={7} className="px-5 py-12 text-center text-[#94A3B8]">No service requests found</td></tr>
                   ) : (
                     filteredRequests.map((r) => (
-                      <tr key={r.id} onClick={() => navigate(`/fulfillment/request/${r.id}`)} className="hover:bg-[#F8FAFC] transition-colors cursor-pointer">
+                      <tr key={r.id} className="hover:bg-[#F8FAFC] transition-colors">
                         <td className="px-2.5 sm:px-4 py-3 font-semibold text-primary">{r.id}</td>
                         <td className="px-2.5 sm:px-4 py-3 font-medium text-[#0F172A]">{r.profiles?.name ?? r.profiles?.email ?? "—"}</td>
                         <td className="px-2.5 sm:px-4 py-3 hidden md:table-cell">

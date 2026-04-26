@@ -21,7 +21,6 @@ import FinancePage from "./FinancePage";
 import TeamPage from "./TeamPage";
 import CreateOrderAdmin from "./CreateOrderAdmin";
 import FulfillmentPage from "./FulfillmentPage";
-import FulfillmentDetail from "./FulfillmentDetail";
 import MembershipTierConfig from "./MembershipTierConfig";
 import LiveCartsPage from "./LiveCartsPage";
 import NotificationsInboxPage from "./NotificationsInboxPage";
@@ -188,8 +187,6 @@ export default function AdminLayout() {
             <Route path="orders/create" element={<CreateOrderAdmin />} />
             <Route path="orders/:id" element={<OrderDetailAdmin />} />
             <Route path="fulfillment" element={<FulfillmentPage />} />
-            <Route path="fulfillment/:id" element={<FulfillmentDetail />} />
-            <Route path="fulfillment/request/:requestId" element={<FulfillmentDetail />} />
             <Route path="carts" element={<LiveCartsPage />} />
             <Route path="inventory" element={<InventoryPage />} />
             <Route path="membership" element={<MembershipAdmin />} />
