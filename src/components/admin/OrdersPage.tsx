@@ -261,7 +261,6 @@ export default function OrdersPage() {
     { key: "portal", label: "All Portals", value: crPortalFilter, onChange: setCrPortalFilter, options: portalOptions },
   ];
 
-  const newCRCount = customRequests.filter((r) => r.status === "new").length;
   const pendingCRCount = customRequests.filter((r) => r.status === "new" || r.status === "under_review").length;
 
   return (
@@ -288,9 +287,9 @@ export default function OrdersPage() {
         </button>
         <button onClick={() => setActiveTab("custom_requests")} className={`px-4 py-2 text-[13px] font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-2 ${activeTab === "custom_requests" ? "bg-white text-[#0F172A] shadow-sm" : "text-[#64748B] hover:text-[#334155]"}`}>
           Custom Requests
-          {newCRCount > 0 && (
+          {pendingCRCount > 0 && (
             <span className="size-5 bg-[#6366F1] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-              {newCRCount > 99 ? "99+" : newCRCount}
+              {pendingCRCount > 99 ? "99+" : pendingCRCount}
             </span>
           )}
         </button>

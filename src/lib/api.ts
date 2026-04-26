@@ -135,7 +135,7 @@ export async function updateServiceRequestStatus(id: string, data: Record<string
 export async function getCustomRequestsList() {
   return supabase
     .from("custom_order_requests")
-    .select("*, profiles(name, email)")
+    .select("*, profiles!user_id(id, name, email)")
     .order("created_at", { ascending: false });
 }
 
