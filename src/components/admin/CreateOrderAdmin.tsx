@@ -154,14 +154,8 @@ export default function CreateOrderAdmin() {
     if (!selectedUser || cart.length === 0) return;
     setSubmitting(true);
 
-    // Group items by portal; we only support one portal per order for simplicity
     const portalsInCart = Array.from(new Set(cart.map((c) => c.product.portal_id)));
     const orderPortal = portalsInCart[0];
-    if (portalsInCart.length > 1) {
-      toast.error("Please add items from one portal at a time");
-      setSubmitting(false);
-      return;
-    }
 
     // 1. Generate order ID + create order
     const orderId = generateOrderId();
@@ -246,7 +240,7 @@ export default function CreateOrderAdmin() {
   };
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6">
       {/* Back */}
       <button
         onClick={() => navigate("/orders")}
@@ -451,7 +445,7 @@ export default function CreateOrderAdmin() {
 
       {/* Step 3: Review */}
       {step === 3 && (
-        <div className="space-y-5 max-w-2xl">
+        <div className="space-y-5">
           {/* Customer */}
           {selectedUser && (
             <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
