@@ -233,7 +233,7 @@ export default function OrderDetailAdmin() {
     const currentBalance = Number((userData as { wallet_balance: number } | null)?.wallet_balance ?? 0);
     const newBalance = currentBalance + order.payment_amount;
 
-    const txnId = `TXN-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+    const txnId = `TXN-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 4)}`.toUpperCase();
     const { error: txnErr } = await createWalletTransaction({
       id: txnId,
       user_id: order.user_id,
