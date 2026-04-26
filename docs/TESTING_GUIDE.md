@@ -2,7 +2,7 @@
 
 End-to-end checklist for verifying every feature on both the **admin dashboard** and **user-facing app**, via browser and API/CLI. Work through each section in order — many checks are dependencies for later ones.
 
-> **Last run: 2026-04-25.** Bugs found and fixed during run: `flag_overdue_fulfillment()` used wrong enum value (`delivered` → `completed`); `send-email` Edge Function logo pointed to GitHub raw instead of Supabase Storage; `config.toml` template paths resolved from wrong directory; Fulfillment page FK ambiguity alert (`orders→profiles` two FKs — added `!user_id` hint); referral Bronze membership not showing after signup (race condition — setTimeout fired before email confirmation, moved to `loadProfile`).
+> **Last browser test: 2026-04-26 (S3 complete).** Bugs found and fixed during 2026-04-25 run: `flag_overdue_fulfillment()` used wrong enum value (`delivered` → `completed`); `send-email` Edge Function logo pointed to GitHub raw instead of Supabase Storage; `config.toml` template paths resolved from wrong directory; referral Bronze membership not showing after signup (race condition — setTimeout fired before email confirmation, moved to `loadProfile`). Bugs fixed 2026-04-26 (S3 browser test): refund txn ID exceeded `varchar(20)` (base-36 timestamp fix); create order blocked by single-portal guard (removed); duplicate status dropdowns in Order Detail (consolidated — progress now derived from status automatically); internal notes Add button silently failed (race on `currentUserId` state — replaced with `useAuth`); Risk Level in Order Detail was a manual dropdown (now auto-computed from SLA settings in Platform Settings); Fulfillment removed from sidebar nav.
 
 ---
 
@@ -23,7 +23,7 @@ End-to-end checklist for verifying every feature on both the **admin dashboard**
 | **S2** | **Admin: Users** | | |
 | 2A–2B | Users list + User detail | ✅ Profiles table — 2 users confirmed after tests | ✅ Admin loads new users correctly · user detail page confirmed |
 | **S3** | **Admin: Orders** | | |
-| 3A–3C | Orders list · detail · create | ✅ `orders` table empty (no test orders yet) | ⬜ Create order · status change · refund flow |
+| 3A–3C | Orders list · detail · create | ✅ `orders` table empty (no test orders yet) | ✅ Verified 2026-04-26 — create order · status change · refund flow · SLA risk badges · fulfillment assignee + notes |
 | **S4** | **Admin: Inventory** | | |
 | 4A–4C | Product CRUD · portal tabs | ✅ 74 products across 7 portals confirmed | ⬜ Add/edit/toggle product · category filters |
 | **S5** | **Admin: Membership** | | |
@@ -39,7 +39,7 @@ End-to-end checklist for verifying every feature on both the **admin dashboard**
 | **S10** | **Admin: Email Templates** | | |
 | 10A–10C | Template editor · dry-run · live send | ✅ Dry-run returns `success:true` · Supabase Storage logo confirmed | — Page removed from admin nav; templates managed via Supabase Dashboard |
 | **S11** | **Admin: Fulfillment** | | |
-| 11A–11C | Order queue · service requests · custom orders | ✅ Schema confirmed · all tables empty | 🟡 Page loads · **bug fixed**: FK ambiguity alert (`orders→profiles` had two FKs — added `!user_id` hint) · full flow ⬜ pending |
+| 11A–11C | Order queue · service requests · custom orders | ✅ Schema confirmed · all tables empty | 🟡 Fulfillment page removed from sidebar nav (2026-04-26) — fulfillment tracking (assignee, progress, risk level, internal notes) now lives inside Order Detail sidebar. Service Requests + Custom Orders tabs pending separate section. |
 | **S12** | **Admin: Audit Log** | | |
 | 12A | Audit log table | ✅ Schema confirmed · table empty (populates after admin actions) | ⬜ Verify entries appear after browser actions |
 | **S13** | **Admin: Team** | | |
@@ -213,34 +213,37 @@ supabase db query --linked "SELECT name, email, wallet_balance, membership_tier 
 
 ---
 
-## Section 3 — Admin Dashboard: Orders
+## Section 3 — Admin Dashboard: Orders ✅ verified 2026-04-26
 
-### 3A · Orders list (browser)
+### 3A · Orders list (browser) ✅
 
-- [ ] Navigate to `/orders`
-- [ ] Real orders load (status badges, portal labels, amounts)
-- [ ] Search by order ID → finds correct row
-- [ ] Filter by status → list filters
-- [ ] Filter by portal → list filters
+- [x] Navigate to `/orders`
+- [x] Real orders load (status badges, portal labels, amounts)
+- [x] SLA stat cards visible at top — Total, Pending, At Risk, Behind SLA (values computed from order age vs SLA settings)
+- [x] Search by order ID → finds correct row
+- [x] Filter by status → list filters
+- [x] Filter by portal → list filters
 
-### 3B · Order detail (browser)
+### 3B · Order detail (browser) ✅
 
-- [ ] Click any order → `/orders/:id` loads
-- [ ] Order timeline shows steps
-- [ ] Change order status via dropdown → status updates in table on back navigation
-- [ ] **Refund to Wallet** flow: click Refund → enter amount → confirm → check wallet balance increases for that user
+- [x] Click any order → `/orders/:id` loads
+- [x] Order timeline shows steps
+- [x] Change order status via dropdown → status updates, timeline step added, fulfillment progress syncs automatically
+- [x] Risk Level badge in header is read-only, auto-computed from order age vs SLA settings (configure in Settings → Platform → Fulfillment SLA)
+- [x] Fulfillment section in sidebar: assign team member → saves; Add Note → note appears in thread
+- [x] **Refund to Wallet** flow: click Refund → confirm modal → wallet credited, order cancelled
 
 ```bash
 supabase db query --linked "SELECT user_id, description, amount, type, running_balance FROM wallet_transactions ORDER BY created_at DESC LIMIT 5;"
 ```
 
-### 3C · Create Order (browser)
+### 3C · Create Order (browser) ✅
 
-- [ ] Navigate to `/orders` → **+ New Order** button
-- [ ] Step 1: Search customer by name → select from dropdown
-- [ ] Step 2: Select portal → products list loads from DB
-- [ ] Step 3: Add items → total calculates
-- [ ] Step 4: Submit → order appears in orders list with status `pending`
+- [x] Navigate to `/orders` → **+ Create Order** button → full-screen wizard
+- [x] Step 1: select channel (WhatsApp / Phone / Walk-in) · search customer by name → select from dropdown
+- [x] Step 2: switch portal tabs freely — products load per portal; items from multiple portals allowed
+- [x] Step 3 Review: select payment method → Admin Notes → Submit
+- [x] Order appears in orders list with status `pending`
 
 ```bash
 supabase db query --linked "SELECT id, status, total_amount, created_at FROM orders ORDER BY created_at DESC LIMIT 3;"
@@ -852,35 +855,34 @@ Work through these steps in order — each phase builds on the previous one (e.g
 
 ---
 
-### Phase 4 — Orders
+### Phase 4 — Orders ✅ verified 2026-04-26
 
-**Goal:** Create a test order from scratch; verify status changes and refund flow write to DB.
+**Goal:** Create a test order from scratch; verify status changes, fulfillment tracking, and refund flow write to DB.
 
-23. [ ] Navigate to `/orders` → table loads (likely empty)
-24. [ ] Click **+ New Order**
-25. [ ] **Step 1:** Search for the test user by name → select from dropdown
-26. [ ] **Step 2:** Select portal **Groceries** → product list loads from DB
-27. [ ] **Step 3:** Add 2–3 items → running total updates
-28. [ ] **Step 4:** Submit → redirected to Orders list → new order row visible with status `pending`
-29. [ ] Click the order row → Order Detail opens
-30. [ ] Change status to **Confirmed** via the dropdown → badge updates · timeline step advances
-31. [ ] Change status to **Processing** → same
-32. [ ] Click **Refund to Wallet** → enter ₦500 → Confirm → toast "Refund issued"
-33. [ ] Go to `/users/:id` for that user → Wallet tab → credit transaction of ₦500 visible
+23. [x] Navigate to `/orders` → stat cards visible (Total, Pending, At Risk, Behind SLA)
+24. [x] Click **+ Create Order** → full-screen 3-step wizard opens
+25. [x] **Step 1:** Select channel (e.g. Walk-in) → search test user by name → select from dropdown
+26. [x] **Step 2:** Switch to **Groceries** tab → products load from DB → add 2–3 items; optionally switch to another portal tab and add more items (multi-portal allowed)
+27. [x] **Step 3 Review:** select Payment Method → click **Submit Order** → redirected to Order Detail
+28. [x] Order Detail shows correct items, amounts, and `pending` status
+29. [x] Change status to **Confirmed** → badge updates, timeline step added, fulfillment progress syncs automatically
+30. [x] Change status to **Processing** → same
+31. [x] **Fulfillment section (right sidebar):** assign yourself from the team dropdown → save → persists on refresh
+32. [x] Add an internal note → note appears in thread with your name + timestamp
+33. [x] Click **Refund** → confirm modal → toast "refunded to wallet" → order status → `cancelled`
+34. [x] Go to `/users/:id` for that user → Wallet tab → credit transaction visible
 
 ---
 
-### Phase 5 — Fulfillment
+### Phase 5 — Fulfillment *(page removed — now embedded in Order Detail)*
 
-**Goal:** Confirm the order queue reflects DB state; assignment and SLA fields persist.
+> **2026-04-26:** The standalone `/fulfillment` page has been removed from the sidebar nav. Fulfillment tracking (assignee, progress, risk level badge, internal notes) now lives in the right sidebar of each Order Detail page. Service Requests and Custom Orders are still accessible via their own routes when those features are in use.
 
-34. [ ] Navigate to `/fulfillment` → **Order Fulfillment** tab
-35. [ ] The order created in Phase 4 (status `confirmed` or `processing`) should appear in the queue
-36. [ ] Click **Assign** → select yourself from the team dropdown → record saves
-37. [ ] Click the order row → Fulfillment Detail opens
-38. [ ] Set an SLA deadline date → set risk level → click **Save** → refresh page → values persist
-39. [ ] **Service Requests tab** → empty state shows cleanly (no loading spin)
-40. [ ] **Custom Orders tab** → same
+1. [ ] Open any order at `/orders/:id`
+2. [ ] Fulfillment section visible in the right column — Assigned To dropdown, Save button, Internal Notes
+3. [ ] Assign a team member → save → refresh → assignment persists
+4. [ ] Add a note → note appears below with correct author name
+5. [ ] Risk Level badge next to order header reflects SLA age (configure thresholds in Settings → Platform → Fulfillment SLA)
 
 ---
 
