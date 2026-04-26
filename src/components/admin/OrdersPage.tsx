@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import DataTable, { type Column } from "./shared/DataTable";
 import FilterBar, { type FilterConfig } from "./shared/FilterBar";
 import StatusBadge from "./shared/StatusBadge";
-import { getOrders } from "../../lib/api";
+import { getOrders, getSettings } from "../../lib/api";
 import {
   formatNaira,
   PORTAL_LABELS,
@@ -26,6 +26,14 @@ interface DbOrder {
 
 type OrderRow = DbOrder & Record<string, unknown>;
 
+function computeRisk(createdAt: string, status: string, slaHours: number, slaWarningHours: number): "on_track" | "at_risk" | "behind" {
+  if (status === "completed" || status === "cancelled") return "on_track";
+  const ageHours = (Date.now() - new Date(createdAt).getTime()) / 3_600_000;
+  if (ageHours >= slaHours) return "behind";
+  if (ageHours >= slaHours - slaWarningHours) return "at_risk";
+  return "on_track";
+}
+
 export default function OrdersPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
@@ -33,15 +41,26 @@ export default function OrdersPage() {
   const [portalFilter, setPortalFilter] = useState("");
   const [orders, setOrders] = useState<DbOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [slaHours, setSlaHours] = useState(48);
+  const [slaWarningHours, setSlaWarningHours] = useState(12);
   const mountedRef = useRef(true);
 
   useEffect(() => {
     mountedRef.current = true;
     setLoading(true);
-    getOrders().then(({ data }) => {
+    Promise.all([
+      getOrders(),
+      getSettings(),
+    ]).then(([{ data: ordersData }, { data: settingsData }]) => {
       if (!mountedRef.current) return;
-      setOrders((data as DbOrder[]) ?? []);
+      setOrders((ordersData as DbOrder[]) ?? []);
       setLoading(false);
+      if (settingsData) {
+        const map: Record<string, string> = {};
+        for (const row of settingsData as { key: string; value: string }[]) map[row.key] = row.value;
+        if (map.sla_hours) setSlaHours(parseInt(map.sla_hours, 10) || 48);
+        if (map.sla_warning_hours) setSlaWarningHours(parseInt(map.sla_warning_hours, 10) || 12);
+      }
     });
     return () => { mountedRef.current = false; };
   }, []);
@@ -170,6 +189,11 @@ export default function OrdersPage() {
     },
   ];
 
+  const activeOrders = orders.filter((o) => o.status !== "completed" && o.status !== "cancelled");
+  const atRiskCount = activeOrders.filter((o) => computeRisk(o.created_at, o.status, slaHours, slaWarningHours) === "at_risk").length;
+  const behindCount = activeOrders.filter((o) => computeRisk(o.created_at, o.status, slaHours, slaWarningHours) === "behind").length;
+  const pendingCount = orders.filter((o) => o.status === "pending").length;
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -185,6 +209,29 @@ export default function OrdersPage() {
           <span className="hidden sm:inline">Create Order</span>
         </button>
       </div>
+
+      {!loading && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="bg-white rounded-xl border border-[#E8ECF1]/60 shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-4">
+            <p className="text-[11px] font-semibold text-[#64748B] uppercase tracking-wide">Total Orders</p>
+            <p className="text-2xl font-bold text-[#0F172A] mt-1">{orders.length}</p>
+          </div>
+          <div className="bg-white rounded-xl border border-[#E8ECF1]/60 shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-4">
+            <p className="text-[11px] font-semibold text-[#64748B] uppercase tracking-wide">Pending</p>
+            <p className="text-2xl font-bold text-[#0F172A] mt-1">{pendingCount}</p>
+          </div>
+          <div className="bg-white rounded-xl border border-[#FED7AA] shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-4 bg-[#FFF7ED]">
+            <p className="text-[11px] font-semibold text-[#EA580C] uppercase tracking-wide">At Risk</p>
+            <p className="text-2xl font-bold text-[#EA580C] mt-1">{atRiskCount}</p>
+            <p className="text-[10px] text-[#94A3B8] mt-0.5">SLA &lt; {slaWarningHours}h left</p>
+          </div>
+          <div className="bg-white rounded-xl border border-[#FECACA] shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-4 bg-[#FEF2F2]">
+            <p className="text-[11px] font-semibold text-[#DC2626] uppercase tracking-wide">Behind SLA</p>
+            <p className="text-2xl font-bold text-[#DC2626] mt-1">{behindCount}</p>
+            <p className="text-[10px] text-[#94A3B8] mt-0.5">Over {slaHours}h old</p>
+          </div>
+        </div>
+      )}
 
       <FilterBar
         onSearch={setSearch}

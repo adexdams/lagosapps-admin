@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import StatusBadge from "./shared/StatusBadge";
 import Modal from "../ui/Modal";
 import { useToast } from "../../hooks/useToast";
-import { getOrder, updateOrderStatus, insertOrderTimelineStep, createWalletTransaction, logAudit, getFulfillmentTrackingByOrder, upsertFulfillmentTracking, addFulfillmentNote } from "../../lib/api";
+import { getOrder, updateOrderStatus, insertOrderTimelineStep, createWalletTransaction, logAudit, getSettings } from "../../lib/api";
 import { supabase } from "../../lib/supabase";
 import {
   formatNaira,
@@ -51,30 +51,6 @@ interface OrderProfile {
   membership_tier: string | null;
 }
 
-interface FulfillmentNote {
-  id: string;
-  author_id: string;
-  text: string;
-  created_at: string;
-  profiles: { name: string | null; email: string } | null;
-}
-
-interface FulfillmentTracking {
-  id: string;
-  assigned_to: string | null;
-  risk_level: "on_track" | "at_risk" | "behind";
-  priority: string;
-  progress: number;
-  fulfillment_notes: FulfillmentNote[];
-}
-
-interface TeamMember {
-  id: string;
-  user_id: string;
-  role: string;
-  profiles: { name: string | null; email: string } | null;
-}
-
 const RISK_STYLES: Record<string, { bg: string; text: string }> = {
   on_track: { bg: "#ECFDF5", text: "#059669" },
   at_risk:  { bg: "#FFF7ED", text: "#EA580C" },
@@ -113,16 +89,8 @@ export default function OrderDetailAdmin() {
   const [savingStatus, setSavingStatus] = useState(false);
   const [refunding, setRefunding] = useState(false);
   const [showRefundModal, setShowRefundModal] = useState(false);
-
-  // Fulfillment state
-  const [tracking, setTracking] = useState<FulfillmentTracking | null>(null);
-  const [assignee, setAssignee] = useState("");
-  const [ftProgress, setFtProgress] = useState(0);
-  const [riskLevel, setRiskLevel] = useState<"on_track" | "at_risk" | "behind">("on_track");
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [newNote, setNewNote] = useState("");
-  const [savingTracking, setSavingTracking] = useState(false);
+  const [slaHours, setSlaHours] = useState(48);
+  const [slaWarningHours, setSlaWarningHours] = useState(12);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -133,25 +101,16 @@ export default function OrderDetailAdmin() {
     setOrder(data as unknown as Order);
   }, [id]);
 
-  const loadTracking = useCallback(async () => {
-    if (!id) return;
-    const [{ data: trackData }, { data: teamData }, sessionRes] = await Promise.all([
-      getFulfillmentTrackingByOrder(id),
-      supabase.from("admin_team_members").select("id, user_id, role, profiles(name, email)").eq("is_active", true),
-      supabase.auth.getSession(),
-    ]);
-    setCurrentUserId(sessionRes.data?.session?.user?.id ?? null);
-    setTeamMembers((teamData as unknown as TeamMember[]) ?? []);
-    if (trackData) {
-      const t = trackData as unknown as FulfillmentTracking;
-      setTracking(t);
-      setAssignee(t.assigned_to ?? "");
-      setFtProgress(t.progress);
-      setRiskLevel(t.risk_level);
-    }
-  }, [id]);
-
-  useEffect(() => { load(); loadTracking(); }, [load, loadTracking]);
+  useEffect(() => {
+    load();
+    getSettings().then(({ data }) => {
+      if (!data) return;
+      const map: Record<string, string> = {};
+      for (const row of data as { key: string; value: string }[]) map[row.key] = row.value;
+      if (map.sla_hours) setSlaHours(parseInt(map.sla_hours, 10) || 48);
+      if (map.sla_warning_hours) setSlaWarningHours(parseInt(map.sla_warning_hours, 10) || 12);
+    });
+  }, [load]);
 
   async function handleStatusChange(newStatus: string) {
     if (!order) return;
@@ -254,31 +213,12 @@ export default function OrderDetailAdmin() {
     toast.success(`${formatNaira(order.payment_amount)} refunded to wallet`);
   }
 
-  async function handleUpdateTracking(newAssignee?: string) {
-    if (!order) return;
-    setSavingTracking(true);
-    const usedAssignee = newAssignee !== undefined ? newAssignee : assignee;
-    const { error } = await upsertFulfillmentTracking({
-      order_id: order.id,
-      assigned_to: usedAssignee || null,
-      risk_level: riskLevel,
-      priority: "medium",
-      progress: ftProgress,
-    });
-    setSavingTracking(false);
-    if (error) { toast.error(error.message); return; }
-    if (newAssignee !== undefined) setAssignee(newAssignee);
-    toast.success("Fulfillment updated");
-    logAudit({ action: "fulfillment.update", entity_type: "order", entity_id: order.id, new_values: { assigned_to: usedAssignee, progress: ftProgress } });
-    loadTracking();
-  }
-
-  async function handleAddNote() {
-    if (!newNote.trim() || !currentUserId || !order) return;
-    const { error } = await addFulfillmentNote({ order_id: order.id, author_id: currentUserId, text: newNote.trim() });
-    if (error) { toast.error(error.message); return; }
-    setNewNote("");
-    loadTracking();
+  function computeRiskLevel(createdAt: string, status: string): "on_track" | "at_risk" | "behind" {
+    if (status === "completed" || status === "cancelled") return "on_track";
+    const ageHours = (Date.now() - new Date(createdAt).getTime()) / 3_600_000;
+    if (ageHours >= slaHours) return "behind";
+    if (ageHours >= slaHours - slaWarningHours) return "at_risk";
+    return "on_track";
   }
 
   if (loading) {
@@ -299,6 +239,7 @@ export default function OrderDetailAdmin() {
   const portal = order.portal_id;
   const portalColor = PORTAL_COLORS[portal];
   const user = order.profiles;
+  const riskLevel = computeRiskLevel(order.created_at, order.status);
 
   const itemsTotal = order.order_items.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const timeline = order.order_timeline.sort((a, b) => a.sort_order - b.sort_order);
@@ -325,8 +266,16 @@ export default function OrderDetailAdmin() {
               <h1 className="text-xl font-bold text-[#0F172A]">{order.id}</h1>
               <p className="text-sm text-[#64748B] mt-0.5">{formatDate(order.created_at)} via {PORTAL_LABELS[portal]}</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <StatusBadge status={order.status} />
+              {riskLevel !== "on_track" && (
+                <span
+                  className="text-[11px] font-semibold px-2 py-0.5 rounded-lg uppercase"
+                  style={{ backgroundColor: RISK_STYLES[riskLevel].bg, color: RISK_STYLES[riskLevel].text }}
+                >
+                  {riskLevel.replace("_", " ")}
+                </span>
+              )}
               <span className="text-xl font-extrabold text-[#0F172A]">{formatNaira(order.total_amount)}</span>
             </div>
           </div>
@@ -513,102 +462,6 @@ export default function OrderDetailAdmin() {
             </div>
           )}
 
-          {/* Fulfillment */}
-          <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-[#0F172A]">Fulfillment</h3>
-              <span
-                className="text-[11px] font-semibold px-2 py-0.5 rounded-lg uppercase"
-                style={{ backgroundColor: RISK_STYLES[riskLevel].bg, color: RISK_STYLES[riskLevel].text }}
-              >
-                {riskLevel.replace("_", " ")}
-              </span>
-            </div>
-            <div>
-              <label className="text-[12px] font-semibold text-[#64748B] uppercase tracking-wide block mb-1.5">Assigned To</label>
-              <select
-                value={assignee}
-                onChange={(e) => { setAssignee(e.target.value); void handleUpdateTracking(e.target.value); }}
-                className="w-full border border-[#E2E8F0] rounded-xl px-3 py-2 text-sm text-[#334155] bg-white outline-none cursor-pointer focus:border-primary transition-all"
-              >
-                <option value="">Unassigned</option>
-                {teamMembers.map((m) => (
-                  <option key={m.id} value={m.user_id}>{m.profiles?.name ?? m.profiles?.email} — {m.role}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-[12px] font-semibold text-[#64748B] uppercase tracking-wide block mb-1.5">Progress</label>
-              <select
-                value={ftProgress}
-                onChange={(e) => setFtProgress(parseInt(e.target.value))}
-                className="w-full border border-[#E2E8F0] rounded-xl px-3 py-2 text-sm text-[#334155] bg-white outline-none cursor-pointer focus:border-primary transition-all"
-              >
-                <option value={0}>Pending</option>
-                <option value={25}>Confirmed</option>
-                <option value={50}>Processing</option>
-                <option value={75}>Nearly Complete</option>
-                <option value={100}>Completed</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-[12px] font-semibold text-[#64748B] uppercase tracking-wide block mb-1.5">Risk Level</label>
-              <select
-                value={riskLevel}
-                onChange={(e) => setRiskLevel(e.target.value as "on_track" | "at_risk" | "behind")}
-                className="w-full border border-[#E2E8F0] rounded-xl px-3 py-2 text-sm text-[#334155] bg-white outline-none cursor-pointer focus:border-primary transition-all"
-              >
-                <option value="on_track">On Track</option>
-                <option value="at_risk">At Risk</option>
-                <option value="behind">Behind</option>
-              </select>
-            </div>
-            <button
-              onClick={() => void handleUpdateTracking()}
-              disabled={savingTracking}
-              className="w-full py-2.5 bg-[#0F172A] text-white text-sm font-semibold rounded-xl cursor-pointer hover:bg-[#1E293B] active:scale-[0.98] transition-all disabled:opacity-50"
-            >
-              {savingTracking ? "Saving…" : "Save Fulfillment"}
-            </button>
-          </div>
-
-          {/* Internal Notes */}
-          <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
-            <h3 className="text-sm font-bold text-[#0F172A] mb-3">Internal Notes</h3>
-            <div className="flex gap-2 mb-4">
-              <input
-                type="text"
-                value={newNote}
-                onChange={(e) => setNewNote(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && void handleAddNote()}
-                placeholder="Add a note…"
-                className="flex-1 border border-[#E2E8F0] rounded-xl px-3 py-2 text-sm text-[#0F172A] outline-none focus:border-primary transition-all"
-              />
-              <button onClick={() => void handleAddNote()} className="px-3 py-2 bg-primary text-white text-sm font-semibold rounded-xl cursor-pointer hover:brightness-[0.92] flex-shrink-0">Add</button>
-            </div>
-            {(tracking?.fulfillment_notes ?? []).length === 0 ? (
-              <p className="text-sm text-[#94A3B8] italic text-center py-4">No notes yet.</p>
-            ) : (
-              <div className="space-y-3">
-                {[...(tracking?.fulfillment_notes ?? [])].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map((note) => {
-                  const author = note.profiles?.name ?? note.profiles?.email ?? "—";
-                  const initials = author.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "??";
-                  return (
-                    <div key={note.id} className="flex gap-3 p-3 bg-[#F8FAFC] rounded-xl">
-                      <div className="size-7 rounded-full bg-[#E2E8F0] flex items-center justify-center text-[10px] font-bold text-[#64748B] flex-shrink-0">{initials}</div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <span className="text-xs font-semibold text-[#0F172A]">{author}</span>
-                          <span className="text-[11px] text-[#94A3B8]">{formatDate(note.created_at)}</span>
-                        </div>
-                        <p className="text-sm text-[#334155]">{note.text}</p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
         </div>
       </div>
     </div>

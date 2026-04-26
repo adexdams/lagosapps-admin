@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useToast } from "../../hooks/useToast";
 import { useAuth } from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabase";
-import { updateUser, logAudit, getNotificationPreferences, upsertNotificationPreference, getPortals, updatePortal, getSettings, updateSetting } from "../../lib/api";
+import { updateUser, logAudit, getNotificationPreferences, upsertNotificationPreference, getPortals, updatePortal, getSettings, updateSetting, upsertSetting } from "../../lib/api";
 import { PORTAL_LABELS, PORTAL_COLORS, type Portal } from "../../data/adminMockData";
 
 interface NotifPref {
@@ -61,6 +61,8 @@ export default function SettingsPage() {
   const [whatsappNumber, setWhatsappNumber] = useState("+234 801 234 5678");
   const [referralDurationMonths, setReferralDurationMonths] = useState("6");
   const [referralMaxPerYear, setReferralMaxPerYear] = useState("2");
+  const [slaHours, setSlaHours] = useState("48");
+  const [slaWarningHours, setSlaWarningHours] = useState("12");
   const [loadingSettings, setLoadingSettings] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
 
@@ -101,6 +103,8 @@ export default function SettingsPage() {
       if (map.paystack_test_mode) setTestMode(map.paystack_test_mode === "true");
       if (map.referral_duration_months) setReferralDurationMonths(map.referral_duration_months);
       if (map.referral_max_per_year) setReferralMaxPerYear(map.referral_max_per_year);
+      if (map.sla_hours) setSlaHours(map.sla_hours);
+      if (map.sla_warning_hours) setSlaWarningHours(map.sla_warning_hours);
     })();
   }, []);
 
@@ -143,8 +147,12 @@ export default function SettingsPage() {
     if (!user?.id) return;
     const dur = parseInt(referralDurationMonths, 10);
     const max = parseInt(referralMaxPerYear, 10);
+    const sla = parseInt(slaHours, 10);
+    const warn = parseInt(slaWarningHours, 10);
     if (isNaN(dur) || dur < 1 || dur > 24) { toast.error("Referral duration must be between 1 and 24 months"); return; }
     if (isNaN(max) || max < 1 || max > 20) { toast.error("Max referrals per year must be between 1 and 20"); return; }
+    if (isNaN(sla) || sla < 1) { toast.error("SLA hours must be at least 1"); return; }
+    if (isNaN(warn) || warn < 0 || warn >= sla) { toast.error("Warning threshold must be less than SLA hours"); return; }
     setSavingSettings(true);
     await Promise.all([
       updateSetting("site_name", siteName, user.id),
@@ -153,6 +161,8 @@ export default function SettingsPage() {
       updateSetting("whatsapp_number", whatsappNumber, user.id),
       updateSetting("referral_duration_months", String(dur), user.id),
       updateSetting("referral_max_per_year", String(max), user.id),
+      upsertSetting("sla_hours", String(sla), user.id),
+      upsertSetting("sla_warning_hours", String(warn), user.id),
     ]);
     setSavingSettings(false);
     toast.success("Platform settings saved");
@@ -336,6 +346,24 @@ export default function SettingsPage() {
                   <div><label className={labelClass}>Support Email</label><input type="email" value={supportEmail} onChange={(e) => setSupportEmail(e.target.value)} className={inputClass} /></div>
                   <div><label className={labelClass}>Support Phone</label><input type="text" value={supportPhone} onChange={(e) => setSupportPhone(e.target.value)} className={inputClass} /></div>
                   <div><label className={labelClass}>WhatsApp Number</label><input type="text" value={whatsappNumber} onChange={(e) => setWhatsappNumber(e.target.value)} className={inputClass} /></div>
+                </div>
+                <div className="border-t border-[#E8ECF1] pt-5">
+                  <p className="text-[13px] font-bold text-[#0F172A] mb-3 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[16px] text-[#64748B]">timer</span>
+                    Fulfillment SLA
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className={labelClass}>Order SLA (hours)</label>
+                      <input type="number" min="1" value={slaHours} onChange={(e) => setSlaHours(e.target.value)} className={inputClass} />
+                      <p className="text-[11px] text-[#94A3B8] mt-1">Orders older than this are marked Behind SLA.</p>
+                    </div>
+                    <div>
+                      <label className={labelClass}>At-risk threshold (hours before deadline)</label>
+                      <input type="number" min="0" value={slaWarningHours} onChange={(e) => setSlaWarningHours(e.target.value)} className={inputClass} />
+                      <p className="text-[11px] text-[#94A3B8] mt-1">Orders within this window before the SLA deadline are marked At Risk.</p>
+                    </div>
+                  </div>
                 </div>
                 <div className="border-t border-[#E8ECF1] pt-5">
                   <p className="text-[13px] font-bold text-[#0F172A] mb-3 flex items-center gap-2">

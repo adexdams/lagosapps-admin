@@ -500,6 +500,10 @@ export async function updateSetting(key: string, value: string, updatedBy?: stri
   return supabase.from("platform_settings").update({ value, updated_by: updatedBy }).eq("key", key);
 }
 
+export async function upsertSetting(key: string, value: string, updatedBy?: string) {
+  return supabase.from("platform_settings").upsert({ key, value, updated_by: updatedBy }, { onConflict: "key" });
+}
+
 // ── Storage ─────────────────────────────────────────────────
 
 export async function uploadFile(bucket: string, path: string, file: File) {
