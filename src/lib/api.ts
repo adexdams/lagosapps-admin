@@ -181,7 +181,7 @@ export async function getCategories(portalId?: string) {
 
 export async function getWalletTransactions(userId?: string) {
   let query = supabase.from("wallet_transactions")
-    .select("*, profiles(name, email, avatar_url)")
+    .select("*, user_profile:profiles!wallet_transactions_user_id_fkey(name, email)")
     .order("created_at", { ascending: false });
   if (userId) query = query.eq("user_id", userId);
   return query;

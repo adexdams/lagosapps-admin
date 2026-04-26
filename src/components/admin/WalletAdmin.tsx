@@ -22,7 +22,7 @@ interface TxnRow extends Record<string, unknown> {
   type: "credit" | "debit";
   running_balance: number;
   created_at: string;
-  profiles?: { name: string; email: string };
+  user_profile?: { name: string; email: string };
 }
 
 interface UserRow {
@@ -62,7 +62,7 @@ export default function WalletAdmin() {
   const totalBalance = users.reduce((s, u) => s + (u.wallet_balance ?? 0), 0);
 
   const filtered = txns.filter((t) => {
-    const name = t.profiles?.name ?? "";
+    const name = t.user_profile?.name ?? "";
     const matchSearch =
       !search ||
       name.toLowerCase().includes(search.toLowerCase()) ||
@@ -131,8 +131,8 @@ export default function WalletAdmin() {
       sortable: false,
       render: (row) => (
         <div>
-          <p className="text-sm font-semibold text-[#0F172A]">{row.profiles?.name ?? "—"}</p>
-          <p className="text-[11px] text-[#94A3B8]">{row.profiles?.email ?? ""}</p>
+          <p className="text-sm font-semibold text-[#0F172A]">{row.user_profile?.name ?? "—"}</p>
+          <p className="text-[11px] text-[#94A3B8]">{row.user_profile?.email ?? ""}</p>
         </div>
       ),
     },
