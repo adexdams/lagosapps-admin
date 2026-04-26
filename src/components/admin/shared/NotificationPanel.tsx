@@ -50,8 +50,21 @@ export default function NotificationPanel() {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<SystemNotification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [totalUnread, setTotalUnread] = useState(0);
 
+  // unreadCount is used for the panel header text (from loaded slice)
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  // Fetch total unread count separately — not limited by the display slice
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase
+      .from("system_notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("recipient_id", user.id)
+      .eq("read", false)
+      .then(({ count }) => setTotalUnread(count ?? 0));
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -77,6 +90,7 @@ export default function NotificationPanel() {
         { event: "INSERT", schema: "public", table: "system_notifications", filter: `recipient_id=eq.${user.id}` },
         (payload) => {
           setNotifications((prev) => [payload.new as SystemNotification, ...prev].slice(0, 15));
+          setTotalUnread((c) => c + 1);
         }
       )
       .subscribe();
@@ -87,12 +101,15 @@ export default function NotificationPanel() {
     e?.stopPropagation();
     if (!n.read) {
       setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
+      setTotalUnread((c) => Math.max(0, c - 1));
       const { error } = await markSystemNotificationRead(n.id);
       if (error) {
         setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: false } : x)));
+        setTotalUnread((c) => c + 1);
       }
     } else {
       setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: false } : x)));
+      setTotalUnread((c) => c + 1);
       await supabase.from("system_notifications").update({ read: false }).eq("id", n.id);
     }
   }
@@ -100,6 +117,7 @@ export default function NotificationPanel() {
   async function handleMarkAllRead() {
     if (!user?.id) return;
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    setTotalUnread(0);
     await markAllSystemNotificationsRead(user.id);
   }
 
@@ -121,9 +139,9 @@ export default function NotificationPanel() {
         className="relative size-10 flex items-center justify-center rounded-xl hover:bg-[#F1F5F9] transition-colors cursor-pointer"
       >
         <span className="material-symbols-outlined text-[22px] text-[#334155]">notifications</span>
-        {unreadCount > 0 && (
+        {totalUnread > 0 && (
           <span className="absolute top-1 right-1 size-4 bg-[#DC2626] text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-            {unreadCount > 9 ? "9+" : unreadCount}
+            {totalUnread > 99 ? "99+" : totalUnread}
           </span>
         )}
       </button>

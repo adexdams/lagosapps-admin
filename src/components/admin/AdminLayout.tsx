@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Routes, Route, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
+import { supabase } from "../../lib/supabase";
 
 import AdminOverview from "./AdminOverview";
 import UsersPage from "./UsersPage";
@@ -45,8 +46,34 @@ const navItems = [
 
 export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [notifUnread, setNotifUnread] = useState(0);
   const location = useLocation();
   const { user, profile, signOut } = useAuth();
+
+  useEffect(() => {
+    if (!user?.id) return;
+    // Initial count
+    supabase
+      .from("system_notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("recipient_id", user.id)
+      .eq("read", false)
+      .then(({ count }) => setNotifUnread(count ?? 0));
+    // Realtime: increment on new notification, keep badge live
+    const ch = supabase
+      .channel(`sidebar_notif_count:${user.id}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "system_notifications", filter: `recipient_id=eq.${user.id}` },
+        () => setNotifUnread((c) => c + 1)
+      )
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "system_notifications", filter: `recipient_id=eq.${user.id}` },
+        () => {
+          supabase.from("system_notifications").select("id", { count: "exact", head: true }).eq("recipient_id", user.id).eq("read", false)
+            .then(({ count }) => setNotifUnread(count ?? 0));
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [user?.id]);
   const initials = profile?.name
     ? profile.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
     : (profile?.email ?? user?.email ?? "AD").slice(0, 2).toUpperCase();
@@ -79,7 +106,12 @@ export default function AdminLayout() {
               }
             >
               <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {item.path === "/notifications" && notifUnread > 0 && (
+                <span className="size-5 bg-[#DC2626] text-white text-[10px] font-bold rounded-full flex items-center justify-center flex-shrink-0">
+                  {notifUnread > 99 ? "99+" : notifUnread}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>
@@ -121,7 +153,12 @@ export default function AdminLayout() {
                   }
                 >
                   <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
-                  {item.label}
+                  <span className="flex-1">{item.label}</span>
+                  {item.path === "/notifications" && notifUnread > 0 && (
+                    <span className="size-5 bg-[#DC2626] text-white text-[10px] font-bold rounded-full flex items-center justify-center flex-shrink-0">
+                      {notifUnread > 99 ? "99+" : notifUnread}
+                    </span>
+                  )}
                 </NavLink>
               ))}
             </nav>
