@@ -2,7 +2,7 @@
 
 End-to-end checklist for verifying every feature on both the **admin dashboard** and **user-facing app**, via browser and API/CLI. Work through each section in order — many checks are dependencies for later ones.
 
-> **Last browser test: 2026-04-26. All admin portal browser tests confirmed complete (S1–S15, S1C referral signup re-tested and verified, S13 team invite + privilege management verified). S16 (User App: Portals), S17 (User App: Cart & Checkout) confirmed 2026-04-26. S10 (email templates UI) and S11 (fulfillment page) removed — both features removed from admin nav. S8 test steps updated to reflect correct routes: broadcast list/compose/detail at `/broadcast`, admin inbox at `/notifications`.** Bugs found and fixed during 2026-04-25 run: `flag_overdue_fulfillment()` used wrong enum value (`delivered` → `completed`); `send-email` Edge Function logo pointed to GitHub raw instead of Supabase Storage; `config.toml` template paths resolved from wrong directory; referral Bronze membership not showing after signup (race condition — setTimeout fired before email confirmation, moved to `loadProfile`). Bugs fixed 2026-04-26 (S3 browser test): refund txn ID exceeded `varchar(20)` (base-36 timestamp fix); create order blocked by single-portal guard (removed); duplicate status dropdowns in Order Detail (consolidated — progress now derived from status automatically); internal notes Add button silently failed (race on `currentUserId` state — replaced with `useAuth`); Risk Level in Order Detail was a manual dropdown (now auto-computed from SLA settings in Platform Settings); Fulfillment removed from sidebar nav. Bugs fixed 2026-04-26 (S5 work): membership notification trigger silently failed — `billing_cycle` enum and UUID id needed explicit `::TEXT` casts in `notify_membership_event()`; cancel subscription added to admin Membership page and user Membership panel; referral processing gate in `loadProfile` was blocking users who already had a paid membership tier from having referral row recorded; "Apply referral code" UI added to user Referrals panel. Built 2026-04-26 (S5C verified + promo codes): admin promo code system — `admin_referral_codes` + `admin_code_redemptions` tables, `redeem_admin_code()` RPC, Promo Codes tab in admin Referrals page, user-side fallback redemption in ReferralsPanel. Fixed 2026-04-26 (S6 verified): wallet transactions table was empty due to ambiguous FK embed (`wallet_transactions` has two FKs to `profiles`); fixed with explicit FK hint `profiles!wallet_transactions_user_id_fkey`. Also fixed benefit usage tracking — `doctor_consultations`, `car_rental_days`, `solar_product`, `event_venue_discount` were never tracked; added `PORTAL_BENEFIT` map in CartPanel so the correct benefit key is recorded when an order is confirmed for each portal.
+> **Last browser test: 2026-04-26. All admin portal browser tests confirmed complete (S1–S15, S1C referral signup re-tested and verified, S13 team invite + privilege management verified). S16 (User App: Portals), S17 (User App: Cart & Checkout), S18 (User App: Wallet), S19 (User App: Membership), S20 (User App: Notifications) confirmed 2026-04-26. S10 (email templates UI) and S11 (fulfillment page) removed — both features removed from admin nav. S8 test steps updated to reflect correct routes: broadcast list/compose/detail at `/broadcast`, admin inbox at `/notifications`.** Bugs found and fixed during 2026-04-25 run: `flag_overdue_fulfillment()` used wrong enum value (`delivered` → `completed`); `send-email` Edge Function logo pointed to GitHub raw instead of Supabase Storage; `config.toml` template paths resolved from wrong directory; referral Bronze membership not showing after signup (race condition — setTimeout fired before email confirmation, moved to `loadProfile`). Bugs fixed 2026-04-26 (S3 browser test): refund txn ID exceeded `varchar(20)` (base-36 timestamp fix); create order blocked by single-portal guard (removed); duplicate status dropdowns in Order Detail (consolidated — progress now derived from status automatically); internal notes Add button silently failed (race on `currentUserId` state — replaced with `useAuth`); Risk Level in Order Detail was a manual dropdown (now auto-computed from SLA settings in Platform Settings); Fulfillment removed from sidebar nav. Bugs fixed 2026-04-26 (S5 work): membership notification trigger silently failed — `billing_cycle` enum and UUID id needed explicit `::TEXT` casts in `notify_membership_event()`; cancel subscription added to admin Membership page and user Membership panel; referral processing gate in `loadProfile` was blocking users who already had a paid membership tier from having referral row recorded; "Apply referral code" UI added to user Referrals panel. Built 2026-04-26 (S5C verified + promo codes): admin promo code system — `admin_referral_codes` + `admin_code_redemptions` tables, `redeem_admin_code()` RPC, Promo Codes tab in admin Referrals page, user-side fallback redemption in ReferralsPanel. Fixed 2026-04-26 (S6 verified): wallet transactions table was empty due to ambiguous FK embed (`wallet_transactions` has two FKs to `profiles`); fixed with explicit FK hint `profiles!wallet_transactions_user_id_fkey`. Also fixed benefit usage tracking — `doctor_consultations`, `car_rental_days`, `solar_product`, `event_venue_discount` were never tracked; added `PORTAL_BENEFIT` map in CartPanel so the correct benefit key is recorded when an order is confirmed for each portal.
 
 ---
 
@@ -64,11 +64,11 @@ End-to-end checklist for verifying every feature on both the **admin dashboard**
 | 17D | Hybrid (wallet + card) | ✅ `wallet_deduction` + `payment_amount` fields confirmed | ✅ verified 2026-04-26 |
 | 17E | Failed payment | ✅ Schema confirmed | ✅ verified 2026-04-26 |
 | **S18** | **User App: Wallet** | | |
-| 18A–18B | Top-up · history | ✅ `wallet_transactions` schema ready | ⬜ Top up ₦5,000 · top-up email arrives |
+| 18A–18B | Top-up · history | ✅ `wallet_transactions` schema ready | ✅ verified 2026-04-26 |
 | **S19** | **User App: Membership** | | |
-| 19A–19B | Subscribe · admin view | ✅ 3 tiers + 15 benefits · `membership_subscriptions` ready | ⬜ Subscribe Bronze · expiry shown · admin Membership tab |
+| 19A–19B | Subscribe · admin view | ✅ 3 tiers + 15 benefits · `membership_subscriptions` ready | ✅ verified 2026-04-26 |
 | **S20** | **User App: Notifications** | | |
-| 20A–20B | Broadcast inbox · order status | ✅ `user_notifications` in realtime publication | ⬜ Broadcast arrives without refresh · order status updates |
+| 20A–20B | Broadcast inbox · order status | ✅ `user_notifications` in realtime publication | ✅ verified 2026-04-26 |
 | **S21** | **Paystack Webhook** | | |
 | 21A | Signature check (401) | ✅ Returns `401` on unsigned request | — |
 | 21B–21C | End-to-end + idempotency replay | — | ⬜ Paystack test dashboard → Logs → Resend |
@@ -570,16 +570,16 @@ supabase db query --linked "SELECT id, status FROM orders ORDER BY created_at DE
 
 ---
 
-## Section 15 — User App: Wallet
+## Section 15 — User App: Wallet ✅ verified 2026-04-26
 
 ### 15A · Top-up (browser)
 
-- [ ] Go to user dashboard → Wallet panel → **Top Up**
-- [ ] Enter amount (e.g. ₦5,000) → Paystack opens
-- [ ] Complete test card payment
-- [ ] Wallet balance increases immediately
-- [ ] Wallet top-up email arrives in inbox
-- [ ] Transaction appears in wallet history
+- [x] Go to user dashboard → Wallet panel → **Top Up**
+- [x] Enter amount (e.g. ₦5,000) → Paystack opens
+- [x] Complete test card payment
+- [x] Wallet balance increases immediately
+- [x] Wallet top-up email arrives in inbox
+- [x] Transaction appears in wallet history
 
 ```bash
 supabase db query --linked "SELECT description, amount, type, running_balance FROM wallet_transactions ORDER BY created_at DESC LIMIT 5;"
@@ -587,23 +587,23 @@ supabase db query --linked "SELECT description, amount, type, running_balance FR
 
 ### 15B · Transaction history (browser)
 
-- [ ] Wallet history shows all credits and debits with correct timestamps
-- [ ] Admin `/wallet` page also shows the same transactions (with user name)
+- [x] Wallet history shows all credits and debits with correct timestamps
+- [x] Admin `/wallet` page also shows the same transactions (with user name)
 
 ---
 
-## Section 16 — User App: Membership
+## Section 16 — User App: Membership ✅ verified 2026-04-26
 
 ### 16A · Subscribe (browser)
 
-- [ ] Go to user dashboard → Membership panel
-- [ ] Tiers and prices load from DB (not hardcoded)
-- [ ] Benefits listed under each tier (from `membership_tier_benefits`)
-- [ ] Toggle between Annual and Quarterly → prices update
-- [ ] Click **Subscribe** on Bronze → Paystack opens
-- [ ] Complete test payment
-- [ ] Membership tier on profile updates to `bronze`
-- [ ] `membership_subscriptions` row created with correct expiry
+- [x] Go to user dashboard → Membership panel
+- [x] Tiers and prices load from DB (not hardcoded)
+- [x] Benefits listed under each tier (from `membership_tier_benefits`)
+- [x] Toggle between Annual and Quarterly → prices update
+- [x] Click **Subscribe** on Bronze → Paystack opens
+- [x] Complete test payment
+- [x] Membership tier on profile updates to `bronze`
+- [x] `membership_subscriptions` row created with correct expiry
 
 ```bash
 supabase db query --linked "SELECT user_id, tier, billing_cycle, amount_paid, starts_at, expires_at, status FROM membership_subscriptions ORDER BY created_at DESC LIMIT 3;"
@@ -611,24 +611,24 @@ supabase db query --linked "SELECT user_id, tier, billing_cycle, amount_paid, st
 
 ### 16B · Admin view (browser)
 
-- [ ] Admin `/membership` → Subscriptions tab shows new subscription
-- [ ] Tier Config shows prices as set in DB
+- [x] Admin `/membership` → Subscriptions tab shows new subscription
+- [x] Tier Config shows prices as set in DB
 
 ---
 
-## Section 17 — User App: Notifications
+## Section 17 — User App: Notifications ✅ verified 2026-04-26
 
 ### 17A · Receive broadcast (browser)
 
-- [ ] In admin: compose and send a broadcast to All Users
-- [ ] In user app (same user is logged in): notification bell badge increments (Realtime)
-- [ ] Click notification → broadcast content visible
-- [ ] Mark as read → badge decrements
+- [x] In admin: compose and send a broadcast to All Users
+- [x] In user app (same user is logged in): notification bell badge increments (Realtime)
+- [x] Click notification → broadcast content visible
+- [x] Mark as read → badge decrements
 
 ### 17B · Order status notification (browser)
 
-- [ ] In admin: change an order's status
-- [ ] User's order timeline updates (check Order Detail on user app)
+- [x] In admin: change an order's status
+- [x] User's order timeline updates (check Order Detail on user app)
 
 ---
 
