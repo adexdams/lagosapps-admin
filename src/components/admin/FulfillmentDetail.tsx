@@ -40,7 +40,7 @@ interface DbOrder {
   updated_at: string;
   profiles: { id: string; name: string | null; email: string } | null;
   order_items: Array<{ id: string; product_name: string; quantity: number; unit_price: number; total_price: number }>;
-  order_timeline: Array<{ id: string; step_label: string; completed: boolean; completed_at: string | null; sort_order: number }>;
+  order_timeline: Array<{ id: string; label: string; completed: boolean; occurred_at: string | null; sort_order: number; profiles: { name: string | null; email: string } | null }>;
 }
 
 interface DbFulfillmentNote {
@@ -302,15 +302,15 @@ export default function FulfillmentDetail() {
   const orderTimeline = order?.order_timeline
     ?.slice()
     .sort((a, b) => a.sort_order - b.sort_order)
-    .map((t) => ({ label: t.step_label, date: t.completed_at, completed: t.completed })) ?? [];
+    .map((t) => ({ label: t.label, date: t.occurred_at, completed: t.completed, by: t.profiles?.name ?? t.profiles?.email ?? null })) ?? [];
 
   const requestTimeline = request
     ? [
-        { label: "Submitted", date: request.created_at, completed: true },
-        { label: "Reviewing", date: STATUS_FLOW.indexOf(reqStatus) >= 1 ? request.updated_at : null, completed: STATUS_FLOW.indexOf(reqStatus) >= 1 || reqStatus === "declined" },
-        { label: "Scheduled", date: STATUS_FLOW.indexOf(reqStatus) >= 2 ? request.updated_at : null, completed: STATUS_FLOW.indexOf(reqStatus) >= 2 },
-        { label: "In Progress", date: STATUS_FLOW.indexOf(reqStatus) >= 3 ? request.updated_at : null, completed: STATUS_FLOW.indexOf(reqStatus) >= 3 },
-        { label: "Completed", date: reqStatus === "completed" ? request.updated_at : null, completed: reqStatus === "completed" },
+        { label: "Submitted", date: request.created_at, completed: true, by: null },
+        { label: "Reviewing", date: STATUS_FLOW.indexOf(reqStatus) >= 1 ? request.updated_at : null, completed: STATUS_FLOW.indexOf(reqStatus) >= 1 || reqStatus === "declined", by: null },
+        { label: "Scheduled", date: STATUS_FLOW.indexOf(reqStatus) >= 2 ? request.updated_at : null, completed: STATUS_FLOW.indexOf(reqStatus) >= 2, by: null },
+        { label: "In Progress", date: STATUS_FLOW.indexOf(reqStatus) >= 3 ? request.updated_at : null, completed: STATUS_FLOW.indexOf(reqStatus) >= 3, by: null },
+        { label: "Completed", date: reqStatus === "completed" ? request.updated_at : null, completed: reqStatus === "completed", by: null },
       ]
     : [];
 
@@ -442,14 +442,22 @@ export default function FulfillmentDetail() {
               <div className="space-y-4">
                 {timeline.map((step, i) => (
                   <div key={i} className="flex items-start gap-3">
-                    <div className={`size-8 rounded-full flex items-center justify-center flex-shrink-0 ${step.completed ? "bg-[#ECFDF5]" : "bg-[#F1F5F9]"}`}>
+                    <div className={`size-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${step.completed ? "bg-[#ECFDF5]" : "bg-[#F1F5F9]"}`}>
                       <span className={`material-symbols-outlined text-[16px] ${step.completed ? "text-[#059669]" : "text-[#94A3B8]"}`}>
                         {step.completed ? "check_circle" : "radio_button_unchecked"}
                       </span>
                     </div>
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <p className={`text-sm font-semibold ${step.completed ? "text-[#0F172A]" : "text-[#94A3B8]"}`}>{step.label}</p>
-                      {step.date && <p className="text-[12px] text-[#64748B]">{formatDate(step.date)}</p>}
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        {step.date && <span className="text-[12px] text-[#64748B]">{formatDate(step.date)}</span>}
+                        {step.by && (
+                          <>
+                            <span className="text-[11px] text-[#CBD5E1]">·</span>
+                            <span className="text-[12px] text-[#94A3B8]">by {step.by}</span>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -546,16 +554,15 @@ export default function FulfillmentDetail() {
           {!isRequest && (
             <div className={`${card} p-4 sm:p-6`}>
               <h3 className="text-sm font-bold text-[#0F172A] mb-3">Progress</h3>
-              <div className="mb-3">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[13px] text-[#64748B]">Completion</span>
-                  <span className="text-sm font-bold text-[#0F172A]">{progress}%</span>
-                </div>
-                <div className="h-3 bg-[#F1F5F9] rounded-full overflow-hidden">
-                  <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${progress}%` }} />
-                </div>
-              </div>
-              <input type="range" min="0" max="100" value={progress} onChange={(e) => setProgress(parseInt(e.target.value))} className="w-full accent-primary cursor-pointer" />
+              <select
+                value={progress}
+                onChange={(e) => setProgress(parseInt(e.target.value))}
+                className={`${inputClass} cursor-pointer`}
+              >
+                {[0, 10, 20, 25, 30, 40, 50, 60, 70, 75, 80, 90, 100].map((v) => (
+                  <option key={v} value={v}>{v}%</option>
+                ))}
+              </select>
               <button onClick={handleSaveProgress} className="w-full mt-3 py-2.5 bg-[#0F172A] text-white text-sm font-semibold rounded-xl cursor-pointer hover:bg-[#1E293B] active:scale-[0.98] transition-all">
                 Update Progress
               </button>
