@@ -97,19 +97,26 @@ export default function NotificationPanel() {
     return () => { supabase.removeChannel(channel); };
   }, [user?.id]);
 
+  function dispatchBadgeDelta(delta: number) {
+    window.dispatchEvent(new CustomEvent("notif:badge-delta", { detail: delta }));
+  }
+
   async function toggleRead(n: SystemNotification, e?: React.MouseEvent) {
     e?.stopPropagation();
     if (!n.read) {
       setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
       setTotalUnread((c) => Math.max(0, c - 1));
+      dispatchBadgeDelta(-1);
       const { error } = await markSystemNotificationRead(n.id);
       if (error) {
         setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: false } : x)));
         setTotalUnread((c) => c + 1);
+        dispatchBadgeDelta(+1);
       }
     } else {
       setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: false } : x)));
       setTotalUnread((c) => c + 1);
+      dispatchBadgeDelta(+1);
       await supabase.from("system_notifications").update({ read: false }).eq("id", n.id);
     }
   }
@@ -118,6 +125,7 @@ export default function NotificationPanel() {
     if (!user?.id) return;
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     setTotalUnread(0);
+    window.dispatchEvent(new CustomEvent("notif:badge-reset"));
     await markAllSystemNotificationsRead(user.id);
   }
 

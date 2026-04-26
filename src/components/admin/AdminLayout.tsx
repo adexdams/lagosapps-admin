@@ -59,21 +59,30 @@ export default function AdminLayout() {
       .eq("recipient_id", user.id)
       .eq("read", false)
       .then(({ count }) => setNotifUnread(count ?? 0));
-    // Realtime: increment on new notification, keep badge live
+    // Realtime: only handle new notifications arriving from outside this session
     const ch = supabase
       .channel(`sidebar_notif_count:${user.id}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "system_notifications", filter: `recipient_id=eq.${user.id}` },
         () => setNotifUnread((c) => c + 1)
       )
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "system_notifications", filter: `recipient_id=eq.${user.id}` },
-        () => {
-          supabase.from("system_notifications").select("id", { count: "exact", head: true }).eq("recipient_id", user.id).eq("read", false)
-            .then(({ count }) => setNotifUnread(count ?? 0));
-        }
-      )
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [user?.id]);
+
+  // Keep sidebar badge in sync with NotificationPanel read/unread actions
+  useEffect(() => {
+    const onDelta = (e: Event) => {
+      const delta = (e as CustomEvent<number>).detail;
+      setNotifUnread((c) => Math.max(0, c + delta));
+    };
+    const onReset = () => setNotifUnread(0);
+    window.addEventListener("notif:badge-delta", onDelta);
+    window.addEventListener("notif:badge-reset", onReset);
+    return () => {
+      window.removeEventListener("notif:badge-delta", onDelta);
+      window.removeEventListener("notif:badge-reset", onReset);
+    };
+  }, []);
   const initials = profile?.name
     ? profile.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
     : (profile?.email ?? user?.email ?? "AD").slice(0, 2).toUpperCase();
