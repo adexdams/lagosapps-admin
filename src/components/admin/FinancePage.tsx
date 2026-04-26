@@ -67,13 +67,13 @@ export default function FinancePage() {
 
   // ── Derived metrics ──
   const completedOrders = orders.filter((o) => o.status === "completed");
+  const pendingOrders = orders.filter((o) => o.status === "pending");
   const totalRevenue = completedOrders.reduce((s, o) => s + o.total_amount, 0);
-  const paystackFee = (amount: number) => Math.min(Math.round(amount * 0.015 + 10000), 200000);
-  const totalFees = completedOrders.reduce((s, o) => s + paystackFee(o.total_amount), 0);
-  const totalNet = totalRevenue - totalFees;
-  const successRate = orders.length > 0 ? Math.round((completedOrders.length / orders.length) * 100) : 0;
-  const avgOrderValue = completedOrders.length > 0 ? Math.round(totalRevenue / completedOrders.length) : 0;
-  const pendingCount = orders.filter((o) => o.status === "pending").length;
+  const pendingValue = pendingOrders.reduce((s, o) => s + o.total_amount, 0);
+  const grossOrderValue = orders.filter((o) => o.status !== "cancelled").reduce((s, o) => s + o.total_amount, 0);
+  const avgOrderValue = orders.filter((o) => o.status !== "cancelled").length > 0
+    ? Math.round(grossOrderValue / orders.filter((o) => o.status !== "cancelled").length) : 0;
+  const pendingCount = pendingOrders.length;
   const cancelledCount = orders.filter((o) => o.status === "cancelled").length;
 
   const walletCredits = txns.filter((t) => t.type === "credit").reduce((s, t) => s + t.amount, 0);
@@ -160,10 +160,10 @@ export default function FinancePage() {
           {tab === "overview" && (
             <div className="space-y-4 sm:space-y-6">
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
-                <StatCard label="Total Revenue" value={formatNaira(totalRevenue)} icon="payments" color="#1B5E20" trend={{ value: `${completedOrders.length} orders`, positive: true }} />
-                <StatCard label="Net Income" value={formatNaira(totalNet)} icon="trending_up" color="#0D47A1" trend={{ value: `${formatNaira(totalFees)} in fees`, positive: false }} />
-                <StatCard label="Success Rate" value={`${successRate}%`} icon="check_circle" color="#059669" trend={{ value: `${cancelledCount} cancelled`, positive: successRate > 90 }} />
-                <StatCard label="Avg Order Value" value={formatNaira(avgOrderValue)} icon="analytics" color="#7C3AED" trend={{ value: `${pendingCount} pending`, positive: false }} />
+                <StatCard label="Gross Order Value" value={formatNaira(grossOrderValue)} icon="payments" color="#1B5E20" trend={{ value: `${orders.filter(o => o.status !== "cancelled").length} orders total`, positive: true }} />
+                <StatCard label="Confirmed Revenue" value={formatNaira(totalRevenue)} icon="check_circle" color="#059669" trend={{ value: `${completedOrders.length} completed`, positive: true }} />
+                <StatCard label="Pending Value" value={formatNaira(pendingValue)} icon="pending" color="#E65100" trend={{ value: `${pendingCount} orders awaiting payment`, positive: false }} />
+                <StatCard label="Avg Order Value" value={formatNaira(avgOrderValue)} icon="analytics" color="#7C3AED" trend={{ value: `${cancelledCount} cancelled`, positive: false }} />
               </div>
 
               {/* Channel breakdown */}

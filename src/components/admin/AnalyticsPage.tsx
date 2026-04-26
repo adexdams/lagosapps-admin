@@ -52,7 +52,6 @@ export default function AnalyticsPage() {
 
   // ── User metrics ──
   const totalUsers = users.length;
-  const activeUsers = users.filter((u) => u.is_active).length;
   const thisMonth = new Date().toISOString().slice(0, 7);
   const newUsersThisMonth = users.filter((u) => u.created_at.startsWith(thisMonth)).length;
   const activeMembers = subscriptions.filter((s) => s.status === "active").length;
@@ -134,8 +133,8 @@ export default function AnalyticsPage() {
       {/* Top stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         <StatCard label="Total Users" value={totalUsers === 0 ? "0" : totalUsers.toLocaleString()} icon="group" color="#0D47A1" trend={{ value: `${newUsersThisMonth} this month`, positive: true }} />
-        <StatCard label="Active Users" value={String(activeUsers)} icon="person" color="#1B5E20" trend={{ value: totalUsers > 0 ? `${Math.round((activeUsers / totalUsers) * 100)}% of total` : "0%", positive: true }} />
-        <StatCard label="Order Completion" value={`${completionRate}%`} icon="check_circle" color="#059669" trend={{ value: `${completedOrders} completed`, positive: completionRate > 70 }} />
+        <StatCard label="Total Orders" value={String(orders.length)} icon="receipt_long" color="#1B5E20" trend={{ value: `${completedOrders} completed, ${processingOrders} active`, positive: orders.length > 0 }} />
+        <StatCard label="Order Completion" value={`${completionRate}%`} icon="check_circle" color="#059669" trend={{ value: orders.length > 0 ? `${completedOrders}/${orders.length}` : "No orders yet", positive: completionRate > 70 }} />
         <StatCard label="Active Members" value={String(activeMembers)} icon="card_membership" color="#E65100" trend={{ value: `${pendingRequests} requests pending`, positive: false }} />
       </div>
 

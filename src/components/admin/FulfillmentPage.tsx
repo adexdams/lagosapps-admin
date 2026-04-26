@@ -267,7 +267,7 @@ export default function FulfillmentPage() {
             <div className="py-12 text-center">
               <span className="material-symbols-outlined text-[40px] text-[#CBD5E1] block mb-2">assignment_turned_in</span>
               <p className="text-sm text-[#64748B]">No orders currently in fulfillment</p>
-              <p className="text-xs text-[#94A3B8] mt-1">Orders in <strong>Confirmed</strong> or <strong>Processing</strong> status will appear here.</p>
+              <p className="text-xs text-[#94A3B8] mt-1">Orders in <strong>Pending</strong>, <strong>Confirmed</strong>, or <strong>Processing</strong> status will appear here.</p>
             </div>
           ) : (
             <>

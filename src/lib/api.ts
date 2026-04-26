@@ -86,11 +86,10 @@ export function generateTxnId(): string {
 // ── Fulfillment ─────────────────────────────────────────────
 
 export async function getFulfillmentOrders() {
-  // Orders that are actively being fulfilled
   return supabase
     .from("orders")
     .select("*, profiles!user_id(name, email), fulfillment_tracking(*)")
-    .in("status", ["confirmed", "processing"])
+    .in("status", ["pending", "confirmed", "processing"])
     .order("created_at", { ascending: false });
 }
 

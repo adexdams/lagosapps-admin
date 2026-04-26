@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import StatCard from "./shared/StatCard";
 import StatusBadge from "./shared/StatusBadge";
@@ -59,6 +59,9 @@ export default function LiveCartsPage() {
   const [loading, setLoading] = useState(true);
   const [sendingReminder, setSendingReminder] = useState<string | null>(null);
 
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
+
   const loadCarts = useCallback(async () => {
     setLoading(true);
     // Fetch carts with their items and the owner's profile in one go
@@ -68,13 +71,13 @@ export default function LiveCartsPage() {
       .order("updated_at", { ascending: false });
     setLoading(false);
     if (error) {
-      toast.error(`Failed to load carts: ${error.message}`);
+      toastRef.current.error(`Failed to load carts: ${error.message}`);
       return;
     }
     // Only show carts that have at least one item
     const withItems = ((data as DbCart[]) ?? []).filter((c) => c.cart_items && c.cart_items.length > 0);
     setCarts(withItems);
-  }, [toast]);
+  }, []); // stable — toast accessed via ref
 
   useEffect(() => { loadCarts(); }, [loadCarts]);
 

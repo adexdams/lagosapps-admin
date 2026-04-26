@@ -55,8 +55,9 @@ export default function AdminOverview() {
     return () => { cancelled = true; };
   }, []);
 
-  const processingOrders = orders.filter((o) => o.status === "processing" || o.status === "confirmed").length;
   const pendingOrders = orders.filter((o) => o.status === "pending").length;
+  const processingOrders = orders.filter((o) => o.status === "processing" || o.status === "confirmed").length;
+  const activeOrders = pendingOrders + processingOrders;
   const completedOrders = orders.filter((o) => o.status === "completed").length;
   const cancelledOrders = orders.filter((o) => o.status === "cancelled").length;
   const recentOrders = [...orders].slice(0, 5);
@@ -68,7 +69,7 @@ export default function AdminOverview() {
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-6">
         <StatCard label="Total Users" value={loading ? "—" : userCount.toLocaleString()} icon="group" color="#0D47A1" trend={{ value: `${activeMembers} members`, positive: true }} />
-        <StatCard label="Active Orders" value={loading ? "—" : String(processingOrders)} icon="receipt_long" color="#E65100" trend={{ value: `${pendingOrders} pending`, positive: false }} />
+        <StatCard label="Active Orders" value={loading ? "—" : String(activeOrders)} icon="receipt_long" color="#E65100" trend={{ value: `${pendingOrders} pending, ${processingOrders} in progress`, positive: false }} />
         <StatCard label="Completed" value={loading ? "—" : String(completedOrders)} icon="check_circle" color="#1B5E20" trend={{ value: `${completionRate}% rate`, positive: true }} />
         <StatCard label="New Requests" value={loading ? "—" : String(newRequests)} icon="description" color="#7C3AED" trend={{ value: "Awaiting review", positive: false }} />
       </div>
@@ -126,11 +127,11 @@ export default function AdminOverview() {
           <div className="space-y-4">
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[13px] text-[#334155]">Orders in Progress</span>
-                <span className="text-sm font-bold text-[#EA580C]">{loading ? "—" : processingOrders}</span>
+                <span className="text-[13px] text-[#334155]">Active Orders</span>
+                <span className="text-sm font-bold text-[#EA580C]">{loading ? "—" : activeOrders}</span>
               </div>
               <div className="h-2.5 bg-[#F1F5F9] rounded-full overflow-hidden">
-                <div className="h-full rounded-full bg-[#EA580C]" style={{ width: orders.length > 0 ? `${(processingOrders / orders.length) * 100}%` : "0%" }} />
+                <div className="h-full rounded-full bg-[#EA580C]" style={{ width: orders.length > 0 ? `${(activeOrders / orders.length) * 100}%` : "0%" }} />
               </div>
             </div>
             <div>
