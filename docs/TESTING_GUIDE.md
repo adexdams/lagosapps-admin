@@ -2,7 +2,7 @@
 
 End-to-end checklist for verifying every feature on both the **admin dashboard** and **user-facing app**, via browser and API/CLI. Work through each section in order — many checks are dependencies for later ones.
 
-> **Last browser test: 2026-04-26 (S3, S4, S1A, S5A, S5C, S5D, S6, S7A, S7B, S8 complete). S10 (email templates UI) and S11 (fulfillment page) removed — both features removed from admin nav.** Bugs found and fixed during 2026-04-25 run: `flag_overdue_fulfillment()` used wrong enum value (`delivered` → `completed`); `send-email` Edge Function logo pointed to GitHub raw instead of Supabase Storage; `config.toml` template paths resolved from wrong directory; referral Bronze membership not showing after signup (race condition — setTimeout fired before email confirmation, moved to `loadProfile`). Bugs fixed 2026-04-26 (S3 browser test): refund txn ID exceeded `varchar(20)` (base-36 timestamp fix); create order blocked by single-portal guard (removed); duplicate status dropdowns in Order Detail (consolidated — progress now derived from status automatically); internal notes Add button silently failed (race on `currentUserId` state — replaced with `useAuth`); Risk Level in Order Detail was a manual dropdown (now auto-computed from SLA settings in Platform Settings); Fulfillment removed from sidebar nav. Bugs fixed 2026-04-26 (S5 work): membership notification trigger silently failed — `billing_cycle` enum and UUID id needed explicit `::TEXT` casts in `notify_membership_event()`; cancel subscription added to admin Membership page and user Membership panel; referral processing gate in `loadProfile` was blocking users who already had a paid membership tier from having referral row recorded; "Apply referral code" UI added to user Referrals panel. Built 2026-04-26 (S5C verified + promo codes): admin promo code system — `admin_referral_codes` + `admin_code_redemptions` tables, `redeem_admin_code()` RPC, Promo Codes tab in admin Referrals page, user-side fallback redemption in ReferralsPanel. Fixed 2026-04-26 (S6 verified): wallet transactions table was empty due to ambiguous FK embed (`wallet_transactions` has two FKs to `profiles`); fixed with explicit FK hint `profiles!wallet_transactions_user_id_fkey`. Also fixed benefit usage tracking — `doctor_consultations`, `car_rental_days`, `solar_product`, `event_venue_discount` were never tracked; added `PORTAL_BENEFIT` map in CartPanel so the correct benefit key is recorded when an order is confirmed for each portal.
+> **Last browser test: 2026-04-26 (S3, S4, S1A, S5A, S5C, S5D, S6, S7A, S7B complete). S10 (email templates UI) and S11 (fulfillment page) removed — both features removed from admin nav. S8 test steps updated to reflect correct routes: broadcast list/compose/detail at `/broadcast`, admin inbox at `/notifications`.** Bugs found and fixed during 2026-04-25 run: `flag_overdue_fulfillment()` used wrong enum value (`delivered` → `completed`); `send-email` Edge Function logo pointed to GitHub raw instead of Supabase Storage; `config.toml` template paths resolved from wrong directory; referral Bronze membership not showing after signup (race condition — setTimeout fired before email confirmation, moved to `loadProfile`). Bugs fixed 2026-04-26 (S3 browser test): refund txn ID exceeded `varchar(20)` (base-36 timestamp fix); create order blocked by single-portal guard (removed); duplicate status dropdowns in Order Detail (consolidated — progress now derived from status automatically); internal notes Add button silently failed (race on `currentUserId` state — replaced with `useAuth`); Risk Level in Order Detail was a manual dropdown (now auto-computed from SLA settings in Platform Settings); Fulfillment removed from sidebar nav. Bugs fixed 2026-04-26 (S5 work): membership notification trigger silently failed — `billing_cycle` enum and UUID id needed explicit `::TEXT` casts in `notify_membership_event()`; cancel subscription added to admin Membership page and user Membership panel; referral processing gate in `loadProfile` was blocking users who already had a paid membership tier from having referral row recorded; "Apply referral code" UI added to user Referrals panel. Built 2026-04-26 (S5C verified + promo codes): admin promo code system — `admin_referral_codes` + `admin_code_redemptions` tables, `redeem_admin_code()` RPC, Promo Codes tab in admin Referrals page, user-side fallback redemption in ReferralsPanel. Fixed 2026-04-26 (S6 verified): wallet transactions table was empty due to ambiguous FK embed (`wallet_transactions` has two FKs to `profiles`); fixed with explicit FK hint `profiles!wallet_transactions_user_id_fkey`. Also fixed benefit usage tracking — `doctor_consultations`, `car_rental_days`, `solar_product`, `event_venue_discount` were never tracked; added `PORTAL_BENEFIT` map in CartPanel so the correct benefit key is recorded when an order is confirmed for each portal.
 
 ---
 
@@ -34,7 +34,7 @@ End-to-end checklist for verifying every feature on both the **admin dashboard**
 | 7A | Referrals list | ✅ Schema confirmed · table empty | ✅ verified 2026-04-26 |
 | 7B | Promo codes | ✅ `admin_referral_codes` table + `redeem_admin_code()` RPC confirmed | ✅ verified 2026-04-26 |
 | **S8** | **Admin: Notifications** | | |
-| 8A–8D | Broadcasts · system panel · inbox | ✅ Realtime publications confirmed | ✅ verified 2026-04-26 |
+| 8A–8D | Broadcasts · system panel · inbox | ✅ Realtime publications confirmed | ⬜ Compose · send · retract · bell panel |
 | **S9** | **Admin: Settings** | | |
 | 9A–9C | Portal toggles · alert prefs · profile | ✅ 7 portals — all `is_active = true` | ⬜ Set name · toggle portal · alert prefs save |
 | ~~**S10**~~ | ~~**Admin: Email Templates**~~ | ~~Page removed — templates managed via Supabase Dashboard / `supabase/templates/`~~ | — |
@@ -366,33 +366,34 @@ supabase db query --linked "SELECT acr.user_id, p.name, arc.code, arc.gifted_tie
 
 ---
 
-## Section 8 — Admin Dashboard: Notifications
+## Section 8 — Admin Dashboard: Broadcast & Notifications
 
-### 8A · Broadcast compose (browser) — ✅ verified 2026-04-26
+### 8A · Broadcast list (browser)
 
-- [x] Navigate to `/notifications` → **Compose Broadcast**
-- [x] Fill title, message, select audience (All Users / tier / specific user)
-- [x] **Preview Email** → modal shows rendered HTML
-- [x] **Save Draft** → appears in list with Draft badge
-- [x] **Send** → status changes to Sent; check user app inbox for the notification
+- [ ] Navigate to `/broadcast` → broadcast list loads (not stuck in loading loop)
+- [ ] Stat summary shows total / sent / draft counts
+- [ ] Search by title filters rows
+- [ ] Filter by type and status work
 
-### 8B · Broadcast detail (browser) — ✅ verified 2026-04-26
+### 8B · Broadcast compose (browser)
 
-- [x] Click a sent broadcast row → detail page loads
-- [x] Read rate counter shown (updates as users read it)
-- [x] **Retract** → status changes to Retracted; unread users no longer see it in inbox
+- [ ] Click **New Broadcast** → navigates to `/broadcast/compose`
+- [ ] Fill title, message, select audience (All Users / tier / specific user)
+- [ ] **Save Draft** → redirects to list; row appears with Draft badge
+- [ ] **Send** → status changes to Sent; notification appears in user app inbox
 
-### 8C · System notification panel (browser) — ✅ verified 2026-04-26
+### 8C · Broadcast detail (browser)
 
-- [x] Bell icon in topbar → click → panel opens showing system notifications
-- [x] Perform an action that triggers a notification (e.g. cancel an order) → notification appears without page refresh (Realtime)
-- [x] Click notification → deep-links to relevant page → marks as read
+- [ ] Click a sent broadcast row → navigates to `/broadcast/:id`
+- [ ] Read rate counter shown (updates as users read it)
+- [ ] **Retract** → status changes to Retracted; unread users no longer see it in inbox
 
-### 8D · Notifications inbox (browser) — ✅ verified 2026-04-26
+### 8D · Admin notifications inbox (browser)
 
-- [x] Navigate to `/notifications` (inbox tab) → all system notifications listed
-- [x] Category filter pills work
-- [x] **Mark all read** → all go grey
+- [ ] Navigate to `/notifications` → admin inbox loads
+- [ ] System notifications listed (order updates, membership events, etc.)
+- [ ] Bell icon in topbar → panel opens; notifications appear without page refresh (Realtime)
+- [ ] Click notification → marks as read
 
 ---
 
