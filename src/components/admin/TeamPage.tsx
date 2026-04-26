@@ -461,14 +461,14 @@ export default function TeamPage() {
                   {/* Toggle switch */}
                   <button
                     onClick={() => setPrivMap((prev) => ({ ...prev, [priv.key]: !prev[priv.key] }))}
-                    className={`relative w-9 h-5 rounded-full flex-shrink-0 transition-colors cursor-pointer ${
+                    className={`relative w-10 h-6 rounded-full flex-shrink-0 transition-colors cursor-pointer ${
                       privMap[priv.key] ? "bg-primary" : "bg-[#CBD5E1]"
                     }`}
                     title={privMap[priv.key] ? "Disable" : "Enable"}
                   >
                     <span
-                      className={`absolute top-0.5 size-4 rounded-full bg-white shadow-sm transition-transform ${
-                        privMap[priv.key] ? "translate-x-4" : "translate-x-0.5"
+                      className={`absolute top-0.5 left-0.5 size-5 rounded-full bg-white shadow transition-transform ${
+                        privMap[priv.key] ? "translate-x-4" : "translate-x-0"
                       }`}
                     />
                   </button>
