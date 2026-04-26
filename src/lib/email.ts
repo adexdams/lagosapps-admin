@@ -50,6 +50,7 @@ export async function previewEmail(options: {
   inlineTemplate?: InlineTemplate;
   customSubject?: string;
   customHtml?: string;
+  logoUrl?: string;
 }): Promise<{ subject: string; html: string } | { error: string }> {
   const { data: result, error } = await supabase.functions.invoke("send-email", {
     body: {
@@ -59,6 +60,7 @@ export async function previewEmail(options: {
       subject: options.customSubject,
       html: options.customHtml,
       dryRun: true,
+      logoUrl: options.logoUrl,
     },
   });
   if (error) return { error: error.message };

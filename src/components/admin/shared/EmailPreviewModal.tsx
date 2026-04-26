@@ -33,6 +33,7 @@ export default function EmailPreviewModal({ isOpen, onClose, template, sampleDat
         inlineTemplate,
         customSubject,
         customHtml,
+        logoUrl: window.location.origin + "/lagosapp-logo.png",
       });
       if (cancelled) return;
       if ("error" in result) setError(result.error);

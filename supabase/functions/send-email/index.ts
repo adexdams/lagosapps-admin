@@ -48,6 +48,7 @@ interface EmailPayload {
   html?: string;
   dryRun?: boolean; // if true, return rendered HTML instead of sending
   inlineTemplate?: InlineTemplate; // preview unsaved edits without hitting DB
+  logoUrl?: string; // override the logo (used by dryRun preview to inject local asset)
 }
 
 interface TemplateRow {
@@ -152,13 +153,13 @@ serve(async (req: Request) => {
       // Custom template — bypass DB lookup, use provided subject/html inside the layout
       subject = payload.subject;
       html = layout({
-        logoUrl: DEFAULT_LOGO_URL,
+        logoUrl: payload.logoUrl ?? DEFAULT_LOGO_URL,
         bannerUrl: null,
         content: payload.html,
       });
     } else {
       let tpl: TemplateRow;
-      let logoUrl = DEFAULT_LOGO_URL;
+      let logoUrl = payload.logoUrl ?? DEFAULT_LOGO_URL;
 
       if (payload.inlineTemplate) {
         // Inline template provided — use it directly (for previewing unsaved edits)
@@ -169,14 +170,16 @@ serve(async (req: Request) => {
           body_html: payload.inlineTemplate.body_html,
           banner_url: payload.inlineTemplate.banner_url ?? null,
         };
-        // Still fetch the logo since admin may have set one globally
-        const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
-        const { data: logoSetting } = await admin
-          .from("platform_settings")
-          .select("value")
-          .eq("key", "email_logo_url")
-          .maybeSingle();
-        if (logoSetting?.value) logoUrl = logoSetting.value as string;
+        // Only fetch logo from DB if no override was provided
+        if (!payload.logoUrl) {
+          const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+          const { data: logoSetting } = await admin
+            .from("platform_settings")
+            .select("value")
+            .eq("key", "email_logo_url")
+            .maybeSingle();
+          if (logoSetting?.value) logoUrl = logoSetting.value as string;
+        }
       } else {
         // Fetch template from DB
         const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
@@ -197,12 +200,15 @@ serve(async (req: Request) => {
 
         tpl = dbTpl;
 
-        const { data: logoSetting } = await admin
-          .from("platform_settings")
-          .select("value")
-          .eq("key", "email_logo_url")
-          .maybeSingle();
-        if (logoSetting?.value) logoUrl = logoSetting.value as string;
+        // Only fetch logo from DB if no override was provided
+        if (!payload.logoUrl) {
+          const { data: logoSetting } = await admin
+            .from("platform_settings")
+            .select("value")
+            .eq("key", "email_logo_url")
+            .maybeSingle();
+          if (logoSetting?.value) logoUrl = logoSetting.value as string;
+        }
       }
 
       // Interpolate variables
