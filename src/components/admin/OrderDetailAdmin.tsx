@@ -2,7 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
 import StatusBadge from "./shared/StatusBadge";
 import { useToast } from "../../hooks/useToast";
-import { getOrder, updateOrderStatus, createWalletTransaction, logAudit } from "../../lib/api";
+import { getOrder, updateOrderStatus, insertOrderTimelineStep, createWalletTransaction, logAudit } from "../../lib/api";
 import { supabase } from "../../lib/supabase";
 import {
   formatNaira,
@@ -14,6 +14,13 @@ import {
 
 type OrderStatus = "pending" | "confirmed" | "processing" | "completed" | "cancelled";
 const STATUS_OPTIONS: OrderStatus[] = ["pending", "confirmed", "processing", "completed", "cancelled"];
+const STATUS_LABELS: Record<string, string> = {
+  pending: "Order placed — awaiting payment",
+  confirmed: "Payment confirmed",
+  processing: "Order in processing",
+  completed: "Order completed",
+  cancelled: "Order cancelled",
+};
 
 interface OrderItem {
   id: string;
@@ -30,6 +37,8 @@ interface TimelineStep {
   occurred_at: string | null;
   completed: boolean;
   sort_order: number;
+  created_by: string | null;
+  profiles: { name: string | null; email: string } | null;
 }
 
 interface OrderProfile {
@@ -88,12 +97,31 @@ export default function OrderDetailAdmin() {
     if (!order) return;
     const old = order.status;
     setSavingStatus(true);
+
     const { error } = await updateOrderStatus(order.id, newStatus);
     if (error) {
       setSavingStatus(false);
       toast.error(`Failed: ${error.message}`);
       return;
     }
+
+    // Capture which admin made the change
+    const { data: sessionData } = await supabase.auth.getSession();
+    const adminId = sessionData?.session?.user?.id ?? null;
+
+    // Write a timeline entry for this status change
+    const nextSort = order.order_timeline.length > 0
+      ? Math.max(...order.order_timeline.map((t) => t.sort_order)) + 1
+      : 1;
+    await insertOrderTimelineStep({
+      order_id: order.id,
+      label: STATUS_LABELS[newStatus] ?? `Status changed to ${newStatus}`,
+      occurred_at: new Date().toISOString(),
+      completed: true,
+      sort_order: nextSort,
+      created_by: adminId,
+    });
+
     await logAudit({
       action: "order.status_change",
       entity_type: "order",
@@ -101,9 +129,10 @@ export default function OrderDetailAdmin() {
       old_values: { status: old },
       new_values: { status: newStatus },
     });
-    setOrder({ ...order, status: newStatus as OrderStatus });
+
     setSavingStatus(false);
-    toast.success(`Order status updated to ${newStatus}`);
+    toast.success(`Status updated to ${newStatus}`);
+    load(); // reload to pull fresh timeline
   }
 
   async function handleRefund() {
@@ -314,14 +343,26 @@ export default function OrderDetailAdmin() {
               <div className="space-y-4">
                 {timeline.map((step) => (
                   <div key={step.id} className="flex items-start gap-3">
-                    <div className={`size-8 rounded-full flex items-center justify-center flex-shrink-0 ${step.completed ? "bg-[#ECFDF5]" : "bg-[#F1F5F9]"}`}>
+                    <div className={`size-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${step.completed ? "bg-[#ECFDF5]" : "bg-[#F1F5F9]"}`}>
                       <span className={`material-symbols-outlined text-[16px] ${step.completed ? "text-[#059669]" : "text-[#94A3B8]"}`}>
                         {step.completed ? "check_circle" : "radio_button_unchecked"}
                       </span>
                     </div>
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <p className={`text-sm font-semibold ${step.completed ? "text-[#0F172A]" : "text-[#94A3B8]"}`}>{step.label}</p>
-                      {step.occurred_at && <p className="text-[12px] text-[#64748B]">{formatDate(step.occurred_at)}</p>}
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        {step.occurred_at && (
+                          <span className="text-[12px] text-[#64748B]">{formatDate(step.occurred_at)}</span>
+                        )}
+                        {step.profiles && (
+                          <>
+                            <span className="text-[11px] text-[#CBD5E1]">·</span>
+                            <span className="text-[12px] text-[#94A3B8]">
+                              by {step.profiles.name ?? step.profiles.email}
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}

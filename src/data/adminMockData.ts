@@ -891,8 +891,8 @@ export const mockUserNotifications = generateUserNotifications(mockUsers);
 
 // ── Utility exports ───────────────────────────
 
-export function formatNaira(amount: number): string {
-  return `\u20A6${amount.toLocaleString()}`;
+export function formatNaira(amount: number | null | undefined): string {
+  return `\u20A6${(amount ?? 0).toLocaleString()}`;
 }
 
 export function formatDate(dateStr: string): string {

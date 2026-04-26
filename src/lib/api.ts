@@ -44,7 +44,7 @@ export async function getOrders() {
 export async function getOrder(id: string) {
   return supabase
     .from("orders")
-    .select("*, order_items(*), order_timeline(*), profiles!user_id(id, name, email, avatar_url, phone, membership_tier)")
+    .select("*, order_items(*), order_timeline(*, profiles(name, email)), profiles!user_id(id, name, email, avatar_url, phone, membership_tier)")
     .eq("id", id)
     .single();
 }
