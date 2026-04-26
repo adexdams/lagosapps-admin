@@ -223,6 +223,38 @@ export async function getReferrals() {
     .order("created_at", { ascending: false });
 }
 
+// ── Admin Referral Codes ─────────────────────────────────────
+
+export async function getAdminReferralCodes() {
+  return supabase
+    .from("admin_referral_codes")
+    .select("*, creator:profiles!created_by(name, email)")
+    .order("created_at", { ascending: false });
+}
+
+export async function createAdminReferralCode(data: {
+  code: string;
+  gifted_tier: string;
+  max_uses: number | null;
+  expires_at: string | null;
+  description: string | null;
+  created_by: string;
+}) {
+  return supabase.from("admin_referral_codes").insert(data).select().single();
+}
+
+export async function updateAdminReferralCode(id: string, data: Record<string, unknown>) {
+  return supabase.from("admin_referral_codes").update(data).eq("id", id);
+}
+
+export async function getAdminCodeRedemptions(codeId: string) {
+  return supabase
+    .from("admin_code_redemptions")
+    .select("*, profiles(name, email)")
+    .eq("code_id", codeId)
+    .order("redeemed_at", { ascending: false });
+}
+
 export async function updateMembershipTierBenefit(id: string, data: Record<string, unknown>) {
   return supabase.from("membership_tier_benefits").update(data).eq("id", id);
 }
