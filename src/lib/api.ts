@@ -114,7 +114,7 @@ export async function addFulfillmentNote(data: Record<string, unknown>) {
 export async function getServiceRequestsList() {
   return supabase
     .from("service_requests")
-    .select("*, profiles(name, email)")
+    .select("*, profiles!user_id(name, email)")
     .order("created_at", { ascending: false });
 }
 
