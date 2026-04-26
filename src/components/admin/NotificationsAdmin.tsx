@@ -39,7 +39,7 @@ interface BroadcastWithStats extends BroadcastRow {
 
 export default function NotificationsAdmin() {
   const navigate = useNavigate();
-  const toast = useToast();
+  const { error: toastError } = useToast();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -50,7 +50,7 @@ export default function NotificationsAdmin() {
     setLoading(true);
     const { data, error } = await getBroadcastsList();
     if (error) {
-      toast.error(`Failed to load broadcasts: ${error.message}`);
+      toastError(`Failed to load broadcasts: ${error.message}`);
       setLoading(false);
       return;
     }
@@ -78,7 +78,7 @@ export default function NotificationsAdmin() {
       }))
     );
     setLoading(false);
-  }, [toast]);
+  }, [toastError]);
 
   useEffect(() => { loadBroadcasts(); }, [loadBroadcasts]);
 
