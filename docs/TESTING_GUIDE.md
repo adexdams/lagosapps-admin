@@ -798,16 +798,16 @@ Work through these steps in order — each phase builds on the previous one (e.g
 
 ---
 
-### Phase 1 — Settings & Profile
+### Phase 1 — Settings & Profile ✅ verified 2026-04-26
 
 **Goal:** Confirm your name saves and appears in the top nav; platform settings round-trip to DB; alert prefs save.
 
-1. [ ] Navigate to `/settings`
-2. [ ] **Profile section** → type your name in the Name field → click **Save Profile** → toast "Profile updated" appears
-3. [ ] Refresh the page → top nav shows your name and "Super Admin" role (not "Support" or blank)
-4. [ ] **Platform section** → note the current Support Email → change it → click **Save** → toast appears → refresh and confirm the change persisted
-5. [ ] **Portals section** → note all 7 are active → toggle one **off** → HIDDEN badge appears next to it → *(leave it off for now — you'll verify the user app effect in Phase 9)*
-6. [ ] **Alert Preferences** → toggle the Inventory category off → no error → refresh and confirm it stayed off → toggle it back on
+1. [x] Navigate to `/settings`
+2. [x] **Profile section** → type your name in the Name field → click **Save Profile** → toast "Profile updated" appears
+3. [x] Refresh the page → top nav shows your name and "Super Admin" role (not "Support" or blank)
+4. [x] **Platform section** → note the current Support Email → change it → click **Save** → toast appears → refresh and confirm the change persisted
+5. [x] **Portals section** → note all 7 are active → toggle one **off** → HIDDEN badge appears next to it → *(leave it off for now — you'll verify the user app effect in Phase 9)*
+6. [x] **Alert Preferences** → toggle the Inventory category off → no error → refresh and confirm it stayed off → toggle it back on
 
 ---
 
@@ -825,19 +825,19 @@ Work through these steps in order — each phase builds on the previous one (e.g
 
 ---
 
-### Phase 3 — Users
+### Phase 3 — Users ✅ verified 2026-04-26
 
 **Goal:** Confirm real user rows load; search and filters work; user detail page is functional.
 
-14. [ ] Navigate to `/users`
-15. [ ] Table loads with real user rows — no mock data
-16. [ ] Type a name or email in the search bar → list filters live
-17. [ ] Use the membership tier filter dropdown → list narrows
-18. [ ] Click any user row → `/users/:id` opens
-19. [ ] Profile card shows email, wallet balance, membership tier, referral code
-20. [ ] **Orders tab** → shows that user's orders (likely empty at this stage)
-21. [ ] **Wallet tab** → shows that user's transaction history (likely empty)
-22. [ ] Click **Suspend User** → status changes → click **Activate** to restore
+14. [x] Navigate to `/users`
+15. [x] Table loads with real user rows — no mock data
+16. [x] Type a name or email in the search bar → list filters live
+17. [x] Use the membership tier filter dropdown → list narrows
+18. [x] Click any user row → `/users/:id` opens
+19. [x] Profile card shows email, wallet balance, membership tier, referral code
+20. [x] **Orders tab** → shows that user's orders (likely empty at this stage)
+21. [x] **Wallet tab** → shows that user's transaction history (likely empty)
+22. [x] Click **Suspend User** → status changes → click **Activate** to restore
 
 ---
 
@@ -860,70 +860,70 @@ Work through these steps in order — each phase builds on the previous one (e.g
 
 ---
 
-### Phase 5 — Fulfillment *(page removed — now embedded in Order Detail)*
+### Phase 5 — Fulfillment *(page removed — now embedded in Order Detail)* ✅ verified 2026-04-26
 
 > **2026-04-26:** The standalone `/fulfillment` page has been removed from the sidebar nav. Fulfillment tracking (assignee, progress, risk level badge, internal notes) now lives in the right sidebar of each Order Detail page. Service Requests and Custom Orders are still accessible via their own routes when those features are in use.
 
-1. [ ] Open any order at `/orders/:id`
-2. [ ] Fulfillment section visible in the right column — Assigned To dropdown, Save button, Internal Notes
-3. [ ] Assign a team member → save → refresh → assignment persists
-4. [ ] Add a note → note appears below with correct author name
-5. [ ] Risk Level badge next to order header reflects SLA age (configure thresholds in Settings → Platform → Fulfillment SLA)
+1. [x] Open any order at `/orders/:id`
+2. [x] Fulfillment section visible in the right column — Assigned To dropdown, Save button, Internal Notes
+3. [x] Assign a team member → save → refresh → assignment persists
+4. [x] Add a note → note appears below with correct author name
+5. [x] Risk Level badge next to order header reflects SLA age (configure thresholds in Settings → Platform → Fulfillment SLA)
 
 ---
 
-### Phase 6 — Membership
+### Phase 6 — Membership ✅ verified 2026-04-26
 
 **Goal:** Tier config edits save; sticky sidebar nav works on the config page.
 
-41. [ ] Navigate to `/membership`
-42. [ ] Subscriptions tab → likely empty — empty state shows correctly
-43. [ ] Click **Configure Tiers** → `/membership/tiers` opens
-44. [ ] Sticky sidebar shows tier names (Bronze, Silver, Gold) → click **Silver** → page scrolls to Silver card
-45. [ ] Click **Edit Benefits** on Bronze → add a new benefit with a label → Save → benefit appears in list
-46. [ ] Change the Bronze **Annual Price** → Save → toast "Bronze tier saved"
-47. [ ] Go back to `/membership` → click **Edit** on the Bronze tier row → verify the new price is reflected
+41. [x] Navigate to `/membership`
+42. [x] Subscriptions tab → likely empty — empty state shows correctly
+43. [x] Click **Configure Tiers** → `/membership/tiers` opens
+44. [x] Sticky sidebar shows tier names (Bronze, Silver, Gold) → click **Silver** → page scrolls to Silver card
+45. [x] Click **Edit Benefits** on Bronze → add a new benefit with a label → Save → benefit appears in list
+46. [x] Change the Bronze **Annual Price** → Save → toast "Bronze tier saved"
+47. [x] Go back to `/membership` → click **Edit** on the Bronze tier row → verify the new price is reflected
 
 ---
 
-### Phase 7 — Wallet
+### Phase 7 — Wallet ✅ verified 2026-04-26
 
 **Goal:** Manual adjustment credits a user's wallet and creates a transaction record.
 
-48. [ ] Navigate to `/wallet`
-49. [ ] Transaction log loads (may be empty or show the Phase 4 refund)
-50. [ ] Click **Manual Adjustment**
-51. [ ] Select the test user → Amount: ₦2,000 → Type: **Credit** → Reason: "Test credit" → Submit
-52. [ ] Transaction row appears immediately in the list
-53. [ ] Go to `/users/:id` → Wallet tab → ₦2,000 credit visible; running balance updated
+48. [x] Navigate to `/wallet`
+49. [x] Transaction log loads (may be empty or show the Phase 4 refund)
+50. [x] Click **Manual Adjustment**
+51. [x] Select the test user → Amount: ₦2,000 → Type: **Credit** → Reason: "Test credit" → Submit
+52. [x] Transaction row appears immediately in the list
+53. [x] Go to `/users/:id` → Wallet tab → ₦2,000 credit visible; running balance updated
 
 ---
 
-### Phase 8 — Referrals
+### Phase 8 — Referrals ✅ verified 2026-04-26
 
 **Goal:** Page loads cleanly with correct empty state.
 
-54. [ ] Navigate to `/referrals`
-55. [ ] Empty state shows correctly (no blinking, no loading spinner stuck)
-56. [ ] *(Will populate once real users sign up with referral codes in Phase 10+)*
+54. [x] Navigate to `/referrals`
+55. [x] Empty state shows correctly (no blinking, no loading spinner stuck)
+56. [x] *(Will populate once real users sign up with referral codes in Phase 10+)*
 
 ---
 
-### Phase 9 — Broadcast & Notifications
+### Phase 9 — Broadcast & Notifications ✅ verified 2026-04-26
 
 **Goal:** Compose and send a broadcast; verify it appears in the notification bell and inbox.
 
-57. [ ] Navigate to `/broadcast`
-58. [ ] Click **Compose Broadcast**
-59. [ ] Title: "Test Broadcast" · Message: "This is a system test." · Audience: **All Users**
-60. [ ] Click **Send** → broadcast appears in list with status **Sent**
-61. [ ] Click the broadcast row → detail page shows · read rate counter shows 0
-62. [ ] Click the **notification bell** in the top nav → panel opens → broadcast notification appears
-63. [ ] Click the notification → marks as read → navigate to `/broadcast/:id`
-64. [ ] Navigate to `/notifications` (inbox page) → broadcast notification listed
-65. [ ] Category filter **System** → only system notifications shown
-66. [ ] Click **Mark all read** → all go grey
-67. [ ] Back on `/broadcast` → click **Retract** on the test broadcast → status changes to Retracted
+57. [x] Navigate to `/broadcast`
+58. [x] Click **Compose Broadcast**
+59. [x] Title: "Test Broadcast" · Message: "This is a system test." · Audience: **All Users**
+60. [x] Click **Send** → broadcast appears in list with status **Sent**
+61. [x] Click the broadcast row → detail page shows · read rate counter shows 0
+62. [x] Click the **notification bell** in the top nav → panel opens → broadcast notification appears
+63. [x] Click the notification → marks as read → navigate to `/broadcast/:id`
+64. [x] Navigate to `/notifications` (inbox page) → broadcast notification listed
+65. [x] Category filter **System** → only system notifications shown
+66. [x] Click **Mark all read** → all go grey
+67. [x] Back on `/broadcast` → click **Retract** on the test broadcast → status changes to Retracted
 
 ---
 
@@ -976,19 +976,19 @@ Work through these steps in order — each phase builds on the previous one (e.g
 
 ---
 
-## Quick Smoke Test (15 minutes)
+## Quick Smoke Test (15 minutes) ✅ verified 2026-04-26
 
-1. [ ] Admin: log in → verify dashboard loads with real data
-2. [ ] Admin: toggle one portal off → verify it disappears on user app
-3. [ ] Admin: toggle it back on
+1. [x] Admin: log in → verify dashboard loads with real data
+2. [x] Admin: toggle one portal off → verify it disappears on user app
+3. [x] Admin: toggle it back on
 4. [x] User: sign up on the user-facing app → verify welcome email arrives ✅
-5. [ ] User: add Solar product to cart → checkout with Paystack test card
-6. [ ] Verify: order in admin Orders list; order confirmation email arrives
-7. [ ] User: top up wallet ₦5,000 → verify wallet top-up email arrives
-8. [ ] Admin: issue manual wallet credit of ₦1,000 → verify in user wallet history
-9. [ ] User: submit a Solar audit request → verify in admin Fulfillment > Service Requests
-10. [ ] Admin: send a broadcast to All Users → verify notification appears in user app inbox
-11. [ ] Admin: check Audit Log → last ~5 actions should be logged
+5. [x] User: add Solar product to cart → checkout with Paystack test card
+6. [x] Verify: order in admin Orders list; order confirmation email arrives
+7. [x] User: top up wallet ₦5,000 → verify wallet top-up email arrives
+8. [x] Admin: issue manual wallet credit of ₦1,000 → verify in user wallet history
+9. [x] User: submit a Solar audit request → verify in admin Fulfillment > Service Requests
+10. [x] Admin: send a broadcast to All Users → verify notification appears in user app inbox
+11. [x] Admin: check Audit Log → last ~5 actions should be logged
 
 ---
 
