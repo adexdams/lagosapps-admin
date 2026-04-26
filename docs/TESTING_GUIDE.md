@@ -2,7 +2,7 @@
 
 End-to-end checklist for verifying every feature on both the **admin dashboard** and **user-facing app**, via browser and API/CLI. Work through each section in order — many checks are dependencies for later ones.
 
-> **Last browser test: 2026-04-26. All admin portal browser tests confirmed complete (S1–S15, S1C referral signup re-tested and verified, S13 team invite + privilege management verified). S10 (email templates UI) and S11 (fulfillment page) removed — both features removed from admin nav. S8 test steps updated to reflect correct routes: broadcast list/compose/detail at `/broadcast`, admin inbox at `/notifications`.** Bugs found and fixed during 2026-04-25 run: `flag_overdue_fulfillment()` used wrong enum value (`delivered` → `completed`); `send-email` Edge Function logo pointed to GitHub raw instead of Supabase Storage; `config.toml` template paths resolved from wrong directory; referral Bronze membership not showing after signup (race condition — setTimeout fired before email confirmation, moved to `loadProfile`). Bugs fixed 2026-04-26 (S3 browser test): refund txn ID exceeded `varchar(20)` (base-36 timestamp fix); create order blocked by single-portal guard (removed); duplicate status dropdowns in Order Detail (consolidated — progress now derived from status automatically); internal notes Add button silently failed (race on `currentUserId` state — replaced with `useAuth`); Risk Level in Order Detail was a manual dropdown (now auto-computed from SLA settings in Platform Settings); Fulfillment removed from sidebar nav. Bugs fixed 2026-04-26 (S5 work): membership notification trigger silently failed — `billing_cycle` enum and UUID id needed explicit `::TEXT` casts in `notify_membership_event()`; cancel subscription added to admin Membership page and user Membership panel; referral processing gate in `loadProfile` was blocking users who already had a paid membership tier from having referral row recorded; "Apply referral code" UI added to user Referrals panel. Built 2026-04-26 (S5C verified + promo codes): admin promo code system — `admin_referral_codes` + `admin_code_redemptions` tables, `redeem_admin_code()` RPC, Promo Codes tab in admin Referrals page, user-side fallback redemption in ReferralsPanel. Fixed 2026-04-26 (S6 verified): wallet transactions table was empty due to ambiguous FK embed (`wallet_transactions` has two FKs to `profiles`); fixed with explicit FK hint `profiles!wallet_transactions_user_id_fkey`. Also fixed benefit usage tracking — `doctor_consultations`, `car_rental_days`, `solar_product`, `event_venue_discount` were never tracked; added `PORTAL_BENEFIT` map in CartPanel so the correct benefit key is recorded when an order is confirmed for each portal.
+> **Last browser test: 2026-04-26. All admin portal browser tests confirmed complete (S1–S15, S1C referral signup re-tested and verified, S13 team invite + privilege management verified). S16 (User App: Portals), S17 (User App: Cart & Checkout) confirmed 2026-04-26. S10 (email templates UI) and S11 (fulfillment page) removed — both features removed from admin nav. S8 test steps updated to reflect correct routes: broadcast list/compose/detail at `/broadcast`, admin inbox at `/notifications`.** Bugs found and fixed during 2026-04-25 run: `flag_overdue_fulfillment()` used wrong enum value (`delivered` → `completed`); `send-email` Edge Function logo pointed to GitHub raw instead of Supabase Storage; `config.toml` template paths resolved from wrong directory; referral Bronze membership not showing after signup (race condition — setTimeout fired before email confirmation, moved to `loadProfile`). Bugs fixed 2026-04-26 (S3 browser test): refund txn ID exceeded `varchar(20)` (base-36 timestamp fix); create order blocked by single-portal guard (removed); duplicate status dropdowns in Order Detail (consolidated — progress now derived from status automatically); internal notes Add button silently failed (race on `currentUserId` state — replaced with `useAuth`); Risk Level in Order Detail was a manual dropdown (now auto-computed from SLA settings in Platform Settings); Fulfillment removed from sidebar nav. Bugs fixed 2026-04-26 (S5 work): membership notification trigger silently failed — `billing_cycle` enum and UUID id needed explicit `::TEXT` casts in `notify_membership_event()`; cancel subscription added to admin Membership page and user Membership panel; referral processing gate in `loadProfile` was blocking users who already had a paid membership tier from having referral row recorded; "Apply referral code" UI added to user Referrals panel. Built 2026-04-26 (S5C verified + promo codes): admin promo code system — `admin_referral_codes` + `admin_code_redemptions` tables, `redeem_admin_code()` RPC, Promo Codes tab in admin Referrals page, user-side fallback redemption in ReferralsPanel. Fixed 2026-04-26 (S6 verified): wallet transactions table was empty due to ambiguous FK embed (`wallet_transactions` has two FKs to `profiles`); fixed with explicit FK hint `profiles!wallet_transactions_user_id_fkey`. Also fixed benefit usage tracking — `doctor_consultations`, `car_rental_days`, `solar_product`, `event_venue_discount` were never tracked; added `PORTAL_BENEFIT` map in CartPanel so the correct benefit key is recorded when an order is confirmed for each portal.
 
 ---
 
@@ -49,20 +49,20 @@ End-to-end checklist for verifying every feature on both the **admin dashboard**
 | **S15** | **Admin: Live Carts** | | |
 | 15A | Live carts page | ✅ Schema confirmed | ✅ verified 2026-04-26 — page loads · empty state correct · populates with user carts |
 | **S16** | **User App: Portals** | | |
-| 16A | Portal display + toggle | ✅ All 7 active · 74 products seeded | ⬜ All 7 visible · toggle off/on via admin |
-| 16B | Solar portal | ✅ Solar packages + products seeded | ⬜ Free Audit form → admin Fulfillment |
-| 16C | Health portal | ✅ Health products seeded | ⬜ Medical test form + supplies cart |
-| 16D | Events portal | ✅ 3 venues seeded | ⬜ Book venue → admin Fulfillment |
-| 16E | Logistics portal | — | ⬜ Submit request → admin Fulfillment |
-| 16F | Groceries portal | ✅ 13 grocery products seeded | ⬜ Add to cart + freeform custom request |
-| 16G | Community portal | — | ⬜ Donation → cart → checkout |
-| 16H | Transport portal | ✅ 6 transport products seeded | ⬜ Add to cart |
+| 16A | Portal display + toggle | ✅ All 7 active · 74 products seeded | ✅ verified 2026-04-26 |
+| 16B | Solar portal | ✅ Solar packages + products seeded | ✅ verified 2026-04-26 |
+| 16C | Health portal | ✅ Health products seeded | ✅ verified 2026-04-26 |
+| 16D | Events portal | ✅ 3 venues seeded | ✅ verified 2026-04-26 |
+| 16E | Logistics portal | — | ✅ verified 2026-04-26 |
+| 16F | Groceries portal | ✅ 13 grocery products seeded | ✅ verified 2026-04-26 |
+| 16G | Community portal | — | ✅ verified 2026-04-26 |
+| 16H | Transport portal | ✅ 6 transport products seeded | ✅ verified 2026-04-26 |
 | **S17** | **User App: Cart & Checkout** | | |
-| 17A | Cart operations | ✅ `carts` + `cart_items` schema ready | ⬜ Add/remove/clear · persistence on refresh |
-| 17B | Card payment | ✅ `orders` schema + payment fields confirmed | ⬜ Test card `4084 0840 8408 4081` → order confirmed · email arrives |
-| 17C | Wallet-only payment | ✅ Schema confirmed | ⬜ Top up wallet first · full wallet checkout |
-| 17D | Hybrid (wallet + card) | ✅ `wallet_deduction` + `payment_amount` fields confirmed | ⬜ Partial wallet + Paystack remainder |
-| 17E | Failed payment | ✅ Schema confirmed | ⬜ Failing card → order stays `pending` · cart intact |
+| 17A | Cart operations | ✅ `carts` + `cart_items` schema ready | ✅ verified 2026-04-26 |
+| 17B | Card payment | ✅ `orders` schema + payment fields confirmed | ✅ verified 2026-04-26 |
+| 17C | Wallet-only payment | ✅ Schema confirmed | ✅ verified 2026-04-26 |
+| 17D | Hybrid (wallet + card) | ✅ `wallet_deduction` + `payment_amount` fields confirmed | ✅ verified 2026-04-26 |
+| 17E | Failed payment | ✅ Schema confirmed | ✅ verified 2026-04-26 |
 | **S18** | **User App: Wallet** | | |
 | 18A–18B | Top-up · history | ✅ `wallet_transactions` schema ready | ⬜ Top up ₦5,000 · top-up email arrives |
 | **S19** | **User App: Membership** | | |
@@ -466,103 +466,103 @@ supabase db query --linked "SELECT action, entity_type, entity_id, created_at FR
 
 ---
 
-## Section 13 (User App) — User App: Portals & Products
+## Section 13 (User App) — User App: Portals & Products ✅ verified 2026-04-26
 
-### 13A · Portal display (browser)
+### 13A · Portal display (browser) ✅
 
-- [ ] All 7 portals visible on user dashboard (Solar, Transport, Groceries, Health, Events, Community, Logistics)
-- [ ] Toggle a portal off in admin Settings → refresh user app → portal disappears
-- [ ] Toggle back on → portal reappears
+- [x] All 7 portals visible on user dashboard (Solar, Transport, Groceries, Health, Events, Community, Logistics)
+- [x] Toggle a portal off in admin Settings → refresh user app → portal disappears
+- [x] Toggle back on → portal reappears
 
-### 13B · Solar portal (browser)
+### 13B · Solar portal (browser) ✅
 
-- [ ] Open Solar portal → 4 paths visible (Free Audit, Shop, Installation, Maintenance)
-- [ ] **Free Audit** path → select purpose → select building → system estimate loads
-- [ ] Complete booking form → submit → request appears in admin Fulfillment > Service Requests
-- [ ] **Shop** path → categories load from DB → products load from DB → add to cart
+- [x] Open Solar portal → 4 paths visible (Free Audit, Shop, Installation, Maintenance)
+- [x] **Free Audit** path → select purpose → select building → system estimate loads
+- [x] Complete booking form → submit → request appears in admin Orders (custom request)
+- [x] **Shop** path → categories load from DB → products load from DB → add to cart
 
-### 13C · Health portal (browser)
+### 13C · Health portal (browser) ✅
 
-- [ ] Open Health portal → services listed
-- [ ] **Home Medical Tests** → fill form (address, date, people, symptoms) → submit → request in admin Fulfillment
-- [ ] **Medical Supplies** → grid loads from DB → select items → **Add to Cart**
+- [x] Open Health portal → services listed
+- [x] **Home Medical Tests** → fill form (address, date, people, symptoms) → submit → request in admin Orders
+- [x] **Medical Supplies** → grid loads from DB → select items → **Add to Cart**
 
-### 13D · Events portal (browser)
+### 13D · Events portal (browser) ✅
 
-- [ ] Open Events portal → venue list loads from DB
-- [ ] **Book a Venue** → select venue → fill date/duration/details → submit → request in admin Fulfillment
-- [ ] **Event Coverage** → select services → submit
+- [x] Open Events portal → venue list loads from DB
+- [x] **Book a Venue** → select venue → fill date/duration/details → submit → request in admin Orders
+- [x] **Event Coverage** → select services → submit
 
-### 13E · Logistics portal (browser)
+### 13E · Logistics portal (browser) ✅
 
-- [ ] Fill source, item links, delivery address → **Submit Now** → request in admin Fulfillment
-- [ ] **Add to Cart** alternative path also works
+- [x] Fill source, item links, delivery address → **Submit Now** → request in admin Orders > Custom Requests
+- [x] **Add to Cart** alternative path also works
 
-### 13F · Groceries portal (browser)
+### 13F · Groceries portal (browser) ✅
 
-- [ ] Products load from DB in categories
-- [ ] Add standard product → appears in cart
-- [ ] **Can't find what you need?** freeform path → describe items → submit → appears in admin Fulfillment > Custom Orders
+- [x] Products load from DB in categories
+- [x] Add standard product → appears in cart
+- [x] **Can't find what you need?** freeform path → describe items → submit → appears in admin Orders > Custom Requests tab
 
-### 13G · Community portal (browser)
+### 13G · Community portal (browser) ✅
 
-- [ ] All 5 sections load (Impact, Sponsor, Donate, TEPLEARN, Volunteer)
-- [ ] Donation → enters amount → **Add to Cart** → checkout works
+- [x] All 5 sections load (Impact, Sponsor, Donate, TEPLEARN, Volunteer)
+- [x] Donation → enters amount → **Add to Cart** → checkout works
 
-### 13H · Transport portal (browser)
+### 13H · Transport portal (browser) ✅
 
-- [ ] Products and routes load from DB
-- [ ] Add transport item → cart works
+- [x] Products and routes load from DB
+- [x] Add transport item → cart works
 
 ---
 
-## Section 14 — User App: Cart & Checkout
+## Section 14 — User App: Cart & Checkout ✅ verified 2026-04-26
 
-### 14A · Cart operations (browser)
+### 14A · Cart operations (browser) ✅
 
-- [ ] Add item from any portal → cart badge increments
-- [ ] Open cart → item listed with correct price
-- [ ] Change quantity → total updates
-- [ ] Remove item → item disappears
-- [ ] **Clear Cart** → all items removed
-- [ ] Close app and reopen (or refresh) → cart persists (DB-backed)
+- [x] Add item from any portal → cart badge increments
+- [x] Open cart → item listed with correct price
+- [x] Change quantity → total updates
+- [x] Remove item → item disappears
+- [x] **Clear Cart** → all items removed
+- [x] Close app and reopen (or refresh) → cart persists (DB-backed)
 
 ```bash
 supabase db query --linked "SELECT c.id, p.name as user, COUNT(ci.id) as items FROM carts c JOIN profiles p ON p.id = c.user_id JOIN cart_items ci ON ci.cart_id = c.id GROUP BY c.id, p.name ORDER BY c.updated_at DESC LIMIT 5;"
 ```
 
-### 14B · Checkout — card payment (browser)
+### 14B · Checkout — card payment (browser) ✅
 
-- [ ] Add item(s) to cart → proceed to checkout
-- [ ] Select **Pay by Card** → Paystack popup opens
-- [ ] Enter test card: `4084 0840 8408 4081`, any future expiry, CVV `408`
-- [ ] Enter PIN `0000`, OTP `123456`
-- [ ] Payment succeeds → order created with status `confirmed`
-- [ ] Order confirmation email arrives in inbox (check within ~30 seconds)
-- [ ] Order appears in admin `/orders`
+- [x] Add item(s) to cart → proceed to checkout
+- [x] Select **Pay by Card** → Paystack popup opens
+- [x] Enter test card: `4084 0840 8408 4081`, any future expiry, CVV `408`
+- [x] Enter PIN `0000`, OTP `123456`
+- [x] Payment succeeds → order created with status `confirmed`
+- [x] Order confirmation email arrives in inbox (check within ~30 seconds)
+- [x] Order appears in admin `/orders`
 
 ```bash
 supabase db query --linked "SELECT id, status, payment_method, total_amount FROM orders ORDER BY created_at DESC LIMIT 3;"
 ```
 
-### 14C · Checkout — wallet payment (browser)
+### 14C · Checkout — wallet payment (browser) ✅
 
-- [ ] Top up wallet first (see Section 15A)
-- [ ] Add item cheaper than wallet balance → checkout → select **Pay with Wallet**
-- [ ] Wallet balance deducted → `wallet_transactions` debit row created
-- [ ] Order confirmed
+- [x] Top up wallet first (see Section 15A)
+- [x] Add item cheaper than wallet balance → checkout → select **Pay with Wallet**
+- [x] Wallet balance deducted → `wallet_transactions` debit row created
+- [x] Order confirmed
 
-### 14D · Checkout — hybrid (wallet + card) (browser)
+### 14D · Checkout — hybrid (wallet + card) (browser) ✅
 
-- [ ] Add item more expensive than wallet balance
-- [ ] Checkout → wallet balance auto-applied as partial; Paystack opens for remainder
-- [ ] Complete payment → order confirmed; wallet debited; card charged for difference
+- [x] Add item more expensive than wallet balance
+- [x] Checkout → wallet balance auto-applied as partial; Paystack opens for remainder
+- [x] Complete payment → order confirmed; wallet debited; card charged for difference
 
-### 14E · Failed payment (browser)
+### 14E · Failed payment (browser) ✅
 
-- [ ] Cart → Pay → enter failing card `4084 0840 8408 4087`
-- [ ] Paystack shows error → user closes popup → cart is still intact
-- [ ] Order stays `pending` in DB (pre-created but never confirmed)
+- [x] Cart → Pay → enter failing card `4084 0840 8408 4087`
+- [x] Paystack shows error → user closes popup → cart is still intact
+- [x] Order stays `pending` in DB (pre-created but never confirmed)
 
 ```bash
 supabase db query --linked "SELECT id, status FROM orders ORDER BY created_at DESC LIMIT 1;"
