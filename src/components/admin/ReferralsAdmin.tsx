@@ -55,7 +55,7 @@ export default function ReferralsAdmin() {
   const [codes, setCodes] = useState<CodeRow[]>([]);
   const [codesLoading, setCodesLoading] = useState(true);
   const [codeSearch, setCodeSearch] = useState("");
-  const [codeStatusFilter, setCodeStatusFilter] = useState("active");
+  const [codeStatusFilter, setCodeStatusFilter] = useState("");
 
   // ── Create code modal ──────────────────────────────────────
   const [createModal, setCreateModal] = useState(false);
@@ -241,7 +241,7 @@ export default function ReferralsAdmin() {
   ];
 
   const codeFilters: FilterConfig[] = [
-    { key: "status", label: "Active only", value: codeStatusFilter, onChange: setCodeStatusFilter, options: [{ value: "active", label: "Active" }, { value: "inactive", label: "Inactive" }] },
+    { key: "status", label: "All Statuses", value: codeStatusFilter, onChange: setCodeStatusFilter, options: [{ value: "active", label: "Active" }, { value: "inactive", label: "Inactive" }] },
   ];
 
   return (
