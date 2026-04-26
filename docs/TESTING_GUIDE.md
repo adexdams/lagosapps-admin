@@ -2,7 +2,7 @@
 
 End-to-end checklist for verifying every feature on both the **admin dashboard** and **user-facing app**, via browser and API/CLI. Work through each section in order — many checks are dependencies for later ones.
 
-> **Last browser test: 2026-04-26 (S3, S4, S1A, S5A complete).** Bugs found and fixed during 2026-04-25 run: `flag_overdue_fulfillment()` used wrong enum value (`delivered` → `completed`); `send-email` Edge Function logo pointed to GitHub raw instead of Supabase Storage; `config.toml` template paths resolved from wrong directory; referral Bronze membership not showing after signup (race condition — setTimeout fired before email confirmation, moved to `loadProfile`). Bugs fixed 2026-04-26 (S3 browser test): refund txn ID exceeded `varchar(20)` (base-36 timestamp fix); create order blocked by single-portal guard (removed); duplicate status dropdowns in Order Detail (consolidated — progress now derived from status automatically); internal notes Add button silently failed (race on `currentUserId` state — replaced with `useAuth`); Risk Level in Order Detail was a manual dropdown (now auto-computed from SLA settings in Platform Settings); Fulfillment removed from sidebar nav. Bugs fixed 2026-04-26 (S5 work): membership notification trigger silently failed — `billing_cycle` enum and UUID id needed explicit `::TEXT` casts in `notify_membership_event()`; cancel subscription added to admin Membership page and user Membership panel; referral processing gate in `loadProfile` was blocking users who already had a paid membership tier from having referral row recorded; "Apply referral code" UI added to user Referrals panel.
+> **Last browser test: 2026-04-26 (S3, S4, S1A, S5A, S5C complete).** Bugs found and fixed during 2026-04-25 run: `flag_overdue_fulfillment()` used wrong enum value (`delivered` → `completed`); `send-email` Edge Function logo pointed to GitHub raw instead of Supabase Storage; `config.toml` template paths resolved from wrong directory; referral Bronze membership not showing after signup (race condition — setTimeout fired before email confirmation, moved to `loadProfile`). Bugs fixed 2026-04-26 (S3 browser test): refund txn ID exceeded `varchar(20)` (base-36 timestamp fix); create order blocked by single-portal guard (removed); duplicate status dropdowns in Order Detail (consolidated — progress now derived from status automatically); internal notes Add button silently failed (race on `currentUserId` state — replaced with `useAuth`); Risk Level in Order Detail was a manual dropdown (now auto-computed from SLA settings in Platform Settings); Fulfillment removed from sidebar nav. Bugs fixed 2026-04-26 (S5 work): membership notification trigger silently failed — `billing_cycle` enum and UUID id needed explicit `::TEXT` casts in `notify_membership_event()`; cancel subscription added to admin Membership page and user Membership panel; referral processing gate in `loadProfile` was blocking users who already had a paid membership tier from having referral row recorded; "Apply referral code" UI added to user Referrals panel. Built 2026-04-26 (S5C verified + promo codes): admin promo code system — `admin_referral_codes` + `admin_code_redemptions` tables, `redeem_admin_code()` RPC, Promo Codes tab in admin Referrals page, user-side fallback redemption in ReferralsPanel.
 
 ---
 
@@ -27,11 +27,12 @@ End-to-end checklist for verifying every feature on both the **admin dashboard**
 | **S4** | **Admin: Inventory** | | |
 | 4A–4C | Product CRUD · portal tabs | ✅ 74 products across 7 portals confirmed | ✅ Verified 2026-04-26 — add/edit/toggle product · category filters · portal-specific metadata |
 | **S5** | **Admin: Membership** | | |
-| 5A–5D | Tier config · subscriptions · benefits | ✅ 3 tiers · 15 benefits · prices confirmed | 🟡 5A ✅ verified 2026-04-26 · 5C cancel button added · 5D pending |
+| 5A–5D | Tier config · subscriptions · benefits | ✅ 3 tiers · 15 benefits · prices confirmed | 🟡 5A ✅ verified 2026-04-26 · 5C ✅ verified 2026-04-26 · 5D pending |
 | **S6** | **Admin: Wallet** | | |
 | 6A–6B | Transaction log · manual adjustment | ✅ Schema confirmed · table empty | ⬜ Manual credit → user wallet updates |
 | **S7** | **Admin: Referrals** | | |
 | 7A | Referrals list | ✅ Schema confirmed · table empty | ⬜ Table loads · empty state correct |
+| 7B | Promo codes | ✅ `admin_referral_codes` table + `redeem_admin_code()` RPC confirmed | ⬜ Create code · copy · redeem on user side |
 | **S8** | **Admin: Notifications** | | |
 | 8A–8D | Broadcasts · system panel · inbox | ✅ Realtime publications confirmed | ⬜ Compose · send · retract · bell panel |
 | **S9** | **Admin: Settings** | | |
@@ -295,12 +296,12 @@ supabase db query --linked "SELECT id, name, price, is_active, portal_id FROM pr
 supabase db query --linked "SELECT t.name, t.annual_price, t.quarterly_price, COUNT(b.id) as benefits FROM membership_tiers t LEFT JOIN membership_tier_benefits b ON b.tier_id = t.id GROUP BY t.id, t.name, t.annual_price, t.quarterly_price ORDER BY t.annual_price;"
 ```
 
-### 5C · Subscriptions tab (browser)
+### 5C · Subscriptions tab (browser) — ✅ verified 2026-04-26
 
-- [ ] Active subscriptions listed with tier, billing cycle, expiry
-- [ ] Click **Cancel** on an active subscription → confirmation modal → **Yes, Cancel** → status changes to `cancelled`
-- [ ] Verify system notification `membership_cancelled` fired to ops team (check notification bell)
-- [ ] On user app: active membership → **Cancel** button → confirm → tier resets to `none`
+- [x] Active subscriptions listed with tier, billing cycle, expiry
+- [x] Click **Cancel** on an active subscription → confirmation modal → **Yes, Cancel** → status changes to `cancelled`
+- [x] Verify system notification `membership_cancelled` fired to ops team (check notification bell)
+- [x] On user app: active membership → **Cancel** button → confirm → tier resets to `none`
 
 ### 5D · Benefit usage tab (browser)
 
@@ -342,6 +343,26 @@ supabase db query --linked "SELECT name, wallet_balance FROM profiles WHERE role
 
 ```bash
 supabase db query --linked "SELECT r.id, rp.name as referrer, ep.name as referred, r.gifted_tier, r.status FROM referrals r JOIN profiles rp ON rp.id = r.referrer_id LEFT JOIN profiles ep ON ep.id = r.referred_id ORDER BY r.created_at DESC LIMIT 10;"
+```
+
+### 7B · Promo codes tab (browser)
+
+- [ ] Navigate to `/referrals` → **Promo Codes** tab
+- [ ] Stat cards show Active Codes / Total Codes / Total Uses
+- [ ] Click **Create Code** → modal opens
+- [ ] Auto-generate code (click generate icon) → `LA` + 6 alphanumeric chars populates
+- [ ] Select tier (Bronze / Silver / Gold) → coloured button highlights
+- [ ] Toggle usage type: **Single** (max_uses=1) · **Limited** (number input appears) · **Unlimited** (max_uses=null)
+- [ ] Set optional expiry date and description → **Create Code** → row appears in table
+- [ ] Copy button copies code to clipboard
+- [ ] Deactivate button → confirmation modal → code status changes to Inactive
+- [ ] On user app: Referrals panel → enter promo code → membership tier activates matching the code's gifted tier
+- [ ] Re-using the same code (single-use) → "This code has reached its usage limit"
+- [ ] Entering an expired code → "This code has expired"
+
+```bash
+supabase db query --linked "SELECT code, gifted_tier, max_uses, used_count, is_active, expires_at FROM admin_referral_codes ORDER BY created_at DESC LIMIT 10;"
+supabase db query --linked "SELECT acr.user_id, p.name, arc.code, arc.gifted_tier FROM admin_code_redemptions acr JOIN admin_referral_codes arc ON arc.id = acr.code_id JOIN profiles p ON p.id = acr.user_id ORDER BY acr.redeemed_at DESC LIMIT 10;"
 ```
 
 ---
