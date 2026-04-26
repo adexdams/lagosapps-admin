@@ -20,7 +20,6 @@ import SettingsPage from "./SettingsPage";
 import FinancePage from "./FinancePage";
 import TeamPage from "./TeamPage";
 import CreateOrderAdmin from "./CreateOrderAdmin";
-import FulfillmentPage from "./FulfillmentPage";
 import MembershipTierConfig from "./MembershipTierConfig";
 import LiveCartsPage from "./LiveCartsPage";
 import NotificationsInboxPage from "./NotificationsInboxPage";
@@ -30,7 +29,6 @@ const navItems = [
   { path: "/", label: "Overview", icon: "space_dashboard" },
   { path: "/users", label: "Users", icon: "group" },
   { path: "/orders", label: "Orders", icon: "receipt_long" },
-  { path: "/fulfillment", label: "Fulfillment", icon: "assignment" },
   { path: "/inventory", label: "Inventory", icon: "inventory_2" },
   { path: "/membership", label: "Membership", icon: "card_membership" },
   { path: "/wallet", label: "Wallet", icon: "account_balance_wallet" },
@@ -186,7 +184,6 @@ export default function AdminLayout() {
             <Route path="orders" element={<OrdersPage />} />
             <Route path="orders/create" element={<CreateOrderAdmin />} />
             <Route path="orders/:id" element={<OrderDetailAdmin />} />
-            <Route path="fulfillment" element={<FulfillmentPage />} />
             <Route path="carts" element={<LiveCartsPage />} />
             <Route path="inventory" element={<InventoryPage />} />
             <Route path="membership" element={<MembershipAdmin />} />
