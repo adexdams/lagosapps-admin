@@ -16,6 +16,7 @@ export interface ProductFormRecord {
   low_stock_threshold?: number;
   status?: "active" | "inactive" | "out_of_stock";
   is_active?: boolean;
+  member_covered?: boolean;
   image_url?: string | null;
   metadata?: Record<string, unknown>;
 }
@@ -80,6 +81,7 @@ export default function ProductForm({ portal, product, onClose, onSaved }: Produ
   const [isActive, setIsActive] = useState(
     product?.is_active ?? (product?.status ? product.status === "active" : true)
   );
+  const [memberCovered, setMemberCovered] = useState(product?.member_covered ?? false);
   const [imageUrl, setImageUrl] = useState<string | null>(product?.image_url ?? null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -197,6 +199,7 @@ export default function ProductForm({ portal, product, onClose, onSaved }: Produ
       low_stock_threshold: lowStockThreshold,
       stock_status: stockStatus,
       is_active: isActive,
+      member_covered: memberCovered,
       image_url: imageUrl,
       metadata,
     };
@@ -493,6 +496,20 @@ export default function ProductForm({ portal, product, onClose, onSaved }: Produ
             className={`w-11 h-6 rounded-full p-0.5 transition-colors cursor-pointer ${isActive ? "bg-primary" : "bg-[#E2E8F0]"}`}
           >
             <div className={`size-5 bg-white rounded-full shadow transition-transform ${isActive ? "translate-x-5" : ""}`} />
+          </button>
+        </div>
+
+        {/* Member covered toggle */}
+        <div className="flex items-center justify-between py-2 border-t border-[#E8ECF1]/60">
+          <div>
+            <span className="text-[13px] font-semibold text-[#0F172A]">Member Covered</span>
+            <p className="text-[11px] text-[#94A3B8] mt-0.5">Included in membership — no charge at checkout</p>
+          </div>
+          <button
+            onClick={() => setMemberCovered(!memberCovered)}
+            className={`w-11 h-6 rounded-full p-0.5 transition-colors cursor-pointer ${memberCovered ? "bg-primary" : "bg-[#E2E8F0]"}`}
+          >
+            <div className={`size-5 bg-white rounded-full shadow transition-transform ${memberCovered ? "translate-x-5" : ""}`} />
           </button>
         </div>
 
