@@ -1040,7 +1040,7 @@ Work through these steps in order — each phase builds on the previous one (e.g
 | Item | Status |
 |------|--------|
 | WhatsApp notifications | Deferred to M9 — not yet implemented |
-| Per-user benefit usage progress bars | Deferred — benefit consumption not yet wired to orders |
+| Per-user benefit usage progress bars | ✅ Done — tracking wired in CartPanel on order confirmation; progress bar UI added to MembershipPanel (green → amber at 75% → red at 100%) |
 | Supabase Auth emails | SMTP configured via Resend; branded templates applied in Dashboard → Auth → Email Templates |
 | pg_cron job run history | `cron.job_run_details` not available on free plan; verify via Supabase Dashboard → Database → Cron instead |
 | Analytics page | ✅ Wired to real DB — orders, users, wallet transactions |
