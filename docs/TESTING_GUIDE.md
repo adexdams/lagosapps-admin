@@ -2,7 +2,7 @@
 
 End-to-end checklist for verifying every feature on both the **admin dashboard** and **user-facing app**, via browser and API/CLI. Work through each section in order — many checks are dependencies for later ones.
 
-> **Last run: 2026-04-25.** Bugs found and fixed during run: `flag_overdue_fulfillment()` used wrong enum value (`delivered` → `completed`); `send-email` Edge Function logo pointed to GitHub raw instead of Supabase Storage; `config.toml` template paths resolved from wrong directory.
+> **Last run: 2026-04-25.** Bugs found and fixed during run: `flag_overdue_fulfillment()` used wrong enum value (`delivered` → `completed`); `send-email` Edge Function logo pointed to GitHub raw instead of Supabase Storage; `config.toml` template paths resolved from wrong directory; Fulfillment page FK ambiguity alert (`orders→profiles` two FKs — added `!user_id` hint); referral Bronze membership not showing after signup (race condition — setTimeout fired before email confirmation, moved to `loadProfile`).
 
 ---
 
@@ -18,10 +18,10 @@ End-to-end checklist for verifying every feature on both the **admin dashboard**
 | — | Edge Functions deployed | ✅ `send-email` + `paystack-webhook` | — |
 | **S1** | **Authentication** | | |
 | 1A | Admin login | — | ✅ Magic link login · session persistence confirmed |
-| 1B | User signup | ✅ `profiles` trigger confirmed · 1 user in DB | ⬜ Sign up · welcome email arrives |
-| 1C | Referral signup | ✅ `referrals` schema confirmed | ⬜ Incognito sign-up with referral code → Bronze gifted |
+| 1B | User signup | ✅ `profiles` trigger confirmed · 1 user in DB | ✅ Sign up confirmed · welcome email arrived |
+| 1C | Referral signup | ✅ `referrals` schema confirmed | 🟡 Referral code used · Bronze subscription created · **bug fixed**: membership tier was not showing (race condition in register() — moved processing to loadProfile()) · re-test needed |
 | **S2** | **Admin: Users** | | |
-| 2A–2B | Users list + User detail | ✅ Profiles table — 1 user, role breakdown confirmed | ⬜ Table loads · search · filter · user detail page |
+| 2A–2B | Users list + User detail | ✅ Profiles table — 2 users confirmed after tests | 🟡 Admin loads new user correctly · detail page ⬜ pending |
 | **S3** | **Admin: Orders** | | |
 | 3A–3C | Orders list · detail · create | ✅ `orders` table empty (no test orders yet) | ⬜ Create order · status change · refund flow |
 | **S4** | **Admin: Inventory** | | |
@@ -39,7 +39,7 @@ End-to-end checklist for verifying every feature on both the **admin dashboard**
 | **S10** | **Admin: Email Templates** | | |
 | 10A–10C | Template editor · dry-run · live send | ✅ Dry-run returns `success:true` · Supabase Storage logo confirmed | — Page removed from admin nav; templates managed via Supabase Dashboard |
 | **S11** | **Admin: Fulfillment** | | |
-| 11A–11C | Order queue · service requests · custom orders | ✅ Schema confirmed · all tables empty | ⬜ Assign order · update request status · convert to order |
+| 11A–11C | Order queue · service requests · custom orders | ✅ Schema confirmed · all tables empty | 🟡 Page loads · **bug fixed**: FK ambiguity alert (`orders→profiles` had two FKs — added `!user_id` hint) · full flow ⬜ pending |
 | **S12** | **Admin: Audit Log** | | |
 | 12A | Audit log table | ✅ Schema confirmed · table empty (populates after admin actions) | ⬜ Verify entries appear after browser actions |
 | **S13** | **Admin: Team** | | |
@@ -153,26 +153,28 @@ supabase db query --linked "UPDATE profiles SET role = 'super_admin' WHERE email
 - [ ] Click link in email → redirected to dashboard `/`
 - [ ] Refresh page → session persists, still logged in
 
-### 1B · User signup (browser)
+### 1B · User signup (browser) ✅ verified 2026-04-25
 
-- [ ] Open user app → click **Sign Up**
-- [ ] Submit with mismatched passwords → inline error shown
-- [ ] Submit valid credentials → account created, user lands on dashboard
-- [ ] Verify welcome email arrives in inbox from `hello@lagosapps.com`
-- [ ] Verify `profiles` row created in DB:
+- [x] Open user app → click **Sign Up**
+- [x] Submit valid credentials → account created, user lands on dashboard
+- [x] Verify welcome email arrives in inbox from `hello@lagosapps.com`
+- [x] Verify `profiles` row created in DB:
 
 ```bash
 supabase db query --linked "SELECT id, name, email, referral_code, role FROM profiles ORDER BY created_at DESC LIMIT 3;"
 ```
 
-### 1C · Referral signup (browser)
+### 1C · Referral signup (browser) 🟡 partial — re-test after fix
 
-- [ ] Log into user app as existing user → go to **Account** → copy referral code (e.g. `LA65664D`)
-- [ ] Open incognito window → sign up with that code in the referral field
-- [ ] Verify:
-  - Welcome email arrives
-  - `referrals` row created with `referrer_id` = existing user, `gifted_tier = 'bronze'`
-  - New user has `membership_tier = 'bronze'` in `profiles`
+> **Bug fixed 2026-04-25**: referral code was provided at signup but membership was not applied. Root cause: `setTimeout(2000)` in `register()` called `auth.getUser()` before email confirmation so `authUser` was null → processing silently skipped. Fixed by moving the referral processing into `loadProfile()`, which runs after the SIGNED_IN event (guaranteed live session).
+
+- [x] Copied referral code from Account page
+- [x] Signed up in incognito with referral code
+- [ ] **Re-test with fixed build**: confirm new user sees Bronze membership immediately after confirming email and logging in
+- [ ] Verify `referrals` row + `membership_subscriptions` row created:
+  - `referrals`: `referrer_id` = original user, `gifted_tier = 'bronze'`, `status = 'confirmed'`
+  - New user's `profiles.membership_tier = 'bronze'`
+  - New user's `membership_subscriptions` has active Bronze row
 
 ```bash
 supabase db query --linked "SELECT id, referrer_id, referred_id, gifted_tier, status FROM referrals ORDER BY created_at DESC LIMIT 3;"
@@ -990,7 +992,7 @@ Work through these steps in order — each phase builds on the previous one (e.g
 1. [ ] Admin: log in → verify dashboard loads with real data
 2. [ ] Admin: toggle one portal off → verify it disappears on user app
 3. [ ] Admin: toggle it back on
-4. [ ] User: sign up on the user-facing app → verify welcome email arrives
+4. [x] User: sign up on the user-facing app → verify welcome email arrives ✅
 5. [ ] User: add Solar product to cart → checkout with Paystack test card
 6. [ ] Verify: order in admin Orders list; order confirmation email arrives
 7. [ ] User: top up wallet ₦5,000 → verify wallet top-up email arrives
