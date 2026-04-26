@@ -3,7 +3,12 @@ import { useNavigate } from "react-router-dom";
 import DataTable, { type Column } from "./shared/DataTable";
 import FilterBar, { type FilterConfig } from "./shared/FilterBar";
 import StatusBadge from "./shared/StatusBadge";
-import { getOrders, getSettings, getCustomRequestsList, updateCustomRequestStatus } from "../../lib/api";
+import Modal from "../ui/Modal";
+import { useAuth } from "../../hooks/useAuth";
+import {
+  getOrders, getSettings, getCustomRequestsList,
+  updateCustomRequestStatus, getCustomRequestDetail, addCustomRequestNote,
+} from "../../lib/api";
 import {
   formatNaira,
   PORTAL_LABELS,
@@ -33,13 +38,14 @@ interface DbCustomRequest {
   decline_reason: string | null;
   converted_order_id: string | null;
   created_at: string;
-  profiles: { name: string | null; email: string } | null;
+  profiles: { id?: string; name: string | null; email: string; avatar_url?: string | null } | null;
+  custom_request_notes?: { id: string; text: string; created_at: string; profiles: { name: string | null } | null }[];
 }
 
 type OrderRow = DbOrder & Record<string, unknown>;
-type CustomRequestRow = DbCustomRequest & Record<string, unknown>;
+type CRRow = DbCustomRequest & Record<string, unknown>;
 
-function computeRisk(createdAt: string, status: string, slaHours: number, slaWarningHours: number): "on_track" | "at_risk" | "behind" {
+function computeRisk(createdAt: string, status: string, slaHours: number, slaWarningHours: number) {
   if (status === "completed" || status === "cancelled") return "on_track";
   const ageHours = (Date.now() - new Date(createdAt).getTime()) / 3_600_000;
   if (ageHours >= slaHours) return "behind";
@@ -47,22 +53,12 @@ function computeRisk(createdAt: string, status: string, slaHours: number, slaWar
   return "on_track";
 }
 
-const CUSTOM_REQUEST_STATUS_LABELS: Record<string, string> = {
-  new: "New",
-  under_review: "Under Review",
-  converted: "Converted",
-  declined: "Declined",
-};
-
-const CUSTOM_REQUEST_STATUS_COLORS: Record<string, string> = {
-  new: "#2563EB",
-  under_review: "#D97706",
-  converted: "#059669",
-  declined: "#DC2626",
-};
+const CR_STATUS_LABEL: Record<string, string> = { new: "New", under_review: "Under Review", converted: "Converted", declined: "Declined" };
+const CR_STATUS_COLOR: Record<string, string> = { new: "#2563EB", under_review: "#D97706", converted: "#059669", declined: "#DC2626" };
 
 export default function OrdersPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<"orders" | "custom_requests">("orders");
 
   // Orders state
@@ -74,7 +70,7 @@ export default function OrdersPage() {
   const [slaHours, setSlaHours] = useState(48);
   const [slaWarningHours, setSlaWarningHours] = useState(12);
 
-  // Custom requests state
+  // Custom requests list state
   const [crSearch, setCrSearch] = useState("");
   const [crStatusFilter, setCrStatusFilter] = useState("");
   const [crPortalFilter, setCrPortalFilter] = useState("");
@@ -82,18 +78,29 @@ export default function OrdersPage() {
   const [crLoading, setCrLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
+  // Detail modal state
+  const [detail, setDetail] = useState<DbCustomRequest | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailStatus, setDetailStatus] = useState<string>("");
+  const [detailSaving, setDetailSaving] = useState(false);
+  const [noteText, setNoteText] = useState("");
+  const [addingNote, setAddingNote] = useState(false);
+
   const mountedRef = useRef(true);
 
+  // Load orders + custom requests together on mount so badge is always accurate
   useEffect(() => {
     mountedRef.current = true;
-    setLoading(true);
     Promise.all([
       getOrders(),
       getSettings(),
-    ]).then(([{ data: ordersData }, { data: settingsData }]) => {
+      getCustomRequestsList(),
+    ]).then(([{ data: ordersData }, { data: settingsData }, { data: crData }]) => {
       if (!mountedRef.current) return;
       setOrders((ordersData as DbOrder[]) ?? []);
       setLoading(false);
+      setCustomRequests((crData as DbCustomRequest[]) ?? []);
+      setCrLoading(false);
       if (settingsData) {
         const map: Record<string, string> = {};
         for (const row of settingsData as { key: string; value: string }[]) map[row.key] = row.value;
@@ -104,60 +111,68 @@ export default function OrdersPage() {
     return () => { mountedRef.current = false; };
   }, []);
 
-  useEffect(() => {
-    if (activeTab !== "custom_requests") return;
-    setCrLoading(true);
-    getCustomRequestsList().then(({ data }) => {
-      if (!mountedRef.current) return;
-      setCustomRequests((data as DbCustomRequest[]) ?? []);
-      setCrLoading(false);
-    });
-  }, [activeTab]);
+  // Open detail modal and fetch full record (with notes)
+  async function openDetail(id: string) {
+    setDetail(null);
+    setDetailLoading(true);
+    setNoteText("");
+    const { data } = await getCustomRequestDetail(id);
+    if (data) {
+      setDetail(data as DbCustomRequest);
+      setDetailStatus((data as DbCustomRequest).status);
+    }
+    setDetailLoading(false);
+  }
 
-  async function handleStatusChange(id: string, newStatus: string) {
+  async function handleDetailStatusSave() {
+    if (!detail) return;
+    setDetailSaving(true);
+    await updateCustomRequestStatus(detail.id, { status: detailStatus });
+    setDetail((d) => d ? { ...d, status: detailStatus as DbCustomRequest["status"] } : d);
+    setCustomRequests((prev) => prev.map((r) => r.id === detail.id ? { ...r, status: detailStatus as DbCustomRequest["status"] } : r));
+    setDetailSaving(false);
+  }
+
+  async function handleAddNote() {
+    if (!detail || !noteText.trim() || !user?.id) return;
+    setAddingNote(true);
+    await addCustomRequestNote(detail.id, user.id, noteText.trim());
+    // Re-fetch detail to get note with author name
+    const { data } = await getCustomRequestDetail(detail.id);
+    if (data) setDetail(data as DbCustomRequest);
+    setNoteText("");
+    setAddingNote(false);
+  }
+
+  async function handleInlineStatusChange(id: string, newStatus: string) {
     setUpdatingId(id);
     await updateCustomRequestStatus(id, { status: newStatus });
-    setCustomRequests((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, status: newStatus as DbCustomRequest["status"] } : r))
-    );
+    setCustomRequests((prev) => prev.map((r) => r.id === id ? { ...r, status: newStatus as DbCustomRequest["status"] } : r));
     setUpdatingId(null);
   }
 
   // ── Orders tab ──────────────────────────────────────────────
   const filtered = orders.filter((o) => {
     const userName = o.profiles?.name ?? o.profiles?.email ?? "";
-    const matchSearch =
-      !search ||
-      o.id.toLowerCase().includes(search.toLowerCase()) ||
-      userName.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = !statusFilter || o.status === statusFilter;
-    const matchPortal = !portalFilter || o.portal_id === portalFilter;
-    return matchSearch && matchStatus && matchPortal;
+    const matchSearch = !search || o.id.toLowerCase().includes(search.toLowerCase()) || userName.toLowerCase().includes(search.toLowerCase());
+    return matchSearch && (!statusFilter || o.status === statusFilter) && (!portalFilter || o.portal_id === portalFilter);
   });
 
-  const columns: Column<OrderRow>[] = [
+  const orderColumns: Column<OrderRow>[] = [
     {
-      key: "id",
-      label: "Order ID",
-      sortable: true,
+      key: "id", label: "Order ID", sortable: true,
       render: (row) => <span className="font-semibold text-primary">{row.id as string}</span>,
     },
     {
-      key: "user",
-      label: "User",
-      hideOnMobile: true,
+      key: "user", label: "User", hideOnMobile: true,
       render: (row) => {
-        const profile = (row as DbOrder).profiles;
-        const name = profile?.name ?? profile?.email ?? "—";
+        const p = (row as DbOrder).profiles;
+        const name = p?.name ?? p?.email ?? "—";
         const initials = name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "??";
         return (
           <div className="flex items-center gap-2.5">
-            {profile?.avatar_url ? (
-              <img src={profile.avatar_url} alt={name} className="size-8 rounded-full object-cover flex-shrink-0" />
-            ) : (
-              <div className="size-8 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
-                {initials}
-              </div>
+            {p?.avatar_url ? <img src={p.avatar_url} alt={name} className="size-8 rounded-full object-cover flex-shrink-0" /> : (
+              <div className="size-8 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">{initials}</div>
             )}
             <span className="text-sm text-[#334155] font-medium">{name}</span>
           </div>
@@ -165,10 +180,7 @@ export default function OrdersPage() {
       },
     },
     {
-      key: "portal_id",
-      label: "Service",
-      sortable: true,
-      hideOnMobile: true,
+      key: "portal_id", label: "Service", sortable: true, hideOnMobile: true,
       render: (row) => {
         const portal = (row as DbOrder).portal_id;
         return (
@@ -179,73 +191,27 @@ export default function OrdersPage() {
         );
       },
     },
+    { key: "total_amount", label: "Amount", align: "right", sortable: true, render: (row) => <span className="text-sm font-semibold text-[#0F172A]">{formatNaira(row.total_amount as number)}</span> },
+    { key: "status", label: "Status", align: "center", render: (row) => <StatusBadge status={row.status as string} /> },
     {
-      key: "total_amount",
-      label: "Amount",
-      align: "right",
-      sortable: true,
-      render: (row) => <span className="text-sm font-semibold text-[#0F172A]">{formatNaira(row.total_amount as number)}</span>,
-    },
-    {
-      key: "status",
-      label: "Status",
-      align: "center",
-      render: (row) => <StatusBadge status={row.status as string} />,
-    },
-    {
-      key: "channel",
-      label: "Channel",
-      hideOnMobile: true,
+      key: "channel", label: "Channel", hideOnMobile: true,
       render: (row) => {
         const ch = (row.channel as string | null) ?? "web";
         const icons: Record<string, string> = { web: "language", whatsapp: "chat", phone: "call", walkin: "storefront" };
-        return (
-          <div className="flex items-center gap-1 text-[12px] text-[#64748B]">
-            <span className="material-symbols-outlined text-[14px]">{icons[ch] ?? "language"}</span>
-            <span className="capitalize">{ch}</span>
-          </div>
-        );
+        return <div className="flex items-center gap-1 text-[12px] text-[#64748B]"><span className="material-symbols-outlined text-[14px]">{icons[ch] ?? "language"}</span><span className="capitalize">{ch}</span></div>;
       },
     },
     {
-      key: "created_at",
-      label: "Date",
-      sortable: true,
-      hideOnMobile: true,
-      render: (row) => (
-        <span className="text-[13px] text-[#64748B] whitespace-nowrap">
-          {new Date(row.created_at as string).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}
-        </span>
-      ),
+      key: "created_at", label: "Date", sortable: true, hideOnMobile: true,
+      render: (row) => <span className="text-[13px] text-[#64748B] whitespace-nowrap">{new Date(row.created_at as string).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}</span>,
     },
   ];
 
-  const portalOptions = (Object.keys(PORTAL_LABELS) as Portal[]).map((p) => ({
-    value: p,
-    label: PORTAL_LABELS[p],
-  }));
+  const portalOptions = (Object.keys(PORTAL_LABELS) as Portal[]).map((p) => ({ value: p, label: PORTAL_LABELS[p] }));
 
-  const filters: FilterConfig[] = [
-    {
-      key: "status",
-      label: "All Statuses",
-      value: statusFilter,
-      onChange: setStatusFilter,
-      options: [
-        { value: "pending", label: "Pending" },
-        { value: "confirmed", label: "Confirmed" },
-        { value: "processing", label: "Processing" },
-        { value: "completed", label: "Completed" },
-        { value: "cancelled", label: "Cancelled" },
-      ],
-    },
-    {
-      key: "portal",
-      label: "All Portals",
-      value: portalFilter,
-      onChange: setPortalFilter,
-      options: portalOptions,
-    },
+  const orderFilters: FilterConfig[] = [
+    { key: "status", label: "All Statuses", value: statusFilter, onChange: setStatusFilter, options: [{ value: "pending", label: "Pending" }, { value: "confirmed", label: "Confirmed" }, { value: "processing", label: "Processing" }, { value: "completed", label: "Completed" }, { value: "cancelled", label: "Cancelled" }] },
+    { key: "portal", label: "All Portals", value: portalFilter, onChange: setPortalFilter, options: portalOptions },
   ];
 
   const activeOrders = orders.filter((o) => o.status !== "completed" && o.status !== "cancelled");
@@ -256,44 +222,31 @@ export default function OrdersPage() {
   // ── Custom Requests tab ─────────────────────────────────────
   const filteredCR = customRequests.filter((r) => {
     const userName = r.profiles?.name ?? r.profiles?.email ?? "";
-    const matchSearch =
-      !crSearch ||
-      r.id.toLowerCase().includes(crSearch.toLowerCase()) ||
-      userName.toLowerCase().includes(crSearch.toLowerCase()) ||
-      r.description.toLowerCase().includes(crSearch.toLowerCase());
-    const matchStatus = !crStatusFilter || r.status === crStatusFilter;
-    const matchPortal = !crPortalFilter || r.portal_id === crPortalFilter;
-    return matchSearch && matchStatus && matchPortal;
+    const matchSearch = !crSearch || r.id.toLowerCase().includes(crSearch.toLowerCase()) || userName.toLowerCase().includes(crSearch.toLowerCase()) || r.description.toLowerCase().includes(crSearch.toLowerCase());
+    return matchSearch && (!crStatusFilter || r.status === crStatusFilter) && (!crPortalFilter || r.portal_id === crPortalFilter);
   });
 
-  const crColumns: Column<CustomRequestRow>[] = [
+  const crColumns: Column<CRRow>[] = [
     {
-      key: "id",
-      label: "Request ID",
-      sortable: true,
+      key: "id", label: "Request ID", sortable: true,
       render: (row) => <span className="font-semibold text-[#6366F1] text-[13px]">{row.id as string}</span>,
     },
     {
-      key: "user",
-      label: "Customer",
+      key: "user", label: "Customer",
       render: (row) => {
-        const profile = (row as DbCustomRequest).profiles;
-        const name = profile?.name ?? profile?.email ?? "—";
+        const p = (row as DbCustomRequest).profiles;
+        const name = p?.name ?? p?.email ?? "—";
         const initials = name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "??";
         return (
           <div className="flex items-center gap-2">
-            <div className="size-7 rounded-full bg-gradient-to-br from-[#6366F1] to-[#6366F1]/70 flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0">
-              {initials}
-            </div>
+            <div className="size-7 rounded-full bg-gradient-to-br from-[#6366F1] to-[#6366F1]/70 flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0">{initials}</div>
             <span className="text-sm text-[#334155] font-medium">{name}</span>
           </div>
         );
       },
     },
     {
-      key: "portal_id",
-      label: "Portal",
-      hideOnMobile: true,
+      key: "portal_id", label: "Portal", hideOnMobile: true,
       render: (row) => {
         const portal = row.portal_id as string;
         return (
@@ -305,91 +258,51 @@ export default function OrdersPage() {
       },
     },
     {
-      key: "description",
-      label: "Request",
-      render: (row) => (
-        <span className="text-[13px] text-[#334155] line-clamp-2 max-w-xs">
-          {row.description as string}
-        </span>
-      ),
+      key: "description", label: "Request",
+      render: (row) => <span className="text-[13px] text-[#334155] line-clamp-2 max-w-xs">{row.description as string}</span>,
     },
     {
-      key: "status",
-      label: "Status",
-      align: "center",
-      sortable: true,
+      key: "status", label: "Status", align: "center", sortable: true,
       render: (row) => {
         const s = row.status as string;
         return (
-          <span
-            className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold"
-            style={{
-              color: CUSTOM_REQUEST_STATUS_COLORS[s] ?? "#64748B",
-              backgroundColor: (CUSTOM_REQUEST_STATUS_COLORS[s] ?? "#94A3B8") + "18",
-            }}
-          >
-            {CUSTOM_REQUEST_STATUS_LABELS[s] ?? s}
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold" style={{ color: CR_STATUS_COLOR[s] ?? "#64748B", backgroundColor: (CR_STATUS_COLOR[s] ?? "#94A3B8") + "18" }}>
+            {CR_STATUS_LABEL[s] ?? s}
           </span>
         );
       },
     },
     {
-      key: "actions",
-      label: "Update",
-      align: "center",
+      key: "actions", label: "", align: "center",
       render: (row) => {
-        const current = row.status as string;
         const id = row.id as string;
         const isBusy = updatingId === id;
         return (
-          <select
-            value={current}
-            disabled={isBusy}
-            onChange={(e) => void handleStatusChange(id, e.target.value)}
-            className="text-[12px] border border-[#E8ECF1] rounded-lg px-2 py-1.5 bg-white text-[#334155] cursor-pointer disabled:opacity-50"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <option value="new">New</option>
-            <option value="under_review">Under Review</option>
-            <option value="converted">Converted</option>
-            <option value="declined">Declined</option>
-          </select>
+          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+            <select
+              value={row.status as string}
+              disabled={isBusy}
+              onChange={(e) => void handleInlineStatusChange(id, e.target.value)}
+              className="text-[12px] border border-[#E8ECF1] rounded-lg px-2 py-1.5 bg-white text-[#334155] cursor-pointer disabled:opacity-50"
+            >
+              <option value="new">New</option>
+              <option value="under_review">Under Review</option>
+              <option value="converted">Converted</option>
+              <option value="declined">Declined</option>
+            </select>
+          </div>
         );
       },
     },
     {
-      key: "created_at",
-      label: "Date",
-      sortable: true,
-      hideOnMobile: true,
-      render: (row) => (
-        <span className="text-[13px] text-[#64748B] whitespace-nowrap">
-          {new Date(row.created_at as string).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}
-        </span>
-      ),
+      key: "created_at", label: "Date", sortable: true, hideOnMobile: true,
+      render: (row) => <span className="text-[13px] text-[#64748B] whitespace-nowrap">{new Date(row.created_at as string).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}</span>,
     },
   ];
 
   const crFilters: FilterConfig[] = [
-    {
-      key: "status",
-      label: "All Statuses",
-      value: crStatusFilter,
-      onChange: setCrStatusFilter,
-      options: [
-        { value: "new", label: "New" },
-        { value: "under_review", label: "Under Review" },
-        { value: "converted", label: "Converted" },
-        { value: "declined", label: "Declined" },
-      ],
-    },
-    {
-      key: "portal",
-      label: "All Portals",
-      value: crPortalFilter,
-      onChange: setCrPortalFilter,
-      options: portalOptions,
-    },
+    { key: "status", label: "All Statuses", value: crStatusFilter, onChange: setCrStatusFilter, options: [{ value: "new", label: "New" }, { value: "under_review", label: "Under Review" }, { value: "converted", label: "Converted" }, { value: "declined", label: "Declined" }] },
+    { key: "portal", label: "All Portals", value: crPortalFilter, onChange: setCrPortalFilter, options: portalOptions },
   ];
 
   const newCRCount = customRequests.filter((r) => r.status === "new").length;
@@ -401,16 +314,11 @@ export default function OrdersPage() {
         <div>
           <h1 className="text-xl font-bold text-[#0F172A]">Orders</h1>
           <p className="text-sm text-[#64748B] mt-0.5">
-            {activeTab === "orders"
-              ? (loading ? "Loading…" : `${orders.length} total orders`)
-              : (crLoading ? "Loading…" : `${customRequests.length} custom requests`)}
+            {activeTab === "orders" ? (loading ? "Loading…" : `${orders.length} total orders`) : (crLoading ? "Loading…" : `${customRequests.length} custom requests`)}
           </p>
         </div>
         {activeTab === "orders" && (
-          <button
-            onClick={() => navigate("/orders/create")}
-            className="inline-flex items-center gap-1.5 px-2.5 sm:px-4 py-2 sm:py-2.5 bg-primary text-white text-sm font-semibold rounded-xl cursor-pointer hover:brightness-[0.92] active:scale-[0.98] transition-all"
-          >
+          <button onClick={() => navigate("/orders/create")} className="inline-flex items-center gap-1.5 px-2.5 sm:px-4 py-2 sm:py-2.5 bg-primary text-white text-sm font-semibold rounded-xl cursor-pointer hover:brightness-[0.92] active:scale-[0.98] transition-all">
             <span className="material-symbols-outlined text-[18px]">add</span>
             <span className="hidden sm:inline">Create Order</span>
           </button>
@@ -419,24 +327,10 @@ export default function OrdersPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 bg-[#F1F5F9] p-1 rounded-xl w-fit">
-        <button
-          onClick={() => setActiveTab("orders")}
-          className={`px-4 py-2 text-[13px] font-semibold rounded-lg transition-all cursor-pointer ${
-            activeTab === "orders"
-              ? "bg-white text-[#0F172A] shadow-sm"
-              : "text-[#64748B] hover:text-[#334155]"
-          }`}
-        >
+        <button onClick={() => setActiveTab("orders")} className={`px-4 py-2 text-[13px] font-semibold rounded-lg transition-all cursor-pointer ${activeTab === "orders" ? "bg-white text-[#0F172A] shadow-sm" : "text-[#64748B] hover:text-[#334155]"}`}>
           Orders
         </button>
-        <button
-          onClick={() => setActiveTab("custom_requests")}
-          className={`px-4 py-2 text-[13px] font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-2 ${
-            activeTab === "custom_requests"
-              ? "bg-white text-[#0F172A] shadow-sm"
-              : "text-[#64748B] hover:text-[#334155]"
-          }`}
-        >
+        <button onClick={() => setActiveTab("custom_requests")} className={`px-4 py-2 text-[13px] font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-2 ${activeTab === "custom_requests" ? "bg-white text-[#0F172A] shadow-sm" : "text-[#64748B] hover:text-[#334155]"}`}>
           Custom Requests
           {newCRCount > 0 && (
             <span className="size-5 bg-[#6366F1] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
@@ -471,14 +365,7 @@ export default function OrdersPage() {
               </div>
             </div>
           )}
-
-          <FilterBar
-            onSearch={setSearch}
-            searchValue={search}
-            searchPlaceholder="Search by order ID or user name..."
-            filters={filters}
-          />
-
+          <FilterBar onSearch={setSearch} searchValue={search} searchPlaceholder="Search by order ID or user name..." filters={orderFilters} />
           {loading ? (
             <div className="py-16 text-center text-sm text-[#94A3B8]">Loading orders…</div>
           ) : orders.length === 0 ? (
@@ -489,12 +376,7 @@ export default function OrdersPage() {
               <button onClick={() => navigate("/orders/create")} className="mt-3 text-sm font-semibold text-primary hover:underline cursor-pointer">Create the first order</button>
             </div>
           ) : (
-            <DataTable<OrderRow>
-              columns={columns}
-              data={filtered as OrderRow[]}
-              onRowClick={(row) => navigate(`/orders/${row.id as string}`)}
-              pageSize={10}
-            />
+            <DataTable<OrderRow> columns={orderColumns} data={filtered as OrderRow[]} onRowClick={(row) => navigate(`/orders/${row.id as string}`)} pageSize={10} />
           )}
         </>
       )}
@@ -519,14 +401,7 @@ export default function OrdersPage() {
               </div>
             </div>
           )}
-
-          <FilterBar
-            onSearch={setCrSearch}
-            searchValue={crSearch}
-            searchPlaceholder="Search by ID, customer or description..."
-            filters={crFilters}
-          />
-
+          <FilterBar onSearch={setCrSearch} searchValue={crSearch} searchPlaceholder="Search by ID, customer or description..." filters={crFilters} />
           {crLoading ? (
             <div className="py-16 text-center text-sm text-[#94A3B8]">Loading custom requests…</div>
           ) : customRequests.length === 0 ? (
@@ -536,14 +411,116 @@ export default function OrdersPage() {
               <p className="text-xs text-[#94A3B8] mt-1">Custom requests appear when users submit freeform orders from Groceries or Logistics portals.</p>
             </div>
           ) : (
-            <DataTable<CustomRequestRow>
-              columns={crColumns}
-              data={filteredCR as CustomRequestRow[]}
-              pageSize={10}
-            />
+            <DataTable<CRRow> columns={crColumns} data={filteredCR as CRRow[]} onRowClick={(row) => void openDetail(row.id as string)} pageSize={10} />
           )}
         </>
       )}
+
+      {/* ── CUSTOM REQUEST DETAIL MODAL ── */}
+      <Modal isOpen={detailLoading || !!detail} onClose={() => { setDetail(null); setDetailLoading(false); }} size="md">
+        {detailLoading ? (
+          <div className="py-12 text-center text-sm text-[#94A3B8]">Loading…</div>
+        ) : detail ? (
+          <div className="space-y-5">
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <span className="text-[11px] font-bold text-[#6366F1] uppercase tracking-wider">{detail.id}</span>
+                <h3 className="text-lg font-bold text-[#0F172A] mt-0.5">Custom Request</h3>
+              </div>
+              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold flex-shrink-0" style={{ color: CR_STATUS_COLOR[detail.status], backgroundColor: CR_STATUS_COLOR[detail.status] + "18" }}>
+                {CR_STATUS_LABEL[detail.status]}
+              </span>
+            </div>
+
+            {/* Customer + Portal */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-[#F8FAFC] rounded-xl p-3">
+                <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wide mb-1">Customer</p>
+                <p className="text-[13px] font-semibold text-[#0F172A]">{detail.profiles?.name ?? "—"}</p>
+                <p className="text-[11px] text-[#64748B]">{detail.profiles?.email ?? ""}</p>
+              </div>
+              <div className="bg-[#F8FAFC] rounded-xl p-3">
+                <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wide mb-1">Portal · Date</p>
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <span className="size-2 rounded-full" style={{ backgroundColor: PORTAL_COLORS[detail.portal_id as Portal] ?? "#94A3B8" }} />
+                  <p className="text-[13px] font-semibold text-[#0F172A]">{PORTAL_LABELS[detail.portal_id as Portal] ?? detail.portal_id}</p>
+                </div>
+                <p className="text-[11px] text-[#64748B]">{new Date(detail.created_at).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
+              </div>
+            </div>
+
+            {/* Full description */}
+            <div>
+              <p className="text-[11px] font-semibold text-[#94A3B8] uppercase tracking-wide mb-2">Request Details</p>
+              <div className="bg-[#F8FAFC] rounded-xl p-4 text-[13px] text-[#334155] whitespace-pre-wrap leading-relaxed border border-[#E8ECF1]">
+                {detail.description}
+              </div>
+            </div>
+
+            {/* Status update */}
+            <div className="flex items-center gap-3 p-3 bg-[#F8FAFC] rounded-xl border border-[#E8ECF1]">
+              <p className="text-[13px] font-semibold text-[#334155] flex-1">Update Status</p>
+              <select
+                value={detailStatus}
+                onChange={(e) => setDetailStatus(e.target.value)}
+                className="text-[13px] border border-[#E8ECF1] rounded-lg px-3 py-1.5 bg-white text-[#334155] cursor-pointer"
+              >
+                <option value="new">New</option>
+                <option value="under_review">Under Review</option>
+                <option value="converted">Converted</option>
+                <option value="declined">Declined</option>
+              </select>
+              <button
+                onClick={() => void handleDetailStatusSave()}
+                disabled={detailSaving || detailStatus === detail.status}
+                className="px-3 py-1.5 bg-primary text-white text-[13px] font-semibold rounded-lg cursor-pointer hover:brightness-[0.92] disabled:opacity-50 transition-all"
+              >
+                {detailSaving ? "Saving…" : "Save"}
+              </button>
+            </div>
+
+            {/* Admin notes thread */}
+            <div>
+              <p className="text-[11px] font-semibold text-[#94A3B8] uppercase tracking-wide mb-2">
+                Admin Notes {(detail.custom_request_notes?.length ?? 0) > 0 && `(${detail.custom_request_notes!.length})`}
+              </p>
+              {(detail.custom_request_notes?.length ?? 0) === 0 ? (
+                <p className="text-[13px] text-[#94A3B8] italic">No notes yet.</p>
+              ) : (
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {detail.custom_request_notes!.map((note) => (
+                    <div key={note.id} className="bg-[#F8FAFC] rounded-lg p-3 border border-[#E8ECF1]">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[12px] font-semibold text-[#334155]">{note.profiles?.name ?? "Admin"}</span>
+                        <span className="text-[11px] text-[#94A3B8]">{new Date(note.created_at).toLocaleDateString("en-NG", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                      </div>
+                      <p className="text-[13px] text-[#334155]">{note.text}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2 mt-3">
+                <input
+                  type="text"
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void handleAddNote(); } }}
+                  placeholder="Add a note…"
+                  className="flex-1 text-[13px] border border-[#E8ECF1] rounded-lg px-3 py-2 bg-white focus:border-primary focus:outline-none transition-colors"
+                />
+                <button
+                  onClick={() => void handleAddNote()}
+                  disabled={addingNote || !noteText.trim()}
+                  className="px-3 py-2 bg-[#6366F1] text-white text-[13px] font-semibold rounded-lg cursor-pointer hover:brightness-[0.92] disabled:opacity-50 transition-all"
+                >
+                  {addingNote ? "…" : "Add"}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
     </div>
   );
 }

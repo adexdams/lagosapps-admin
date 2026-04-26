@@ -307,6 +307,18 @@ export async function updateCustomRequest(id: string, data: Record<string, unkno
   return supabase.from("custom_order_requests").update(data).eq("id", id);
 }
 
+export async function getCustomRequestDetail(id: string) {
+  return supabase
+    .from("custom_order_requests")
+    .select("*, profiles!user_id(id, name, email, avatar_url), custom_request_notes(*, profiles!author_id(name))")
+    .eq("id", id)
+    .single();
+}
+
+export async function addCustomRequestNote(requestId: string, authorId: string, text: string) {
+  return supabase.from("custom_request_notes").insert({ request_id: requestId, author_id: authorId, text });
+}
+
 // ── Fulfillment ─────────────────────────────────────────────
 
 export async function getFulfillmentTracking() {
