@@ -21,7 +21,7 @@ End-to-end checklist for verifying every feature on both the **admin dashboard**
 | 1B | User signup | ✅ `profiles` trigger confirmed · 1 user in DB | ✅ Sign up confirmed · welcome email arrived |
 | 1C | Referral signup | ✅ `referrals` schema confirmed | 🟡 Referral code used · Bronze subscription created · **bug fixed**: membership tier was not showing (race condition in register() — moved processing to loadProfile()) · re-test needed |
 | **S2** | **Admin: Users** | | |
-| 2A–2B | Users list + User detail | ✅ Profiles table — 2 users confirmed after tests | 🟡 Admin loads new user correctly · detail page ⬜ pending |
+| 2A–2B | Users list + User detail | ✅ Profiles table — 2 users confirmed after tests | ✅ Admin loads new users correctly · user detail page confirmed |
 | **S3** | **Admin: Orders** | | |
 | 3A–3C | Orders list · detail · create | ✅ `orders` table empty (no test orders yet) | ⬜ Create order · status change · refund flow |
 | **S4** | **Admin: Inventory** | | |
@@ -184,19 +184,19 @@ supabase db query --linked "SELECT id, referrer_id, referred_id, gifted_tier, st
 
 ## Section 2 — Admin Dashboard: Users
 
-### 2A · Users list (browser)
+### 2A · Users list (browser) ✅ verified 2026-04-25
 
-- [ ] Navigate to `/users`
-- [ ] Table loads with real user rows (not mock data)
+- [x] Navigate to `/users`
+- [x] Table loads with real user rows (not mock data)
 - [ ] Search by name → results filter live
 - [ ] Filter by role (`user` / `admin`) → list updates
 - [ ] Filter by membership tier → list updates
 - [ ] Sort by "Joined" column
 
-### 2B · User detail (browser)
+### 2B · User detail (browser) ✅ verified 2026-04-25
 
-- [ ] Click any user row → `/users/:id` loads
-- [ ] Profile section shows name, email, avatar, wallet balance, membership tier
+- [x] Click any user row → `/users/:id` loads
+- [x] Profile section shows name, email, avatar, wallet balance, membership tier
 - [ ] Orders tab shows that user's orders
 - [ ] Wallet tab shows that user's transactions
 - [ ] Suspend / Activate user → toast confirmation
