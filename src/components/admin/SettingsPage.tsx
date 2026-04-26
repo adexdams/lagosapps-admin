@@ -59,6 +59,8 @@ export default function SettingsPage() {
   const [supportEmail, setSupportEmail] = useState("support@lagosapps.com");
   const [supportPhone, setSupportPhone] = useState("+234 801 234 5678");
   const [whatsappNumber, setWhatsappNumber] = useState("+234 801 234 5678");
+  const [referralDurationMonths, setReferralDurationMonths] = useState("6");
+  const [referralMaxPerYear, setReferralMaxPerYear] = useState("2");
   const [loadingSettings, setLoadingSettings] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
 
@@ -97,6 +99,8 @@ export default function SettingsPage() {
       if (map.support_phone) setSupportPhone(map.support_phone);
       if (map.whatsapp_number) setWhatsappNumber(map.whatsapp_number);
       if (map.paystack_test_mode) setTestMode(map.paystack_test_mode === "true");
+      if (map.referral_duration_months) setReferralDurationMonths(map.referral_duration_months);
+      if (map.referral_max_per_year) setReferralMaxPerYear(map.referral_max_per_year);
     })();
   }, []);
 
@@ -137,12 +141,18 @@ export default function SettingsPage() {
 
   async function savePlatformSettings() {
     if (!user?.id) return;
+    const dur = parseInt(referralDurationMonths, 10);
+    const max = parseInt(referralMaxPerYear, 10);
+    if (isNaN(dur) || dur < 1 || dur > 24) { toast.error("Referral duration must be between 1 and 24 months"); return; }
+    if (isNaN(max) || max < 1 || max > 20) { toast.error("Max referrals per year must be between 1 and 20"); return; }
     setSavingSettings(true);
     await Promise.all([
       updateSetting("site_name", siteName, user.id),
       updateSetting("support_email", supportEmail, user.id),
       updateSetting("support_phone", supportPhone, user.id),
       updateSetting("whatsapp_number", whatsappNumber, user.id),
+      updateSetting("referral_duration_months", String(dur), user.id),
+      updateSetting("referral_max_per_year", String(max), user.id),
     ]);
     setSavingSettings(false);
     toast.success("Platform settings saved");
@@ -326,6 +336,24 @@ export default function SettingsPage() {
                   <div><label className={labelClass}>Support Email</label><input type="email" value={supportEmail} onChange={(e) => setSupportEmail(e.target.value)} className={inputClass} /></div>
                   <div><label className={labelClass}>Support Phone</label><input type="text" value={supportPhone} onChange={(e) => setSupportPhone(e.target.value)} className={inputClass} /></div>
                   <div><label className={labelClass}>WhatsApp Number</label><input type="text" value={whatsappNumber} onChange={(e) => setWhatsappNumber(e.target.value)} className={inputClass} /></div>
+                </div>
+                <div className="border-t border-[#E8ECF1] pt-5">
+                  <p className="text-[13px] font-bold text-[#0F172A] mb-3 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[16px] text-[#64748B]">group_add</span>
+                    Referral Programme
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className={labelClass}>Gift duration (months)</label>
+                      <input type="number" min="1" max="24" value={referralDurationMonths} onChange={(e) => setReferralDurationMonths(e.target.value)} className={inputClass} />
+                      <p className="text-[11px] text-[#94A3B8] mt-1">How many months new members receive free membership after using a referral code.</p>
+                    </div>
+                    <div>
+                      <label className={labelClass}>Max referrals per year (per tier)</label>
+                      <input type="number" min="1" max="20" value={referralMaxPerYear} onChange={(e) => setReferralMaxPerYear(e.target.value)} className={inputClass} />
+                      <p className="text-[11px] text-[#94A3B8] mt-1">How many times a member can gift each tier per calendar year.</p>
+                    </div>
+                  </div>
                 </div>
                 <div className="flex justify-end">
                   <button onClick={savePlatformSettings} disabled={savingSettings} className="px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl cursor-pointer hover:brightness-[0.92] transition-all disabled:opacity-50">
