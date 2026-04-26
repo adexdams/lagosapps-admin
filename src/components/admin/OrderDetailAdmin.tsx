@@ -4,7 +4,7 @@ import StatusBadge from "./shared/StatusBadge";
 import Modal from "../ui/Modal";
 import { useToast } from "../../hooks/useToast";
 import { useAuth } from "../../hooks/useAuth";
-import { getOrder, updateOrderStatus, insertOrderTimelineStep, createWalletTransaction, logAudit, getSettings, getFulfillmentTrackingByOrder, upsertFulfillmentTracking, addFulfillmentNote } from "../../lib/api";
+import { getOrder, updateOrderStatus, insertOrderTimelineStep, createWalletTransaction, logAudit, getSettings, getFulfillmentTrackingByOrder, getFulfillmentNotesByOrder, upsertFulfillmentTracking, addFulfillmentNote } from "../../lib/api";
 import { supabase } from "../../lib/supabase";
 import {
   formatNaira,
@@ -138,15 +138,19 @@ export default function OrderDetailAdmin() {
 
   const loadTracking = useCallback(async () => {
     if (!id) return;
-    const [{ data: trackData }, { data: teamData }] = await Promise.all([
+    const [{ data: trackData }, { data: teamData }, { data: notesData }] = await Promise.all([
       getFulfillmentTrackingByOrder(id),
       supabase.from("admin_team_members").select("id, user_id, role, profiles(name, email)").eq("is_active", true),
+      getFulfillmentNotesByOrder(id),
     ]);
     setTeamMembers((teamData as unknown as TeamMember[]) ?? []);
+    const notes = (notesData as unknown as FulfillmentNote[]) ?? [];
     if (trackData) {
       const t = trackData as unknown as FulfillmentTracking;
-      setTracking(t);
+      setTracking({ ...t, fulfillment_notes: notes });
       setAssignee(t.assigned_to ?? "");
+    } else {
+      setTracking({ fulfillment_notes: notes } as FulfillmentTracking);
     }
   }, [id]);
 

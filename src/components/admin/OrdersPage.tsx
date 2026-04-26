@@ -3,11 +3,9 @@ import { useNavigate } from "react-router-dom";
 import DataTable, { type Column } from "./shared/DataTable";
 import FilterBar, { type FilterConfig } from "./shared/FilterBar";
 import StatusBadge from "./shared/StatusBadge";
-import Modal from "../ui/Modal";
-import { useAuth } from "../../hooks/useAuth";
 import {
   getOrders, getSettings, getCustomRequestsList,
-  updateCustomRequestStatus, getCustomRequestDetail, addCustomRequestNote,
+  updateCustomRequestStatus,
 } from "../../lib/api";
 import {
   formatNaira,
@@ -58,7 +56,6 @@ const CR_STATUS_COLOR: Record<string, string> = { new: "#2563EB", under_review: 
 
 export default function OrdersPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<"orders" | "custom_requests">("orders");
 
   // Orders state
@@ -77,14 +74,6 @@ export default function OrdersPage() {
   const [customRequests, setCustomRequests] = useState<DbCustomRequest[]>([]);
   const [crLoading, setCrLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-
-  // Detail modal state
-  const [detail, setDetail] = useState<DbCustomRequest | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [detailStatus, setDetailStatus] = useState<string>("");
-  const [detailSaving, setDetailSaving] = useState(false);
-  const [noteText, setNoteText] = useState("");
-  const [addingNote, setAddingNote] = useState(false);
 
   const mountedRef = useRef(true);
 
@@ -110,39 +99,6 @@ export default function OrdersPage() {
     });
     return () => { mountedRef.current = false; };
   }, []);
-
-  // Open detail modal and fetch full record (with notes)
-  async function openDetail(id: string) {
-    setDetail(null);
-    setDetailLoading(true);
-    setNoteText("");
-    const { data } = await getCustomRequestDetail(id);
-    if (data) {
-      setDetail(data as DbCustomRequest);
-      setDetailStatus((data as DbCustomRequest).status);
-    }
-    setDetailLoading(false);
-  }
-
-  async function handleDetailStatusSave() {
-    if (!detail) return;
-    setDetailSaving(true);
-    await updateCustomRequestStatus(detail.id, { status: detailStatus });
-    setDetail((d) => d ? { ...d, status: detailStatus as DbCustomRequest["status"] } : d);
-    setCustomRequests((prev) => prev.map((r) => r.id === detail.id ? { ...r, status: detailStatus as DbCustomRequest["status"] } : r));
-    setDetailSaving(false);
-  }
-
-  async function handleAddNote() {
-    if (!detail || !noteText.trim() || !user?.id) return;
-    setAddingNote(true);
-    await addCustomRequestNote(detail.id, user.id, noteText.trim());
-    // Re-fetch detail to get note with author name
-    const { data } = await getCustomRequestDetail(detail.id);
-    if (data) setDetail(data as DbCustomRequest);
-    setNoteText("");
-    setAddingNote(false);
-  }
 
   async function handleInlineStatusChange(id: string, newStatus: string) {
     setUpdatingId(id);
@@ -411,116 +367,11 @@ export default function OrdersPage() {
               <p className="text-xs text-[#94A3B8] mt-1">Custom requests appear when users submit freeform orders from Groceries or Logistics portals.</p>
             </div>
           ) : (
-            <DataTable<CRRow> columns={crColumns} data={filteredCR as CRRow[]} onRowClick={(row) => void openDetail(row.id as string)} pageSize={10} />
+            <DataTable<CRRow> columns={crColumns} data={filteredCR as CRRow[]} onRowClick={(row) => navigate(`/orders/requests/${row.id as string}`)} pageSize={10} />
           )}
         </>
       )}
 
-      {/* ── CUSTOM REQUEST DETAIL MODAL ── */}
-      <Modal isOpen={detailLoading || !!detail} onClose={() => { setDetail(null); setDetailLoading(false); }} size="md">
-        {detailLoading ? (
-          <div className="py-12 text-center text-sm text-[#94A3B8]">Loading…</div>
-        ) : detail ? (
-          <div className="space-y-5">
-            {/* Header */}
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <span className="text-[11px] font-bold text-[#6366F1] uppercase tracking-wider">{detail.id}</span>
-                <h3 className="text-lg font-bold text-[#0F172A] mt-0.5">Custom Request</h3>
-              </div>
-              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold flex-shrink-0" style={{ color: CR_STATUS_COLOR[detail.status], backgroundColor: CR_STATUS_COLOR[detail.status] + "18" }}>
-                {CR_STATUS_LABEL[detail.status]}
-              </span>
-            </div>
-
-            {/* Customer + Portal */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-[#F8FAFC] rounded-xl p-3">
-                <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wide mb-1">Customer</p>
-                <p className="text-[13px] font-semibold text-[#0F172A]">{detail.profiles?.name ?? "—"}</p>
-                <p className="text-[11px] text-[#64748B]">{detail.profiles?.email ?? ""}</p>
-              </div>
-              <div className="bg-[#F8FAFC] rounded-xl p-3">
-                <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wide mb-1">Portal · Date</p>
-                <div className="flex items-center gap-1.5 mb-0.5">
-                  <span className="size-2 rounded-full" style={{ backgroundColor: PORTAL_COLORS[detail.portal_id as Portal] ?? "#94A3B8" }} />
-                  <p className="text-[13px] font-semibold text-[#0F172A]">{PORTAL_LABELS[detail.portal_id as Portal] ?? detail.portal_id}</p>
-                </div>
-                <p className="text-[11px] text-[#64748B]">{new Date(detail.created_at).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
-              </div>
-            </div>
-
-            {/* Full description */}
-            <div>
-              <p className="text-[11px] font-semibold text-[#94A3B8] uppercase tracking-wide mb-2">Request Details</p>
-              <div className="bg-[#F8FAFC] rounded-xl p-4 text-[13px] text-[#334155] whitespace-pre-wrap leading-relaxed border border-[#E8ECF1]">
-                {detail.description}
-              </div>
-            </div>
-
-            {/* Status update */}
-            <div className="flex items-center gap-3 p-3 bg-[#F8FAFC] rounded-xl border border-[#E8ECF1]">
-              <p className="text-[13px] font-semibold text-[#334155] flex-1">Update Status</p>
-              <select
-                value={detailStatus}
-                onChange={(e) => setDetailStatus(e.target.value)}
-                className="text-[13px] border border-[#E8ECF1] rounded-lg px-3 py-1.5 bg-white text-[#334155] cursor-pointer"
-              >
-                <option value="new">New</option>
-                <option value="under_review">Under Review</option>
-                <option value="converted">Converted</option>
-                <option value="declined">Declined</option>
-              </select>
-              <button
-                onClick={() => void handleDetailStatusSave()}
-                disabled={detailSaving || detailStatus === detail.status}
-                className="px-3 py-1.5 bg-primary text-white text-[13px] font-semibold rounded-lg cursor-pointer hover:brightness-[0.92] disabled:opacity-50 transition-all"
-              >
-                {detailSaving ? "Saving…" : "Save"}
-              </button>
-            </div>
-
-            {/* Admin notes thread */}
-            <div>
-              <p className="text-[11px] font-semibold text-[#94A3B8] uppercase tracking-wide mb-2">
-                Admin Notes {(detail.custom_request_notes?.length ?? 0) > 0 && `(${detail.custom_request_notes!.length})`}
-              </p>
-              {(detail.custom_request_notes?.length ?? 0) === 0 ? (
-                <p className="text-[13px] text-[#94A3B8] italic">No notes yet.</p>
-              ) : (
-                <div className="space-y-2 max-h-40 overflow-y-auto">
-                  {detail.custom_request_notes!.map((note) => (
-                    <div key={note.id} className="bg-[#F8FAFC] rounded-lg p-3 border border-[#E8ECF1]">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[12px] font-semibold text-[#334155]">{note.profiles?.name ?? "Admin"}</span>
-                        <span className="text-[11px] text-[#94A3B8]">{new Date(note.created_at).toLocaleDateString("en-NG", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
-                      </div>
-                      <p className="text-[13px] text-[#334155]">{note.text}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="flex gap-2 mt-3">
-                <input
-                  type="text"
-                  value={noteText}
-                  onChange={(e) => setNoteText(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void handleAddNote(); } }}
-                  placeholder="Add a note…"
-                  className="flex-1 text-[13px] border border-[#E8ECF1] rounded-lg px-3 py-2 bg-white focus:border-primary focus:outline-none transition-colors"
-                />
-                <button
-                  onClick={() => void handleAddNote()}
-                  disabled={addingNote || !noteText.trim()}
-                  className="px-3 py-2 bg-[#6366F1] text-white text-[13px] font-semibold rounded-lg cursor-pointer hover:brightness-[0.92] disabled:opacity-50 transition-all"
-                >
-                  {addingNote ? "…" : "Add"}
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
-      </Modal>
     </div>
   );
 }

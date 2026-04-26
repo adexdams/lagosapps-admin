@@ -22,6 +22,7 @@ import SettingsPage from "./SettingsPage";
 import FinancePage from "./FinancePage";
 import TeamPage from "./TeamPage";
 import CreateOrderAdmin from "./CreateOrderAdmin";
+import CustomRequestDetail from "./CustomRequestDetail";
 import MembershipTierConfig from "./MembershipTierConfig";
 import LiveCartsPage from "./LiveCartsPage";
 import NotificationsInboxPage from "./NotificationsInboxPage";
@@ -205,8 +206,9 @@ export default function AdminLayout() {
             <Route path="users"            element={<Gate priv="users">        <UsersPage /></Gate>} />
             <Route path="users/:id"        element={<Gate priv="users">        <UserDetail /></Gate>} />
             <Route path="orders"           element={<Gate priv="orders">       <OrdersPage /></Gate>} />
-            <Route path="orders/create"    element={<Gate priv="orders">       <CreateOrderAdmin /></Gate>} />
-            <Route path="orders/:id"       element={<Gate priv="orders">       <OrderDetailAdmin /></Gate>} />
+            <Route path="orders/create"          element={<Gate priv="orders"><CreateOrderAdmin /></Gate>} />
+            <Route path="orders/requests/:id"   element={<Gate priv="orders"><CustomRequestDetail /></Gate>} />
+            <Route path="orders/:id"            element={<Gate priv="orders"><OrderDetailAdmin /></Gate>} />
             <Route path="carts"            element={<Gate priv="carts">        <LiveCartsPage /></Gate>} />
             <Route path="inventory"        element={<Gate priv="inventory">    <InventoryPage /></Gate>} />
             <Route path="membership"       element={<Gate priv="membership">   <MembershipAdmin /></Gate>} />

@@ -96,9 +96,17 @@ export async function getFulfillmentOrders() {
 export async function getFulfillmentTrackingByOrder(orderId: string) {
   return supabase
     .from("fulfillment_tracking")
-    .select("*, fulfillment_notes(*, profiles(name))")
+    .select("*")
     .eq("order_id", orderId)
     .maybeSingle();
+}
+
+export async function getFulfillmentNotesByOrder(orderId: string) {
+  return supabase
+    .from("fulfillment_notes")
+    .select("*, profiles!author_id(name, email)")
+    .eq("order_id", orderId)
+    .order("created_at", { ascending: false });
 }
 
 export async function upsertFulfillmentTracking(data: Record<string, unknown>) {
