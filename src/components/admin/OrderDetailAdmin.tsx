@@ -239,14 +239,16 @@ export default function OrderDetailAdmin() {
       .eq("id", order.user_id)
       .single();
     const currentBalance = Number((userData as { wallet_balance: number } | null)?.wallet_balance ?? 0);
-    const newBalance = currentBalance + order.payment_amount;
+    // Refund the full amount the user paid — wallet portion + card portion
+    const refundAmount = order.wallet_deduction + order.payment_amount;
+    const newBalance = currentBalance + refundAmount;
 
     const txnId = `TXN-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 4)}`.toUpperCase();
     const { error: txnErr } = await createWalletTransaction({
       id: txnId,
       user_id: order.user_id,
       description: `Refund for order ${order.id}`,
-      amount: order.payment_amount,
+      amount: refundAmount,
       type: "credit",
       running_balance: newBalance,
       reference: order.id,
@@ -258,18 +260,26 @@ export default function OrderDetailAdmin() {
     }
 
     // 3. Update profile balance
-    await supabase.from("profiles").update({ wallet_balance: newBalance }).eq("id", order.user_id);
+    const { error: balanceErr } = await supabase
+      .from("profiles")
+      .update({ wallet_balance: newBalance })
+      .eq("id", order.user_id);
+    if (balanceErr) {
+      setRefunding(false);
+      toast.error(`Balance update failed: ${balanceErr.message}`);
+      return;
+    }
 
     await logAudit({
       action: "order.refund",
       entity_type: "order",
       entity_id: order.id,
-      new_values: { refund_amount: order.payment_amount, credited_to_wallet: true },
+      new_values: { refund_amount: refundAmount, credited_to_wallet: true },
     });
 
     setOrder({ ...order, status: "cancelled" });
     setRefunding(false);
-    toast.success(`${formatNaira(order.payment_amount)} refunded to wallet`);
+    toast.success(`${formatNaira(refundAmount)} refunded to wallet`);
   }
 
   async function handleUpdateTracking(newAssignee?: string) {
@@ -624,7 +634,7 @@ export default function OrderDetailAdmin() {
         <div>
           <h3 className="text-lg font-bold text-[#0F172A]">Confirm Refund</h3>
           <p className="text-sm text-[#64748B] mt-1">
-            Refund <span className="font-bold text-[#0F172A]">{formatNaira(order?.payment_amount)}</span> to{" "}
+            Refund <span className="font-bold text-[#0F172A]">{formatNaira((order?.wallet_deduction ?? 0) + (order?.payment_amount ?? 0))}</span> to{" "}
             <span className="font-bold text-[#0F172A]">{order?.profiles?.name ?? "customer"}</span>?
           </p>
           <p className="text-xs text-[#94A3B8] mt-2">
