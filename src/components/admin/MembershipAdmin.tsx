@@ -5,7 +5,7 @@ import FilterBar, { type FilterConfig } from "./shared/FilterBar";
 import StatCard from "./shared/StatCard";
 import StatusBadge from "./shared/StatusBadge";
 import { formatNaira, formatDate } from "../../data/adminMockData";
-import { getSubscriptions, getBenefitUsage, getMembershipTiers } from "../../lib/api";
+import { getSubscriptions, getBenefitUsage, getMembershipTiers, cancelMembershipSubscription } from "../../lib/api";
 
 interface SubRow extends Record<string, unknown> {
   id: string;
@@ -38,6 +38,8 @@ export default function MembershipAdmin() {
   const [search, setSearch] = useState("");
   const [tierFilter, setTierFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [cancelTarget, setCancelTarget] = useState<SubRow | null>(null);
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -111,6 +113,15 @@ export default function MembershipAdmin() {
   const leastUsed = benefitStats[benefitStats.length - 1]?.label ?? "—";
   const atLimitTotal = benefitStats.reduce((s, b) => s + b.atLimit, 0);
 
+  const handleCancel = async () => {
+    if (!cancelTarget) return;
+    setCancelling(true);
+    await cancelMembershipSubscription(cancelTarget.id);
+    setSubs((prev) => prev.map((s) => s.id === cancelTarget.id ? { ...s, status: "cancelled" } : s));
+    setCancelTarget(null);
+    setCancelling(false);
+  };
+
   const columns: Column<SubRow>[] = [
     {
       key: "profiles",
@@ -170,6 +181,20 @@ export default function MembershipAdmin() {
       label: "Status",
       align: "center",
       render: (row) => <StatusBadge status={row.status} />,
+    },
+    {
+      key: "actions",
+      label: "",
+      align: "center",
+      render: (row) =>
+        row.status === "active" ? (
+          <button
+            onClick={(e) => { e.stopPropagation(); setCancelTarget(row); }}
+            className="text-[11px] font-semibold text-red-600 hover:text-red-700 px-2.5 py-1 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
+          >
+            Cancel
+          </button>
+        ) : null,
     },
   ];
 
@@ -302,6 +327,33 @@ export default function MembershipAdmin() {
             )}
           </div>
         </>
+      )}
+
+      {cancelTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="size-10 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
+                <span className="material-symbols-outlined text-red-600 text-[20px]">cancel</span>
+              </div>
+              <div>
+                <p className="font-semibold text-[#0F172A] text-sm">Cancel Subscription</p>
+                <p className="text-[12px] text-[#64748B]">{cancelTarget.profiles?.name ?? "This user"}</p>
+              </div>
+            </div>
+            <p className="text-sm text-[#334155]">
+              This will immediately cancel the <strong>{cancelTarget.tier}</strong> subscription. The user will lose access to membership benefits.
+            </p>
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => setCancelTarget(null)} className="flex-1 py-2 rounded-xl border border-[#E8ECF1] text-sm font-semibold text-[#64748B] hover:bg-[#F1F5F9] cursor-pointer transition-colors">
+                Keep Active
+              </button>
+              <button onClick={handleCancel} disabled={cancelling} className="flex-1 py-2 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-60 cursor-pointer transition-colors">
+                {cancelling ? "Cancelling..." : "Yes, Cancel"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
