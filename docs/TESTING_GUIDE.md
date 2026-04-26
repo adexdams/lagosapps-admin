@@ -2,7 +2,7 @@
 
 End-to-end checklist for verifying every feature on both the **admin dashboard** and **user-facing app**, via browser and API/CLI. Work through each section in order — many checks are dependencies for later ones.
 
-> **Last browser test: 2026-04-26. All admin portal browser tests confirmed complete (S1–S15, S1C referral signup re-tested and verified, S13 team invite + privilege management verified). S16 (User App: Portals), S17 (User App: Cart & Checkout), S18 (User App: Wallet), S19 (User App: Membership), S20 (User App: Notifications) confirmed 2026-04-26. S10 (email templates UI) and S11 (fulfillment page) removed — both features removed from admin nav. S8 test steps updated to reflect correct routes: broadcast list/compose/detail at `/broadcast`, admin inbox at `/notifications`.** Bugs found and fixed during 2026-04-25 run: `flag_overdue_fulfillment()` used wrong enum value (`delivered` → `completed`); `send-email` Edge Function logo pointed to GitHub raw instead of Supabase Storage; `config.toml` template paths resolved from wrong directory; referral Bronze membership not showing after signup (race condition — setTimeout fired before email confirmation, moved to `loadProfile`). Bugs fixed 2026-04-26 (S3 browser test): refund txn ID exceeded `varchar(20)` (base-36 timestamp fix); create order blocked by single-portal guard (removed); duplicate status dropdowns in Order Detail (consolidated — progress now derived from status automatically); internal notes Add button silently failed (race on `currentUserId` state — replaced with `useAuth`); Risk Level in Order Detail was a manual dropdown (now auto-computed from SLA settings in Platform Settings); Fulfillment removed from sidebar nav. Bugs fixed 2026-04-26 (S5 work): membership notification trigger silently failed — `billing_cycle` enum and UUID id needed explicit `::TEXT` casts in `notify_membership_event()`; cancel subscription added to admin Membership page and user Membership panel; referral processing gate in `loadProfile` was blocking users who already had a paid membership tier from having referral row recorded; "Apply referral code" UI added to user Referrals panel. Built 2026-04-26 (S5C verified + promo codes): admin promo code system — `admin_referral_codes` + `admin_code_redemptions` tables, `redeem_admin_code()` RPC, Promo Codes tab in admin Referrals page, user-side fallback redemption in ReferralsPanel. Fixed 2026-04-26 (S6 verified): wallet transactions table was empty due to ambiguous FK embed (`wallet_transactions` has two FKs to `profiles`); fixed with explicit FK hint `profiles!wallet_transactions_user_id_fkey`. Also fixed benefit usage tracking — `doctor_consultations`, `car_rental_days`, `solar_product`, `event_venue_discount` were never tracked; added `PORTAL_BENEFIT` map in CartPanel so the correct benefit key is recorded when an order is confirmed for each portal.
+> **Last browser test: 2026-04-26. All admin portal browser tests confirmed complete (S1–S15, S1C referral signup re-tested and verified, S13 team invite + privilege management verified). S16 (User App: Portals), S17 (User App: Cart & Checkout), S18 (User App: Wallet), S19 (User App: Membership), S20 (User App: Notifications), S21 (Paystack Webhook) confirmed 2026-04-26. S10 (email templates UI) and S11 (fulfillment page) removed — both features removed from admin nav. S8 test steps updated to reflect correct routes: broadcast list/compose/detail at `/broadcast`, admin inbox at `/notifications`.** Bugs found and fixed during 2026-04-25 run: `flag_overdue_fulfillment()` used wrong enum value (`delivered` → `completed`); `send-email` Edge Function logo pointed to GitHub raw instead of Supabase Storage; `config.toml` template paths resolved from wrong directory; referral Bronze membership not showing after signup (race condition — setTimeout fired before email confirmation, moved to `loadProfile`). Bugs fixed 2026-04-26 (S3 browser test): refund txn ID exceeded `varchar(20)` (base-36 timestamp fix); create order blocked by single-portal guard (removed); duplicate status dropdowns in Order Detail (consolidated — progress now derived from status automatically); internal notes Add button silently failed (race on `currentUserId` state — replaced with `useAuth`); Risk Level in Order Detail was a manual dropdown (now auto-computed from SLA settings in Platform Settings); Fulfillment removed from sidebar nav. Bugs fixed 2026-04-26 (S5 work): membership notification trigger silently failed — `billing_cycle` enum and UUID id needed explicit `::TEXT` casts in `notify_membership_event()`; cancel subscription added to admin Membership page and user Membership panel; referral processing gate in `loadProfile` was blocking users who already had a paid membership tier from having referral row recorded; "Apply referral code" UI added to user Referrals panel. Built 2026-04-26 (S5C verified + promo codes): admin promo code system — `admin_referral_codes` + `admin_code_redemptions` tables, `redeem_admin_code()` RPC, Promo Codes tab in admin Referrals page, user-side fallback redemption in ReferralsPanel. Fixed 2026-04-26 (S6 verified): wallet transactions table was empty due to ambiguous FK embed (`wallet_transactions` has two FKs to `profiles`); fixed with explicit FK hint `profiles!wallet_transactions_user_id_fkey`. Also fixed benefit usage tracking — `doctor_consultations`, `car_rental_days`, `solar_product`, `event_venue_discount` were never tracked; added `PORTAL_BENEFIT` map in CartPanel so the correct benefit key is recorded when an order is confirmed for each portal.
 
 ---
 
@@ -71,7 +71,7 @@ End-to-end checklist for verifying every feature on both the **admin dashboard**
 | 20A–20B | Broadcast inbox · order status | ✅ `user_notifications` in realtime publication | ✅ verified 2026-04-26 |
 | **S21** | **Paystack Webhook** | | |
 | 21A | Signature check (401) | ✅ Returns `401` on unsigned request | — |
-| 21B–21C | End-to-end + idempotency replay | — | ⬜ Paystack test dashboard → Logs → Resend |
+| 21B–21C | End-to-end + idempotency replay | — | ✅ verified 2026-04-26 |
 | **S22** | **Cron Jobs** | | |
 | 22A | Schedules registered | ✅ 5 jobs — all `active = true` | — |
 | 22B | Manual function calls | ✅ All 4 functions execute cleanly | — |
@@ -632,7 +632,7 @@ supabase db query --linked "SELECT user_id, tier, billing_cycle, amount_paid, st
 
 ---
 
-## Section 18 — Paystack Webhook
+## Section 18 — Paystack Webhook ✅ verified 2026-04-26
 
 ### 18A · Signature verification (CLI) ✅ verified 2026-04-25 — returns 401
 
@@ -648,14 +648,14 @@ Expected: `401`
 
 ### 18B · End-to-end via Paystack dashboard
 
-- [ ] Go to Paystack test dashboard → Logs → find a successful test charge
-- [ ] Verify the webhook was delivered (green checkmark)
-- [ ] Verify the order/wallet record was updated in DB
+- [x] Go to Paystack test dashboard → Logs → find a successful test charge
+- [x] Verify the webhook was delivered (green checkmark)
+- [x] Verify the order/wallet record was updated in DB
 
 ### 18C · Webhook replay (Paystack dashboard)
 
-- [ ] In Paystack Logs → find any successful event → click **Resend**
-- [ ] Verify DB stays consistent (idempotency guard prevents double-credit)
+- [x] In Paystack Logs → find any successful event → click **Resend**
+- [x] Verify DB stays consistent (idempotency guard prevents double-credit)
 
 ---
 
