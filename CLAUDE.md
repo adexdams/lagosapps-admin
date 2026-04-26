@@ -15,6 +15,24 @@ The admin dashboard manages: users, orders, inventory (products/services across 
 
 Always run `npm run build` after making changes to verify there are no TypeScript errors.
 
+## Commit & Deploy After Every Fix
+
+**After every code change — no exceptions:**
+
+1. Run `npm run build` in every repo that was modified. Fix any TypeScript errors before proceeding.
+2. Stage the changed files (never use `git add -A` — add named files only to avoid committing `.env`, secrets, or unrelated files).
+3. Commit with a clear message describing what was fixed and why.
+4. Run `git push origin main`.
+
+Both repos auto-deploy via Netlify on push to `main`, so pushing is what triggers the live deployment. Do **not** leave fixes sitting as local commits — always push immediately after a clean build.
+
+If changes touch **both repos** (admin + user-facing), commit and push each repo separately before reporting the task as done.
+
+**When changes also touch Supabase migrations:**
+
+- Apply the migration first: `supabase db push --linked`
+- Confirm it succeeded before pushing the code that depends on it.
+
 ## Tech Stack
 
 - React 18 + TypeScript (strict)
