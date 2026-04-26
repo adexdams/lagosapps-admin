@@ -78,7 +78,7 @@ End-to-end checklist for verifying every feature on both the **admin dashboard**
 | 22C | Renewal reminder e2e | ✅ verified 2026-04-26 — test subscription created · function fires cleanly · subscription cleaned up | — |
 | **S23** | **RLS Security** | | |
 | 23A | Anon blocked from orders/wallet | ✅ Returns `[]` on both tables · products return 74 (public) | — |
-| 23B | User JWT sees only own rows | ✅ RLS enabled on all 36 tables | ⬜ Two users · cross-query returns `[]` |
+| 23B | User JWT sees only own rows | ✅ policies confirmed — `auth.uid() = user_id` on orders + wallet_transactions | ⬜ REST API cross-user curl test (see Section 20B) |
 | **S24** | **Cross-App Integration** | | |
 | 24A–24C | Admin action → user · User action → admin | — | ✅ verified 2026-04-26 |
 | **S25** | **DB Health Checks** | | |
@@ -733,10 +733,51 @@ curl -s "https://uhrlsvnmoemrakwfrjyf.supabase.co/rest/v1/products?select=id" \
 
 Expected: `[]`, `[]`, `74`
 
-### 20B · User JWT only sees own rows (browser)
+### 20B · User JWT only sees own rows (CLI — REST API)
 
-- [ ] Log in as User A → place an order → note order ID
-- [ ] Log in as User B → try to access `/rest/v1/orders?id=eq.<User A order ID>` with User B's JWT → returns `[]`
+> `supabase db query` connects as the postgres superuser and bypasses RLS by design. The correct test is the Supabase REST API (PostgREST) with a real user JWT.
+
+**Step 1 — Confirm policies exist (CLI)** ✅ verified 2026-04-26
+
+```bash
+supabase db query --linked "SELECT tablename, policyname, cmd, qual FROM pg_policies WHERE tablename IN ('orders', 'wallet_transactions') ORDER BY tablename, policyname;"
+```
+
+Expected: `Users read own orders` → `(auth.uid() = user_id) OR is_admin()` and `Users read own wallet` → same.
+
+#### Step 2 — Get a real user JWT
+
+`supabase db query` can't generate user JWTs. Get one from the browser instead (no app search button needed):
+
+1. Open the user app in Chrome/Firefox
+2. Open DevTools → **Application** tab → **Local Storage** → `https://uhrlsvnmoemrakwfrjyf.supabase.co`... or just **Session Storage**
+3. Find the key `sb-uhrlsvnmoemrakwfrjyf-auth-token` → copy the `access_token` value
+
+#### Step 3 — Run the cross-user REST test
+
+```bash
+ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVocmxzdm5tb2VtcmFrd2ZyanlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2ODY2ODQsImV4cCI6MjA5MjI2MjY4NH0.VN59kY6Mb5_n2cjejx-wyiTcz_G_VmYjhq5w8P4A0lI"
+USER_A_JWT="<paste access_token from DevTools>"
+
+# User A sees only their own orders
+curl -s "https://uhrlsvnmoemrakwfrjyf.supabase.co/rest/v1/orders?select=id,user_id" \
+  -H "apikey: $ANON_KEY" \
+  -H "Authorization: Bearer $USER_A_JWT"
+# Expected: array containing only User A's orders
+
+# User A cannot read another user's specific order row
+OTHER_USER_ORDER_ID="<an order_id that belongs to a different user_id>"
+curl -s "https://uhrlsvnmoemrakwfrjyf.supabase.co/rest/v1/orders?select=id,user_id&id=eq.$OTHER_USER_ORDER_ID" \
+  -H "apikey: $ANON_KEY" \
+  -H "Authorization: Bearer $USER_A_JWT"
+# Expected: []
+
+# User A cannot read another user's wallet transactions
+curl -s "https://uhrlsvnmoemrakwfrjyf.supabase.co/rest/v1/wallet_transactions?select=id,user_id" \
+  -H "apikey: $ANON_KEY" \
+  -H "Authorization: Bearer $USER_A_JWT"
+# Expected: only User A's transactions
+```
 
 ---
 
