@@ -25,7 +25,7 @@ End-to-end checklist for verifying every feature on both the **admin dashboard**
 | **S3** | **Admin: Orders** | | |
 | 3A–3C | Orders list · detail · create | ✅ `orders` table empty (no test orders yet) | ✅ Verified 2026-04-26 — create order · status change · refund flow · SLA risk badges · fulfillment assignee + notes |
 | **S4** | **Admin: Inventory** | | |
-| 4A–4C | Product CRUD · portal tabs | ✅ 74 products across 7 portals confirmed | ⬜ Add/edit/toggle product · category filters |
+| 4A–4C | Product CRUD · portal tabs | ✅ 74 products across 7 portals confirmed | ✅ Verified 2026-04-26 — add/edit/toggle product · category filters · portal-specific metadata |
 | **S5** | **Admin: Membership** | | |
 | 5A–5D | Tier config · subscriptions · benefits | ✅ 3 tiers · 15 benefits · prices confirmed | ⬜ Edit tier price · add benefit · cancel subscription |
 | **S6** | **Admin: Wallet** | | |
@@ -251,21 +251,21 @@ supabase db query --linked "SELECT id, status, total_amount, created_at FROM ord
 
 ---
 
-## Section 4 — Admin Dashboard: Inventory
+## Section 4 — Admin Dashboard: Inventory ✅ verified 2026-04-26
 
-### 4A · Product CRUD (browser)
+### 4A · Product CRUD (browser) ✅
 
-- [ ] Navigate to `/inventory` → portal tabs load (Solar, Transport, Groceries, Health, Events, Community, Logistics)
-- [ ] Select any portal tab → products load from DB
-- [ ] Click **+ Add Product** → form opens
-- [ ] Fill fields, upload image → save → product appears in grid
-- [ ] Click edit on existing product → change price → save → price reflected
-- [ ] Toggle product active/inactive → `is_active` updates
+- [x] Navigate to `/inventory` → portal tabs load (Solar, Transport, Groceries, Health, Events, Community, Logistics)
+- [x] Select any portal tab → products load from DB
+- [x] Click **+ Add Product** → form opens
+- [x] Fill fields, upload image → save → product appears in grid
+- [x] Click edit on existing product → change price → save → price reflected
+- [x] Toggle product active/inactive → `is_active` updates
 
-### 4B · Portal-specific metadata
+### 4B · Portal-specific metadata ✅
 
-- [ ] Add a **Solar** product → solar-specific fields visible (capacity, voltage, warranty)
-- [ ] Add a **Health** product → health-specific fields visible
+- [x] Add a **Solar** product → solar-specific fields visible (capacity, voltage, warranty)
+- [x] Add a **Health** product → health-specific fields visible
 
 ### 4C · CLI verification ✅ verified 2026-04-25
 
@@ -825,17 +825,17 @@ Work through these steps in order — each phase builds on the previous one (e.g
 
 ---
 
-### Phase 2 — Inventory
+### Phase 2 — Inventory ✅ verified 2026-04-26
 
 **Goal:** Confirm all portal tabs load without blinking; products are real DB data; CRUD works.
 
-7. [ ] Navigate to `/inventory`
-8. [ ] Tab through all 7 portal tabs *(Solar, Transport, Groceries, Health, Events, Community, Logistics)* — each should load a product grid **once** with no repeated loading flash
-9. [ ] On the **Groceries** tab → category filter pills appear (Produce, Dairy, etc.) → click each pill → products filter correctly → click **All** to reset
-10. [ ] Click any product card → edit the price → click **Save** → toast confirms → price shown in the grid updates
-11. [ ] Click **Add Product** → fill Name, Price, Stock → click Save → new product appears in the grid
-12. [ ] Click the new product → toggle **Active** off → Save → the product card shows Inactive badge
-13. [ ] Delete the test product (or leave it inactive)
+7. [x] Navigate to `/inventory`
+8. [x] Tab through all 7 portal tabs *(Solar, Transport, Groceries, Health, Events, Community, Logistics)* — each should load a product grid **once** with no repeated loading flash
+9. [x] On the **Groceries** tab → category filter pills appear (Produce, Dairy, etc.) → click each pill → products filter correctly → click **All** to reset
+10. [x] Click any product card → edit the price → click **Save** → toast confirms → price shown in the grid updates
+11. [x] Click **Add Product** → fill Name, Price, Stock → click Save → new product appears in the grid
+12. [x] Click the new product → toggle **Active** off → Save → the product card shows Inactive badge
+13. [x] Delete the test product (or leave it inactive)
 
 ---
 
