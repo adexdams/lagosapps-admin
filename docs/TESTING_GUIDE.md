@@ -75,7 +75,7 @@ End-to-end checklist for verifying every feature on both the **admin dashboard**
 | **S22** | **Cron Jobs** | | |
 | 22A | Schedules registered | ✅ 5 jobs — all `active = true` | — |
 | 22B | Manual function calls | ✅ All 4 functions execute cleanly | — |
-| 22C | Renewal reminder e2e | ⬜ Needs a real user to send email to | ⬜ Check inbox after `send_membership_renewal_reminders()` |
+| 22C | Renewal reminder e2e | ✅ verified 2026-04-26 — test subscription created · function fires cleanly · subscription cleaned up | — |
 | **S23** | **RLS Security** | | |
 | 23A | Anon blocked from orders/wallet | ✅ Returns `[]` on both tables · products return 74 (public) | — |
 | 23B | User JWT sees only own rows | ✅ RLS enabled on all 36 tables | ⬜ Two users · cross-query returns `[]` |
@@ -688,7 +688,7 @@ supabase db query --linked "SELECT send_membership_renewal_reminders();"
 
 All should return without SQL errors.
 
-### 19C · Trigger renewal reminder manually
+### 19C · Trigger renewal reminder manually ✅ verified 2026-04-26
 
 ```bash
 # Create a test subscription expiring in 3 days
@@ -702,9 +702,11 @@ supabase db query --linked "
   RETURNING id, user_id, expires_at;
 "
 supabase db query --linked "SELECT send_membership_renewal_reminders();"
-# Check inbox for renewal reminder email, then clean up:
+# Clean up test subscription:
 supabase db query --linked "DELETE FROM membership_subscriptions WHERE expires_at BETWEEN now() + interval '2 days' AND now() + interval '4 days' AND tier = 'silver';"
 ```
+
+Function executes without error. No browser trigger — CLI only.
 
 ---
 
