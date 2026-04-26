@@ -37,7 +37,7 @@ export default function MembershipAdmin() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [tierFilter, setTierFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("active");
   const [cancelTarget, setCancelTarget] = useState<SubRow | null>(null);
   const [cancelling, setCancelling] = useState(false);
 

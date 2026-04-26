@@ -126,7 +126,6 @@ export default function OrderDetailAdmin() {
   const [assignee, setAssignee] = useState("");
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [newNote, setNewNote] = useState("");
-  const [savingTracking, setSavingTracking] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -275,7 +274,6 @@ export default function OrderDetailAdmin() {
 
   async function handleUpdateTracking(newAssignee?: string) {
     if (!order) return;
-    setSavingTracking(true);
     const usedAssignee = newAssignee !== undefined ? newAssignee : assignee;
     const progress = STATUS_TO_PROGRESS[order.status] ?? 0;
     const { error } = await upsertFulfillmentTracking({
@@ -285,7 +283,6 @@ export default function OrderDetailAdmin() {
       priority: "medium",
       progress,
     });
-    setSavingTracking(false);
     if (error) { toast.error(error.message); return; }
     if (newAssignee !== undefined) setAssignee(newAssignee);
     toast.success("Fulfillment updated");
@@ -574,13 +571,6 @@ export default function OrderDetailAdmin() {
                 ))}
               </select>
             </div>
-            <button
-              onClick={() => void handleUpdateTracking()}
-              disabled={savingTracking}
-              className="w-full py-2.5 bg-[#0F172A] text-white text-sm font-semibold rounded-xl cursor-pointer hover:bg-[#1E293B] active:scale-[0.98] transition-all disabled:opacity-50"
-            >
-              {savingTracking ? "Saving…" : "Save Fulfillment"}
-            </button>
           </div>
 
           {/* Internal Notes */}
