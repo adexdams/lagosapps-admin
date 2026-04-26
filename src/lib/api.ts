@@ -275,6 +275,10 @@ export async function cancelMembershipSubscription(id: string) {
   return supabase.from("membership_subscriptions").update({ status: "cancelled" }).eq("id", id);
 }
 
+export async function cancelUserSubscriptions(userId: string) {
+  return supabase.from("membership_subscriptions").update({ status: "cancelled" }).eq("user_id", userId).eq("status", "active");
+}
+
 // ── Service Requests ────────────────────────────────────────
 
 export async function getServiceRequests() {

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import {
   getUser, getOrders, getWalletTransactions, getReferrals,
   updateUser, createWalletTransaction, updateUserWalletBalance,
-  createMembershipSubscription, logAudit,
+  createMembershipSubscription, cancelUserSubscriptions, logAudit,
 } from "../../lib/api";
 import { useToast } from "../../hooks/useToast";
 import { formatNaira, PORTAL_LABELS, type Portal } from "../../data/adminMockData";
@@ -86,6 +86,10 @@ export default function UserDetail() {
   const [memberTier, setMemberTier] = useState<"none" | "bronze" | "silver" | "gold">("bronze");
   const [memberCycle, setMemberCycle] = useState<"annual" | "quarterly">("annual");
   const [memberSaving, setMemberSaving] = useState(false);
+
+  // ── Cancel Membership state ────────────────────────────────
+  const [cancelMemberModal, setCancelMemberModal] = useState(false);
+  const [cancelMemberSaving, setCancelMemberSaving] = useState(false);
 
   // ── Suspend modal state ────────────────────────────────────
   const [suspendModal, setSuspendModal] = useState(false);
@@ -198,6 +202,25 @@ export default function UserDetail() {
     setMemberSaving(false);
   }
 
+  async function handleCancelMembership() {
+    if (!user) return;
+    setCancelMemberSaving(true);
+    const { error } = await cancelUserSubscriptions(user.id);
+    if (error) { toast.error(error.message); setCancelMemberSaving(false); return; }
+
+    void logAudit({
+      action: "membership.admin_cancelled",
+      entity_type: "membership_subscription",
+      entity_id: user.id,
+      new_values: { user_id: user.id, previous_tier: user.membership_tier },
+    });
+
+    setUser((prev) => prev ? { ...prev, membership_tier: "none" } : prev);
+    toast.success("Membership cancelled");
+    setCancelMemberModal(false);
+    setCancelMemberSaving(false);
+  }
+
   async function handleToggleSuspend() {
     if (!user) return;
     setSuspendSaving(true);
@@ -268,7 +291,7 @@ export default function UserDetail() {
                 <p className="text-[12px] text-[#94A3B8] mt-2">Joined {formatDate(user.created_at)}</p>
               </div>
             </div>
-            <div className="flex items-center gap-3 mt-5 pt-4 border-t border-[#E8ECF1]/60">
+            <div className="flex flex-wrap items-center gap-2 mt-5 pt-4 border-t border-[#E8ECF1]/60">
               <button
                 onClick={() => { setWalletType("credit"); setWalletModal(true); }}
                 className="px-4 py-2 bg-primary text-white text-[13px] font-semibold rounded-lg cursor-pointer hover:brightness-[0.92] transition-all"
@@ -281,9 +304,17 @@ export default function UserDetail() {
               >
                 Set Membership
               </button>
+              {user.membership_tier !== "none" && (
+                <button
+                  onClick={() => setCancelMemberModal(true)}
+                  className="px-4 py-2 border border-[#E2E8F0] text-[13px] font-semibold text-[#DC2626] rounded-lg cursor-pointer hover:bg-[#FEF2F2] transition-all"
+                >
+                  Cancel Membership
+                </button>
+              )}
               <button
                 onClick={() => setSuspendModal(true)}
-                className="px-4 py-2 border border-[#E2E8F0] text-[13px] font-semibold text-[#DC2626] rounded-lg cursor-pointer hover:bg-[#FEF2F2] transition-all"
+                className="px-4 py-2 border border-[#E2E8F0] text-[13px] font-semibold text-[#64748B] rounded-lg cursor-pointer hover:bg-[#F1F5F9] transition-all"
               >
                 {user.is_active ? "Suspend" : "Activate"}
               </button>
@@ -544,6 +575,38 @@ export default function UserDetail() {
                 className="flex-1 py-2.5 rounded-xl bg-[#0F172A] text-white text-sm font-semibold hover:bg-[#1E293B] disabled:opacity-60 cursor-pointer transition-colors"
               >
                 {memberSaving ? "Saving…" : "Apply"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Cancel Membership Modal ──────────────────────────── */}
+      {cancelMemberModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="size-10 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
+                <span className="material-symbols-outlined text-red-600 text-[20px]">card_membership</span>
+              </div>
+              <div>
+                <p className="font-semibold text-[#0F172A] text-sm">Cancel Membership</p>
+                <p className="text-[12px] text-[#64748B]">{user.name || user.email}</p>
+              </div>
+            </div>
+            <p className="text-sm text-[#334155]">
+              This will immediately cancel the <strong className="capitalize">{user.membership_tier}</strong> membership. The user will lose access to all membership benefits.
+            </p>
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => setCancelMemberModal(false)} className="flex-1 py-2.5 rounded-xl border border-[#E2E8F0] text-sm font-semibold text-[#64748B] hover:bg-[#F1F5F9] cursor-pointer transition-colors">
+                Keep Active
+              </button>
+              <button
+                onClick={handleCancelMembership}
+                disabled={cancelMemberSaving}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-60 cursor-pointer transition-colors"
+              >
+                {cancelMemberSaving ? "Cancelling…" : "Yes, Cancel"}
               </button>
             </div>
           </div>

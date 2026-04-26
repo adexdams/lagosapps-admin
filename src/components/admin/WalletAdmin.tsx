@@ -33,7 +33,7 @@ interface UserRow {
 }
 
 const inputClass =
-  "w-full border border-[#E2E8F0] rounded-xl px-3 py-2.5 text-sm text-[#0F172A] outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all";
+  "w-full border-2 border-[#E2E8F0] rounded-xl px-3 py-2.5 text-sm text-[#0F172A] outline-none focus:border-primary transition-all";
 
 export default function WalletAdmin() {
   const toast = useToast();
@@ -45,6 +45,7 @@ export default function WalletAdmin() {
   const [submitting, setSubmitting] = useState(false);
 
   const [adjUserId, setAdjUserId] = useState("");
+  const [adjUserSearch, setAdjUserSearch] = useState("");
   const [adjAmount, setAdjAmount] = useState("");
   const [adjType, setAdjType] = useState<"credit" | "debit">("credit");
   const [adjReason, setAdjReason] = useState("");
@@ -112,6 +113,7 @@ export default function WalletAdmin() {
     );
     setShowAdjust(false);
     setAdjUserId("");
+    setAdjUserSearch("");
     setAdjAmount("");
     setAdjReason("");
     setSubmitting(false);
@@ -198,11 +200,11 @@ export default function WalletAdmin() {
           <p className="text-sm text-[#64748B] mt-0.5">Manage wallet transactions and adjustments</p>
         </div>
         <button
-          onClick={() => setShowAdjust(!showAdjust)}
+          onClick={() => setShowAdjust(true)}
           className="inline-flex items-center gap-1.5 px-2.5 sm:px-4 py-2 sm:py-2.5 bg-primary text-white text-sm font-semibold rounded-xl cursor-pointer hover:brightness-[0.92] active:scale-[0.98] transition-all"
         >
-          <span className="material-symbols-outlined text-[18px]">{showAdjust ? "expand_less" : "add_card"}</span>
-          <span className="hidden sm:inline">{showAdjust ? "Hide" : "Manual Adjustment"}</span>
+          <span className="material-symbols-outlined text-[18px]">add_card</span>
+          <span className="hidden sm:inline">Manual Adjustment</span>
         </button>
       </div>
 
@@ -211,66 +213,6 @@ export default function WalletAdmin() {
         <StatCard label="Total Credits" value={formatNaira(totalCredits)} icon="arrow_downward" color="#1B5E20" />
         <StatCard label="Total Debits" value={formatNaira(totalDebits)} icon="arrow_upward" color="#B71C1C" />
       </div>
-
-      {showAdjust && (
-        <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 p-5">
-          <h3 className="text-sm font-bold text-[#0F172A] mb-4">Manual Wallet Adjustment</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className="text-[13px] font-semibold text-[#0F172A] mb-1.5 block">User</label>
-              <select value={adjUserId} onChange={(e) => setAdjUserId(e.target.value)} className={`${inputClass} cursor-pointer`}>
-                <option value="">Select user...</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>{u.name} ({formatNaira(u.wallet_balance ?? 0)})</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-[13px] font-semibold text-[#0F172A] mb-1.5 block">Amount (₦)</label>
-              <input
-                type="number"
-                value={adjAmount}
-                onChange={(e) => setAdjAmount(e.target.value)}
-                className={inputClass}
-                placeholder="0"
-                min="1"
-              />
-            </div>
-            <div>
-              <label className="text-[13px] font-semibold text-[#0F172A] mb-1.5 block">Type</label>
-              <div className="flex gap-3 mt-1">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" checked={adjType === "credit"} onChange={() => setAdjType("credit")} className="accent-primary" />
-                  <span className="text-sm text-[#059669] font-semibold">Credit</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" checked={adjType === "debit"} onChange={() => setAdjType("debit")} className="accent-primary" />
-                  <span className="text-sm text-[#DC2626] font-semibold">Debit</span>
-                </label>
-              </div>
-            </div>
-            <div>
-              <label className="text-[13px] font-semibold text-[#0F172A] mb-1.5 block">Reason</label>
-              <input
-                type="text"
-                value={adjReason}
-                onChange={(e) => setAdjReason(e.target.value)}
-                className={inputClass}
-                placeholder="Reason for adjustment..."
-              />
-            </div>
-          </div>
-          <div className="flex justify-end mt-4">
-            <button
-              onClick={handleAdjust}
-              disabled={submitting}
-              className="px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl cursor-pointer hover:brightness-[0.92] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {submitting ? "Submitting..." : "Submit Adjustment"}
-            </button>
-          </div>
-        </div>
-      )}
 
       <FilterBar
         onSearch={setSearch}
@@ -284,6 +226,126 @@ export default function WalletAdmin() {
         data={filtered}
         pageSize={15}
       />
+
+      {/* ── Manual Adjustment Modal ──────────────────────────── */}
+      {showAdjust && (() => {
+        const filteredUsers = users.filter((u) =>
+          !adjUserSearch || u.name.toLowerCase().includes(adjUserSearch.toLowerCase()) || u.email.toLowerCase().includes(adjUserSearch.toLowerCase())
+        );
+        const selectedUser = users.find((u) => u.id === adjUserId);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-bold text-[#0F172A]">Manual Wallet Adjustment</h3>
+                <button
+                  onClick={() => { setShowAdjust(false); setAdjUserId(""); setAdjUserSearch(""); setAdjAmount(""); setAdjReason(""); }}
+                  className="text-[#94A3B8] hover:text-[#64748B] cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[20px]">close</span>
+                </button>
+              </div>
+
+              {/* User search + select */}
+              <div className="space-y-2">
+                <label className="text-[12px] font-semibold text-[#64748B] uppercase tracking-wide block">User</label>
+                <input
+                  type="text"
+                  placeholder="Search by name or email..."
+                  value={adjUserSearch}
+                  onChange={(e) => { setAdjUserSearch(e.target.value); setAdjUserId(""); }}
+                  className={inputClass}
+                />
+                {adjUserSearch && !adjUserId && (
+                  <div className="border border-[#E2E8F0] rounded-xl overflow-hidden max-h-44 overflow-y-auto">
+                    {filteredUsers.length === 0 ? (
+                      <p className="px-3 py-2.5 text-sm text-[#94A3B8]">No users found</p>
+                    ) : filteredUsers.map((u) => (
+                      <button
+                        key={u.id}
+                        onClick={() => { setAdjUserId(u.id); setAdjUserSearch(u.name); }}
+                        className="w-full text-left px-3 py-2.5 hover:bg-[#F8FAFC] border-b border-[#F1F5F9] last:border-0 cursor-pointer transition-colors"
+                      >
+                        <p className="text-sm font-semibold text-[#0F172A]">{u.name}</p>
+                        <p className="text-[11px] text-[#94A3B8]">{u.email} · Balance: {formatNaira(u.wallet_balance ?? 0)}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {selectedUser && (
+                  <p className="text-[12px] text-[#64748B]">
+                    Current balance: <strong className="text-[#0F172A]">{formatNaira(selectedUser.wallet_balance ?? 0)}</strong>
+                  </p>
+                )}
+              </div>
+
+              {/* Credit / Debit toggle */}
+              <div className="space-y-2">
+                <label className="text-[12px] font-semibold text-[#64748B] uppercase tracking-wide block">Adjustment Type</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setAdjType("credit")}
+                    className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 cursor-pointer transition-all ${adjType === "credit" ? "border-[#059669] bg-[#059669]/5" : "border-[#E2E8F0] hover:border-[#059669]/30"}`}
+                  >
+                    <span className={`material-symbols-outlined text-[22px] ${adjType === "credit" ? "text-[#059669]" : "text-[#94A3B8]"}`}>add_circle</span>
+                    <span className={`text-sm font-bold ${adjType === "credit" ? "text-[#059669]" : "text-[#64748B]"}`}>Credit</span>
+                    <span className="text-[11px] text-[#94A3B8]">Adds to wallet</span>
+                  </button>
+                  <button
+                    onClick={() => setAdjType("debit")}
+                    className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 cursor-pointer transition-all ${adjType === "debit" ? "border-[#DC2626] bg-[#DC2626]/5" : "border-[#E2E8F0] hover:border-[#DC2626]/30"}`}
+                  >
+                    <span className={`material-symbols-outlined text-[22px] ${adjType === "debit" ? "text-[#DC2626]" : "text-[#94A3B8]"}`}>remove_circle</span>
+                    <span className={`text-sm font-bold ${adjType === "debit" ? "text-[#DC2626]" : "text-[#64748B]"}`}>Debit</span>
+                    <span className="text-[11px] text-[#94A3B8]">Deducts from wallet</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Amount */}
+              <div>
+                <label className="text-[12px] font-semibold text-[#64748B] uppercase tracking-wide block mb-1.5">Amount (₦)</label>
+                <input
+                  type="number"
+                  min="1"
+                  placeholder="0"
+                  value={adjAmount}
+                  onChange={(e) => setAdjAmount(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+
+              {/* Reason */}
+              <div>
+                <label className="text-[12px] font-semibold text-[#64748B] uppercase tracking-wide block mb-1.5">Reason</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Refund for order #123"
+                  value={adjReason}
+                  onChange={(e) => setAdjReason(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={() => { setShowAdjust(false); setAdjUserId(""); setAdjUserSearch(""); setAdjAmount(""); setAdjReason(""); }}
+                  className="flex-1 py-2.5 rounded-xl border border-[#E2E8F0] text-sm font-semibold text-[#64748B] hover:bg-[#F1F5F9] cursor-pointer transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAdjust}
+                  disabled={submitting}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-semibold text-white cursor-pointer disabled:opacity-60 transition-colors ${adjType === "credit" ? "bg-[#059669] hover:bg-[#047857]" : "bg-[#DC2626] hover:bg-[#B91C1C]"}`}
+                >
+                  {submitting ? "Saving…" : `Apply ${adjType === "credit" ? "Credit" : "Debit"}`}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
