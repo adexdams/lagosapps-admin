@@ -559,9 +559,11 @@ export default function FulfillmentDetail() {
                 onChange={(e) => setProgress(parseInt(e.target.value))}
                 className={`${inputClass} cursor-pointer`}
               >
-                {[0, 10, 20, 25, 30, 40, 50, 60, 70, 75, 80, 90, 100].map((v) => (
-                  <option key={v} value={v}>{v}%</option>
-                ))}
+                <option value={0}>Pending</option>
+                <option value={25}>Confirmed</option>
+                <option value={50}>Processing</option>
+                <option value={75}>Nearly Complete</option>
+                <option value={100}>Completed</option>
               </select>
               <button onClick={handleSaveProgress} className="w-full mt-3 py-2.5 bg-[#0F172A] text-white text-sm font-semibold rounded-xl cursor-pointer hover:bg-[#1E293B] active:scale-[0.98] transition-all">
                 Update Progress
