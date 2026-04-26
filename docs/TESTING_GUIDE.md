@@ -2,7 +2,7 @@
 
 End-to-end checklist for verifying every feature on both the **admin dashboard** and **user-facing app**, via browser and API/CLI. Work through each section in order — many checks are dependencies for later ones.
 
-> **Last browser test: 2026-04-26 (S3, S4, S1A, S5A, S5C, S5D, S6, S7A, S7B complete).** Bugs found and fixed during 2026-04-25 run: `flag_overdue_fulfillment()` used wrong enum value (`delivered` → `completed`); `send-email` Edge Function logo pointed to GitHub raw instead of Supabase Storage; `config.toml` template paths resolved from wrong directory; referral Bronze membership not showing after signup (race condition — setTimeout fired before email confirmation, moved to `loadProfile`). Bugs fixed 2026-04-26 (S3 browser test): refund txn ID exceeded `varchar(20)` (base-36 timestamp fix); create order blocked by single-portal guard (removed); duplicate status dropdowns in Order Detail (consolidated — progress now derived from status automatically); internal notes Add button silently failed (race on `currentUserId` state — replaced with `useAuth`); Risk Level in Order Detail was a manual dropdown (now auto-computed from SLA settings in Platform Settings); Fulfillment removed from sidebar nav. Bugs fixed 2026-04-26 (S5 work): membership notification trigger silently failed — `billing_cycle` enum and UUID id needed explicit `::TEXT` casts in `notify_membership_event()`; cancel subscription added to admin Membership page and user Membership panel; referral processing gate in `loadProfile` was blocking users who already had a paid membership tier from having referral row recorded; "Apply referral code" UI added to user Referrals panel. Built 2026-04-26 (S5C verified + promo codes): admin promo code system — `admin_referral_codes` + `admin_code_redemptions` tables, `redeem_admin_code()` RPC, Promo Codes tab in admin Referrals page, user-side fallback redemption in ReferralsPanel. Fixed 2026-04-26 (S6 verified): wallet transactions table was empty due to ambiguous FK embed (`wallet_transactions` has two FKs to `profiles`); fixed with explicit FK hint `profiles!wallet_transactions_user_id_fkey`. Also fixed benefit usage tracking — `doctor_consultations`, `car_rental_days`, `solar_product`, `event_venue_discount` were never tracked; added `PORTAL_BENEFIT` map in CartPanel so the correct benefit key is recorded when an order is confirmed for each portal.
+> **Last browser test: 2026-04-26 (S3, S4, S1A, S5A, S5C, S5D, S6, S7A, S7B, S8 complete). S10 (email templates UI) and S11 (fulfillment page) removed — both features removed from admin nav.** Bugs found and fixed during 2026-04-25 run: `flag_overdue_fulfillment()` used wrong enum value (`delivered` → `completed`); `send-email` Edge Function logo pointed to GitHub raw instead of Supabase Storage; `config.toml` template paths resolved from wrong directory; referral Bronze membership not showing after signup (race condition — setTimeout fired before email confirmation, moved to `loadProfile`). Bugs fixed 2026-04-26 (S3 browser test): refund txn ID exceeded `varchar(20)` (base-36 timestamp fix); create order blocked by single-portal guard (removed); duplicate status dropdowns in Order Detail (consolidated — progress now derived from status automatically); internal notes Add button silently failed (race on `currentUserId` state — replaced with `useAuth`); Risk Level in Order Detail was a manual dropdown (now auto-computed from SLA settings in Platform Settings); Fulfillment removed from sidebar nav. Bugs fixed 2026-04-26 (S5 work): membership notification trigger silently failed — `billing_cycle` enum and UUID id needed explicit `::TEXT` casts in `notify_membership_event()`; cancel subscription added to admin Membership page and user Membership panel; referral processing gate in `loadProfile` was blocking users who already had a paid membership tier from having referral row recorded; "Apply referral code" UI added to user Referrals panel. Built 2026-04-26 (S5C verified + promo codes): admin promo code system — `admin_referral_codes` + `admin_code_redemptions` tables, `redeem_admin_code()` RPC, Promo Codes tab in admin Referrals page, user-side fallback redemption in ReferralsPanel. Fixed 2026-04-26 (S6 verified): wallet transactions table was empty due to ambiguous FK embed (`wallet_transactions` has two FKs to `profiles`); fixed with explicit FK hint `profiles!wallet_transactions_user_id_fkey`. Also fixed benefit usage tracking — `doctor_consultations`, `car_rental_days`, `solar_product`, `event_venue_discount` were never tracked; added `PORTAL_BENEFIT` map in CartPanel so the correct benefit key is recorded when an order is confirmed for each portal.
 
 ---
 
@@ -34,13 +34,11 @@ End-to-end checklist for verifying every feature on both the **admin dashboard**
 | 7A | Referrals list | ✅ Schema confirmed · table empty | ✅ verified 2026-04-26 |
 | 7B | Promo codes | ✅ `admin_referral_codes` table + `redeem_admin_code()` RPC confirmed | ✅ verified 2026-04-26 |
 | **S8** | **Admin: Notifications** | | |
-| 8A–8D | Broadcasts · system panel · inbox | ✅ Realtime publications confirmed | ⬜ Compose · send · retract · bell panel |
+| 8A–8D | Broadcasts · system panel · inbox | ✅ Realtime publications confirmed | ✅ verified 2026-04-26 |
 | **S9** | **Admin: Settings** | | |
 | 9A–9C | Portal toggles · alert prefs · profile | ✅ 7 portals — all `is_active = true` | ⬜ Set name · toggle portal · alert prefs save |
-| **S10** | **Admin: Email Templates** | | |
-| 10A–10C | Template editor · dry-run · live send | ✅ Dry-run returns `success:true` · Supabase Storage logo confirmed | — Page removed from admin nav; templates managed via Supabase Dashboard |
-| **S11** | **Admin: Fulfillment** | | |
-| 11A–11C | Order queue · service requests · custom orders | ✅ Schema confirmed · all tables empty | 🟡 Fulfillment page removed from sidebar nav (2026-04-26) — fulfillment tracking (assignee, progress, risk level, internal notes) now lives inside Order Detail sidebar. Service Requests + Custom Orders tabs pending separate section. |
+| ~~**S10**~~ | ~~**Admin: Email Templates**~~ | ~~Page removed — templates managed via Supabase Dashboard / `supabase/templates/`~~ | — |
+| ~~**S11**~~ | ~~**Admin: Fulfillment**~~ | ~~Page removed — fulfillment tracking now embedded in Order Detail sidebar~~ | — |
 | **S12** | **Admin: Audit Log** | | |
 | 12A | Audit log table | ✅ Schema confirmed · table empty (populates after admin actions) | ⬜ Verify entries appear after browser actions |
 | **S13** | **Admin: Team** | | |
@@ -370,31 +368,31 @@ supabase db query --linked "SELECT acr.user_id, p.name, arc.code, arc.gifted_tie
 
 ## Section 8 — Admin Dashboard: Notifications
 
-### 8A · Broadcast compose (browser)
+### 8A · Broadcast compose (browser) — ✅ verified 2026-04-26
 
-- [ ] Navigate to `/notifications` → **Compose Broadcast**
-- [ ] Fill title, message, select audience (All Users / tier / specific user)
-- [ ] **Preview Email** → modal shows rendered HTML
-- [ ] **Save Draft** → appears in list with Draft badge
-- [ ] **Send** → status changes to Sent; check user app inbox for the notification
+- [x] Navigate to `/notifications` → **Compose Broadcast**
+- [x] Fill title, message, select audience (All Users / tier / specific user)
+- [x] **Preview Email** → modal shows rendered HTML
+- [x] **Save Draft** → appears in list with Draft badge
+- [x] **Send** → status changes to Sent; check user app inbox for the notification
 
-### 8B · Broadcast detail (browser)
+### 8B · Broadcast detail (browser) — ✅ verified 2026-04-26
 
-- [ ] Click a sent broadcast row → detail page loads
-- [ ] Read rate counter shown (updates as users read it)
-- [ ] **Retract** → status changes to Retracted; unread users no longer see it in inbox
+- [x] Click a sent broadcast row → detail page loads
+- [x] Read rate counter shown (updates as users read it)
+- [x] **Retract** → status changes to Retracted; unread users no longer see it in inbox
 
-### 8C · System notification panel (browser)
+### 8C · System notification panel (browser) — ✅ verified 2026-04-26
 
-- [ ] Bell icon in topbar → click → panel opens showing system notifications
-- [ ] Perform an action that triggers a notification (e.g. cancel an order) → notification appears without page refresh (Realtime)
-- [ ] Click notification → deep-links to relevant page → marks as read
+- [x] Bell icon in topbar → click → panel opens showing system notifications
+- [x] Perform an action that triggers a notification (e.g. cancel an order) → notification appears without page refresh (Realtime)
+- [x] Click notification → deep-links to relevant page → marks as read
 
-### 8D · Notifications inbox (browser)
+### 8D · Notifications inbox (browser) — ✅ verified 2026-04-26
 
-- [ ] Navigate to `/notifications` (inbox tab) → all system notifications listed
-- [ ] Category filter pills work
-- [ ] **Mark all read** → all go grey
+- [x] Navigate to `/notifications` (inbox tab) → all system notifications listed
+- [x] Category filter pills work
+- [x] **Mark all read** → all go grey
 
 ---
 
@@ -426,64 +424,15 @@ supabase db query --linked "SELECT user_id, inventory_enabled, low_stock_thresho
 
 ---
 
-## Section 10 — Email Templates (Supabase Dashboard only)
+## ~~Section 10 — Email Templates~~ *(removed)*
 
-> **Note:** The `/emails` page has been removed from the admin dashboard. Email templates are managed directly in **Supabase Dashboard → Edge Functions → `send-email`** source, or via the `supabase/templates/` directory in the admin repo. Redeploy the function after any template change.
-
-### 10A · Template editing
-
-### 10B · API dry-run ✅ verified 2026-04-25
-
-```bash
-curl -s -X POST https://uhrlsvnmoemrakwfrjyf.supabase.co/functions/v1/send-email \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVocmxzdm5tb2VtcmFrd2ZyanlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2ODY2ODQsImV4cCI6MjA5MjI2MjY4NH0.VN59kY6Mb5_n2cjejx-wyiTcz_G_VmYjhq5w8P4A0lI" \
-  -H "Content-Type: application/json" \
-  -d '{"template":"welcome","dryRun":true,"to":"test@example.com","data":{"name":"Tester","referralCode":"ABC123"}}' \
-  | python3 -m json.tool | grep -E '"subject"|"success"'
-```
-
-Expected: `"success": true` and `"subject": "Welcome to LagosApps!"`
-
-> Logo in output should reference `supabase.co/storage/v1/object/public/public-assets/brand-logo.png` — not GitHub raw.
-
-### 10C · Send test email (API)
-
-```bash
-curl -s -X POST https://uhrlsvnmoemrakwfrjyf.supabase.co/functions/v1/send-email \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVocmxzdm5tb2VtcmFrd2ZyanlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2ODY2ODQsImV4cCI6MjA5MjI2MjY4NH0.VN59kY6Mb5_n2cjejx-wyiTcz_G_VmYjhq5w8P4A0lI" \
-  -H "Content-Type: application/json" \
-  -d '{"template":"order_confirmation","to":"YOUR_EMAIL","data":{"name":"Test User","orderId":"ORD-TEST001","total":"₦25,000"}}'
-```
+> The `/emails` admin page has been removed. Email templates are managed directly in **Supabase Dashboard → Edge Functions → `send-email`** source, or via the `supabase/templates/` directory. Redeploy the function after any template change.
 
 ---
 
-## Section 11 — Admin Dashboard: Fulfillment
+## ~~Section 11 — Admin Dashboard: Fulfillment~~ *(removed)*
 
-### 11A · Order fulfillment queue (browser)
-
-- [ ] Navigate to `/fulfillment` → Order Fulfillment tab
-- [ ] Orders with `confirmed` / `processing` status appear
-- [ ] **Assign** team member via dropdown → `fulfillment_tracking` row created
-- [ ] Click order row → Fulfillment Detail opens
-- [ ] Set SLA deadline, risk level, progress → save → changes persist on refresh
-
-### 11B · Service requests tab (browser)
-
-- [ ] Service Requests tab shows requests submitted from user app
-- [ ] Assign team member → notification fires to that admin
-- [ ] Change status (new → reviewing → scheduled) → updates in DB
-- [ ] Add internal note → note appears in thread
-- [ ] **Decline** with reason → status = declined, reason saved
-
-### 11C · Custom orders tab (browser)
-
-- [ ] Custom Orders tab shows freeform requests from Groceries portal
-- [ ] **Convert to Order** button → navigates to Create Order wizard (pre-filled if wired)
-
-```bash
-supabase db query --linked "SELECT id, type, status, assigned_to FROM service_requests ORDER BY created_at DESC LIMIT 5;"
-supabase db query --linked "SELECT id, description, status FROM custom_order_requests ORDER BY created_at DESC LIMIT 5;"
-```
+> The standalone `/fulfillment` page was removed from the sidebar nav (2026-04-26). Fulfillment tracking (assignee, progress, risk level badge, internal notes) now lives in the right sidebar of each **Order Detail** page. See Section 3C for the verified Order Detail tests.
 
 ---
 
