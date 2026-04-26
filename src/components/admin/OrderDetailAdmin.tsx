@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import StatusBadge from "./shared/StatusBadge";
 import Modal from "../ui/Modal";
 import { useToast } from "../../hooks/useToast";
+import { useAuth } from "../../hooks/useAuth";
 import { getOrder, updateOrderStatus, insertOrderTimelineStep, createWalletTransaction, logAudit, getSettings, getFulfillmentTrackingByOrder, upsertFulfillmentTracking, addFulfillmentNote } from "../../lib/api";
 import { supabase } from "../../lib/supabase";
 import {
@@ -21,6 +22,9 @@ const STATUS_LABELS: Record<string, string> = {
   processing: "Order in processing",
   completed: "Order completed",
   cancelled: "Order cancelled",
+};
+const STATUS_TO_PROGRESS: Record<string, number> = {
+  pending: 0, confirmed: 25, processing: 50, completed: 100, cancelled: 0,
 };
 
 interface OrderItem {
@@ -107,6 +111,7 @@ export default function OrderDetailAdmin() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const toast = useToast();
+  const { user: authUser } = useAuth();
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
@@ -119,9 +124,7 @@ export default function OrderDetailAdmin() {
   // Fulfillment state
   const [tracking, setTracking] = useState<FulfillmentTracking | null>(null);
   const [assignee, setAssignee] = useState("");
-  const [ftProgress, setFtProgress] = useState(0);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [newNote, setNewNote] = useState("");
   const [savingTracking, setSavingTracking] = useState(false);
 
@@ -136,18 +139,15 @@ export default function OrderDetailAdmin() {
 
   const loadTracking = useCallback(async () => {
     if (!id) return;
-    const [{ data: trackData }, { data: teamData }, sessionRes] = await Promise.all([
+    const [{ data: trackData }, { data: teamData }] = await Promise.all([
       getFulfillmentTrackingByOrder(id),
       supabase.from("admin_team_members").select("id, user_id, role, profiles(name, email)").eq("is_active", true),
-      supabase.auth.getSession(),
     ]);
-    setCurrentUserId(sessionRes.data?.session?.user?.id ?? null);
     setTeamMembers((teamData as unknown as TeamMember[]) ?? []);
     if (trackData) {
       const t = trackData as unknown as FulfillmentTracking;
       setTracking(t);
       setAssignee(t.assigned_to ?? "");
-      setFtProgress(t.progress);
     }
   }, [id]);
 
@@ -198,6 +198,15 @@ export default function OrderDetailAdmin() {
       entity_id: order.id,
       old_values: { status: old },
       new_values: { status: newStatus },
+    });
+
+    // Sync fulfillment progress to the new status
+    await upsertFulfillmentTracking({
+      order_id: order.id,
+      assigned_to: assignee || null,
+      risk_level: computeRiskLevel(order.created_at, newStatus),
+      priority: "medium",
+      progress: STATUS_TO_PROGRESS[newStatus] ?? 0,
     });
 
     setSavingStatus(false);
@@ -268,24 +277,25 @@ export default function OrderDetailAdmin() {
     if (!order) return;
     setSavingTracking(true);
     const usedAssignee = newAssignee !== undefined ? newAssignee : assignee;
+    const progress = STATUS_TO_PROGRESS[order.status] ?? 0;
     const { error } = await upsertFulfillmentTracking({
       order_id: order.id,
       assigned_to: usedAssignee || null,
       risk_level: computeRiskLevel(order.created_at, order.status),
       priority: "medium",
-      progress: ftProgress,
+      progress,
     });
     setSavingTracking(false);
     if (error) { toast.error(error.message); return; }
     if (newAssignee !== undefined) setAssignee(newAssignee);
     toast.success("Fulfillment updated");
-    logAudit({ action: "fulfillment.update", entity_type: "order", entity_id: order.id, new_values: { assigned_to: usedAssignee, progress: ftProgress } });
+    logAudit({ action: "fulfillment.update", entity_type: "order", entity_id: order.id, new_values: { assigned_to: usedAssignee, progress } });
     loadTracking();
   }
 
   async function handleAddNote() {
-    if (!newNote.trim() || !currentUserId || !order) return;
-    const { error } = await addFulfillmentNote({ order_id: order.id, author_id: currentUserId, text: newNote.trim() });
+    if (!newNote.trim() || !authUser?.id || !order) return;
+    const { error } = await addFulfillmentNote({ order_id: order.id, author_id: authUser.id, text: newNote.trim() });
     if (error) { toast.error(error.message); return; }
     setNewNote("");
     loadTracking();
@@ -562,20 +572,6 @@ export default function OrderDetailAdmin() {
                 {teamMembers.map((m) => (
                   <option key={m.id} value={m.user_id}>{m.profiles?.name ?? m.profiles?.email} — {m.role}</option>
                 ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-[12px] font-semibold text-[#64748B] uppercase tracking-wide block mb-1.5">Progress</label>
-              <select
-                value={ftProgress}
-                onChange={(e) => setFtProgress(parseInt(e.target.value))}
-                className="w-full border border-[#E2E8F0] rounded-xl px-3 py-2 text-sm text-[#334155] bg-white outline-none cursor-pointer focus:border-primary transition-all"
-              >
-                <option value={0}>Pending</option>
-                <option value={25}>Confirmed</option>
-                <option value={50}>Processing</option>
-                <option value={75}>Nearly Complete</option>
-                <option value={100}>Completed</option>
               </select>
             </div>
             <button
