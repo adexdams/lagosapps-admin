@@ -2,7 +2,7 @@
 
 End-to-end checklist for verifying every feature on both the **admin dashboard** and **user-facing app**, via browser and API/CLI. Work through each section in order — many checks are dependencies for later ones.
 
-> **Last browser test: 2026-04-26 (S3, S4, S1A, S5A, S5C complete).** Bugs found and fixed during 2026-04-25 run: `flag_overdue_fulfillment()` used wrong enum value (`delivered` → `completed`); `send-email` Edge Function logo pointed to GitHub raw instead of Supabase Storage; `config.toml` template paths resolved from wrong directory; referral Bronze membership not showing after signup (race condition — setTimeout fired before email confirmation, moved to `loadProfile`). Bugs fixed 2026-04-26 (S3 browser test): refund txn ID exceeded `varchar(20)` (base-36 timestamp fix); create order blocked by single-portal guard (removed); duplicate status dropdowns in Order Detail (consolidated — progress now derived from status automatically); internal notes Add button silently failed (race on `currentUserId` state — replaced with `useAuth`); Risk Level in Order Detail was a manual dropdown (now auto-computed from SLA settings in Platform Settings); Fulfillment removed from sidebar nav. Bugs fixed 2026-04-26 (S5 work): membership notification trigger silently failed — `billing_cycle` enum and UUID id needed explicit `::TEXT` casts in `notify_membership_event()`; cancel subscription added to admin Membership page and user Membership panel; referral processing gate in `loadProfile` was blocking users who already had a paid membership tier from having referral row recorded; "Apply referral code" UI added to user Referrals panel. Built 2026-04-26 (S5C verified + promo codes): admin promo code system — `admin_referral_codes` + `admin_code_redemptions` tables, `redeem_admin_code()` RPC, Promo Codes tab in admin Referrals page, user-side fallback redemption in ReferralsPanel.
+> **Last browser test: 2026-04-26 (S3, S4, S1A, S5A, S5C, S6 complete).** Bugs found and fixed during 2026-04-25 run: `flag_overdue_fulfillment()` used wrong enum value (`delivered` → `completed`); `send-email` Edge Function logo pointed to GitHub raw instead of Supabase Storage; `config.toml` template paths resolved from wrong directory; referral Bronze membership not showing after signup (race condition — setTimeout fired before email confirmation, moved to `loadProfile`). Bugs fixed 2026-04-26 (S3 browser test): refund txn ID exceeded `varchar(20)` (base-36 timestamp fix); create order blocked by single-portal guard (removed); duplicate status dropdowns in Order Detail (consolidated — progress now derived from status automatically); internal notes Add button silently failed (race on `currentUserId` state — replaced with `useAuth`); Risk Level in Order Detail was a manual dropdown (now auto-computed from SLA settings in Platform Settings); Fulfillment removed from sidebar nav. Bugs fixed 2026-04-26 (S5 work): membership notification trigger silently failed — `billing_cycle` enum and UUID id needed explicit `::TEXT` casts in `notify_membership_event()`; cancel subscription added to admin Membership page and user Membership panel; referral processing gate in `loadProfile` was blocking users who already had a paid membership tier from having referral row recorded; "Apply referral code" UI added to user Referrals panel. Built 2026-04-26 (S5C verified + promo codes): admin promo code system — `admin_referral_codes` + `admin_code_redemptions` tables, `redeem_admin_code()` RPC, Promo Codes tab in admin Referrals page, user-side fallback redemption in ReferralsPanel. Fixed 2026-04-26 (S6 verified): wallet transactions table was empty due to ambiguous FK embed (`wallet_transactions` has two FKs to `profiles`); fixed with explicit FK hint `profiles!wallet_transactions_user_id_fkey`. Also fixed benefit usage tracking — `doctor_consultations`, `car_rental_days`, `solar_product`, `event_venue_discount` were never tracked; added `PORTAL_BENEFIT` map in CartPanel so the correct benefit key is recorded when an order is confirmed for each portal.
 
 ---
 
@@ -29,7 +29,7 @@ End-to-end checklist for verifying every feature on both the **admin dashboard**
 | **S5** | **Admin: Membership** | | |
 | 5A–5D | Tier config · subscriptions · benefits | ✅ 3 tiers · 15 benefits · prices confirmed | 🟡 5A ✅ verified 2026-04-26 · 5C ✅ verified 2026-04-26 · 5D pending |
 | **S6** | **Admin: Wallet** | | |
-| 6A–6B | Transaction log · manual adjustment | ✅ Schema confirmed · table empty | ⬜ Manual credit → user wallet updates |
+| 6A–6B | Transaction log · manual adjustment | ✅ Schema confirmed · 2 transactions in DB | ✅ Verified 2026-04-26 — transactions load with user names · manual adjustment works |
 | **S7** | **Admin: Referrals** | | |
 | 7A | Referrals list | ✅ Schema confirmed · table empty | ⬜ Table loads · empty state correct |
 | 7B | Promo codes | ✅ `admin_referral_codes` table + `redeem_admin_code()` RPC confirmed | ⬜ Create code · copy · redeem on user side |
@@ -311,19 +311,19 @@ supabase db query --linked "SELECT t.name, t.annual_price, t.quarterly_price, CO
 
 ## Section 6 — Admin Dashboard: Wallet
 
-### 6A · Transaction log (browser)
+### 6A · Transaction log (browser) — ✅ verified 2026-04-26
 
-- [ ] Navigate to `/wallet`
-- [ ] Real transactions load with user names (profile join)
-- [ ] Search by user name → filters results
-- [ ] Filter by type (credit / debit) → filters results
+- [x] Navigate to `/wallet`
+- [x] Real transactions load with user names (profile join)
+- [x] Search by user name → filters results
+- [x] Filter by type (credit / debit) → filters results
 
-### 6B · Manual adjustment (browser)
+### 6B · Manual adjustment (browser) — ✅ verified 2026-04-26
 
-- [ ] Click **Manual Adjustment** → form expands
-- [ ] Select user → amount → type (credit) → reason → **Submit Adjustment**
-- [ ] Transaction appears in the list immediately
-- [ ] User's wallet balance updated in DB
+- [x] Click **Manual Adjustment** → form expands
+- [x] Select user → amount → type (credit) → reason → **Submit Adjustment**
+- [x] Transaction appears in the list immediately
+- [x] User's wallet balance updated in DB
 
 ```bash
 supabase db query --linked "SELECT description, amount, type, running_balance FROM wallet_transactions ORDER BY created_at DESC LIMIT 5;"
