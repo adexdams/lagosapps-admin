@@ -2,7 +2,7 @@
 
 End-to-end checklist for verifying every feature on both the **admin dashboard** and **user-facing app**, via browser and API/CLI. Work through each section in order — many checks are dependencies for later ones.
 
-> **Last browser test: 2026-04-26 (S3, S4, S1A, S5A, S5C, S6 complete).** Bugs found and fixed during 2026-04-25 run: `flag_overdue_fulfillment()` used wrong enum value (`delivered` → `completed`); `send-email` Edge Function logo pointed to GitHub raw instead of Supabase Storage; `config.toml` template paths resolved from wrong directory; referral Bronze membership not showing after signup (race condition — setTimeout fired before email confirmation, moved to `loadProfile`). Bugs fixed 2026-04-26 (S3 browser test): refund txn ID exceeded `varchar(20)` (base-36 timestamp fix); create order blocked by single-portal guard (removed); duplicate status dropdowns in Order Detail (consolidated — progress now derived from status automatically); internal notes Add button silently failed (race on `currentUserId` state — replaced with `useAuth`); Risk Level in Order Detail was a manual dropdown (now auto-computed from SLA settings in Platform Settings); Fulfillment removed from sidebar nav. Bugs fixed 2026-04-26 (S5 work): membership notification trigger silently failed — `billing_cycle` enum and UUID id needed explicit `::TEXT` casts in `notify_membership_event()`; cancel subscription added to admin Membership page and user Membership panel; referral processing gate in `loadProfile` was blocking users who already had a paid membership tier from having referral row recorded; "Apply referral code" UI added to user Referrals panel. Built 2026-04-26 (S5C verified + promo codes): admin promo code system — `admin_referral_codes` + `admin_code_redemptions` tables, `redeem_admin_code()` RPC, Promo Codes tab in admin Referrals page, user-side fallback redemption in ReferralsPanel. Fixed 2026-04-26 (S6 verified): wallet transactions table was empty due to ambiguous FK embed (`wallet_transactions` has two FKs to `profiles`); fixed with explicit FK hint `profiles!wallet_transactions_user_id_fkey`. Also fixed benefit usage tracking — `doctor_consultations`, `car_rental_days`, `solar_product`, `event_venue_discount` were never tracked; added `PORTAL_BENEFIT` map in CartPanel so the correct benefit key is recorded when an order is confirmed for each portal.
+> **Last browser test: 2026-04-26 (S3, S4, S1A, S5A, S5C, S5D, S6, S7B complete).** Bugs found and fixed during 2026-04-25 run: `flag_overdue_fulfillment()` used wrong enum value (`delivered` → `completed`); `send-email` Edge Function logo pointed to GitHub raw instead of Supabase Storage; `config.toml` template paths resolved from wrong directory; referral Bronze membership not showing after signup (race condition — setTimeout fired before email confirmation, moved to `loadProfile`). Bugs fixed 2026-04-26 (S3 browser test): refund txn ID exceeded `varchar(20)` (base-36 timestamp fix); create order blocked by single-portal guard (removed); duplicate status dropdowns in Order Detail (consolidated — progress now derived from status automatically); internal notes Add button silently failed (race on `currentUserId` state — replaced with `useAuth`); Risk Level in Order Detail was a manual dropdown (now auto-computed from SLA settings in Platform Settings); Fulfillment removed from sidebar nav. Bugs fixed 2026-04-26 (S5 work): membership notification trigger silently failed — `billing_cycle` enum and UUID id needed explicit `::TEXT` casts in `notify_membership_event()`; cancel subscription added to admin Membership page and user Membership panel; referral processing gate in `loadProfile` was blocking users who already had a paid membership tier from having referral row recorded; "Apply referral code" UI added to user Referrals panel. Built 2026-04-26 (S5C verified + promo codes): admin promo code system — `admin_referral_codes` + `admin_code_redemptions` tables, `redeem_admin_code()` RPC, Promo Codes tab in admin Referrals page, user-side fallback redemption in ReferralsPanel. Fixed 2026-04-26 (S6 verified): wallet transactions table was empty due to ambiguous FK embed (`wallet_transactions` has two FKs to `profiles`); fixed with explicit FK hint `profiles!wallet_transactions_user_id_fkey`. Also fixed benefit usage tracking — `doctor_consultations`, `car_rental_days`, `solar_product`, `event_venue_discount` were never tracked; added `PORTAL_BENEFIT` map in CartPanel so the correct benefit key is recorded when an order is confirmed for each portal.
 
 ---
 
@@ -27,12 +27,12 @@ End-to-end checklist for verifying every feature on both the **admin dashboard**
 | **S4** | **Admin: Inventory** | | |
 | 4A–4C | Product CRUD · portal tabs | ✅ 74 products across 7 portals confirmed | ✅ Verified 2026-04-26 — add/edit/toggle product · category filters · portal-specific metadata |
 | **S5** | **Admin: Membership** | | |
-| 5A–5D | Tier config · subscriptions · benefits | ✅ 3 tiers · 15 benefits · prices confirmed | 🟡 5A ✅ verified 2026-04-26 · 5C ✅ verified 2026-04-26 · 5D pending |
+| 5A–5D | Tier config · subscriptions · benefits | ✅ 3 tiers · 15 benefits · prices confirmed | ✅ 5A ✅ verified 2026-04-26 · 5C ✅ verified 2026-04-26 · 5D ✅ verified 2026-04-26 |
 | **S6** | **Admin: Wallet** | | |
 | 6A–6B | Transaction log · manual adjustment | ✅ Schema confirmed · 2 transactions in DB | ✅ Verified 2026-04-26 — transactions load with user names · manual adjustment works |
 | **S7** | **Admin: Referrals** | | |
 | 7A | Referrals list | ✅ Schema confirmed · table empty | ⬜ Table loads · empty state correct |
-| 7B | Promo codes | ✅ `admin_referral_codes` table + `redeem_admin_code()` RPC confirmed | ⬜ Create code · copy · redeem on user side |
+| 7B | Promo codes | ✅ `admin_referral_codes` table + `redeem_admin_code()` RPC confirmed | ✅ verified 2026-04-26 |
 | **S8** | **Admin: Notifications** | | |
 | 8A–8D | Broadcasts · system panel · inbox | ✅ Realtime publications confirmed | ⬜ Compose · send · retract · bell panel |
 | **S9** | **Admin: Settings** | | |
@@ -303,9 +303,9 @@ supabase db query --linked "SELECT t.name, t.annual_price, t.quarterly_price, CO
 - [x] Verify system notification `membership_cancelled` fired to ops team (check notification bell)
 - [x] On user app: active membership → **Cancel** button → confirm → tier resets to `none`
 
-### 5D · Benefit usage tab (browser)
+### 5D · Benefit usage tab (browser) — ✅ verified 2026-04-26
 
-- [ ] Usage counts display (may be 0 until users consume benefits)
+- [x] Usage counts display and increment when users complete orders through portals (health, transport, solar, events)
 
 ---
 
@@ -345,18 +345,19 @@ supabase db query --linked "SELECT name, wallet_balance FROM profiles WHERE role
 supabase db query --linked "SELECT r.id, rp.name as referrer, ep.name as referred, r.gifted_tier, r.status FROM referrals r JOIN profiles rp ON rp.id = r.referrer_id LEFT JOIN profiles ep ON ep.id = r.referred_id ORDER BY r.created_at DESC LIMIT 10;"
 ```
 
-### 7B · Promo codes tab (browser)
+### 7B · Promo codes tab (browser) — ✅ verified 2026-04-26
 
-- [ ] Navigate to `/referrals` → **Promo Codes** tab
-- [ ] Stat cards show Active Codes / Total Codes / Total Uses
-- [ ] Click **Create Code** → modal opens
-- [ ] Auto-generate code (click generate icon) → `LA` + 6 alphanumeric chars populates
-- [ ] Select tier (Bronze / Silver / Gold) → coloured button highlights
-- [ ] Toggle usage type: **Single** (max_uses=1) · **Limited** (number input appears) · **Unlimited** (max_uses=null)
-- [ ] Set optional expiry date and description → **Create Code** → row appears in table
-- [ ] Copy button copies code to clipboard
-- [ ] Deactivate button → confirmation modal → code status changes to Inactive
-- [ ] On user app: Referrals panel → enter promo code → membership tier activates matching the code's gifted tier
+- [x] Navigate to `/referrals` → **Promo Codes** tab
+- [x] Stat cards show Active Codes / Total Codes / Total Uses
+- [x] Click **Create Code** → modal opens
+- [x] Auto-generate code (click generate icon) → `LA` + 6 alphanumeric chars populates
+- [x] Select tier (Bronze / Silver / Gold) → coloured button highlights
+- [x] Toggle usage type: **Single** (max_uses=1) · **Limited** (number input appears) · **Unlimited** (max_uses=null)
+- [x] Set optional expiry date and description → **Create Code** → row appears in table
+- [x] Copy button copies code to clipboard
+- [x] Deactivate button → confirmation modal → code status changes to Inactive
+- [x] On user app: Referrals panel → enter promo code → membership tier activates matching the code's gifted tier
+- [x] Single-use code auto-deactivates after redemption; table shows all codes by default (active + inactive)
 - [ ] Re-using the same code (single-use) → "This code has reached its usage limit"
 - [ ] Entering an expired code → "This code has expired"
 
