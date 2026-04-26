@@ -2,7 +2,7 @@
 
 End-to-end checklist for verifying every feature on both the **admin dashboard** and **user-facing app**, via browser and API/CLI. Work through each section in order — many checks are dependencies for later ones.
 
-> **Last browser test: 2026-04-26 (S3, S4, S1A, S5A, S5C, S5D, S6, S7A, S7B, S8, S9A, S9C, S12, S14A, S14B, S15 complete). S10 (email templates UI) and S11 (fulfillment page) removed — both features removed from admin nav. S8 test steps updated to reflect correct routes: broadcast list/compose/detail at `/broadcast`, admin inbox at `/notifications`.** Bugs found and fixed during 2026-04-25 run: `flag_overdue_fulfillment()` used wrong enum value (`delivered` → `completed`); `send-email` Edge Function logo pointed to GitHub raw instead of Supabase Storage; `config.toml` template paths resolved from wrong directory; referral Bronze membership not showing after signup (race condition — setTimeout fired before email confirmation, moved to `loadProfile`). Bugs fixed 2026-04-26 (S3 browser test): refund txn ID exceeded `varchar(20)` (base-36 timestamp fix); create order blocked by single-portal guard (removed); duplicate status dropdowns in Order Detail (consolidated — progress now derived from status automatically); internal notes Add button silently failed (race on `currentUserId` state — replaced with `useAuth`); Risk Level in Order Detail was a manual dropdown (now auto-computed from SLA settings in Platform Settings); Fulfillment removed from sidebar nav. Bugs fixed 2026-04-26 (S5 work): membership notification trigger silently failed — `billing_cycle` enum and UUID id needed explicit `::TEXT` casts in `notify_membership_event()`; cancel subscription added to admin Membership page and user Membership panel; referral processing gate in `loadProfile` was blocking users who already had a paid membership tier from having referral row recorded; "Apply referral code" UI added to user Referrals panel. Built 2026-04-26 (S5C verified + promo codes): admin promo code system — `admin_referral_codes` + `admin_code_redemptions` tables, `redeem_admin_code()` RPC, Promo Codes tab in admin Referrals page, user-side fallback redemption in ReferralsPanel. Fixed 2026-04-26 (S6 verified): wallet transactions table was empty due to ambiguous FK embed (`wallet_transactions` has two FKs to `profiles`); fixed with explicit FK hint `profiles!wallet_transactions_user_id_fkey`. Also fixed benefit usage tracking — `doctor_consultations`, `car_rental_days`, `solar_product`, `event_venue_discount` were never tracked; added `PORTAL_BENEFIT` map in CartPanel so the correct benefit key is recorded when an order is confirmed for each portal.
+> **Last browser test: 2026-04-26. All admin portal browser tests confirmed complete (S1–S15, S1C referral signup re-tested and verified, S13 team invite + privilege management verified). S10 (email templates UI) and S11 (fulfillment page) removed — both features removed from admin nav. S8 test steps updated to reflect correct routes: broadcast list/compose/detail at `/broadcast`, admin inbox at `/notifications`.** Bugs found and fixed during 2026-04-25 run: `flag_overdue_fulfillment()` used wrong enum value (`delivered` → `completed`); `send-email` Edge Function logo pointed to GitHub raw instead of Supabase Storage; `config.toml` template paths resolved from wrong directory; referral Bronze membership not showing after signup (race condition — setTimeout fired before email confirmation, moved to `loadProfile`). Bugs fixed 2026-04-26 (S3 browser test): refund txn ID exceeded `varchar(20)` (base-36 timestamp fix); create order blocked by single-portal guard (removed); duplicate status dropdowns in Order Detail (consolidated — progress now derived from status automatically); internal notes Add button silently failed (race on `currentUserId` state — replaced with `useAuth`); Risk Level in Order Detail was a manual dropdown (now auto-computed from SLA settings in Platform Settings); Fulfillment removed from sidebar nav. Bugs fixed 2026-04-26 (S5 work): membership notification trigger silently failed — `billing_cycle` enum and UUID id needed explicit `::TEXT` casts in `notify_membership_event()`; cancel subscription added to admin Membership page and user Membership panel; referral processing gate in `loadProfile` was blocking users who already had a paid membership tier from having referral row recorded; "Apply referral code" UI added to user Referrals panel. Built 2026-04-26 (S5C verified + promo codes): admin promo code system — `admin_referral_codes` + `admin_code_redemptions` tables, `redeem_admin_code()` RPC, Promo Codes tab in admin Referrals page, user-side fallback redemption in ReferralsPanel. Fixed 2026-04-26 (S6 verified): wallet transactions table was empty due to ambiguous FK embed (`wallet_transactions` has two FKs to `profiles`); fixed with explicit FK hint `profiles!wallet_transactions_user_id_fkey`. Also fixed benefit usage tracking — `doctor_consultations`, `car_rental_days`, `solar_product`, `event_venue_discount` were never tracked; added `PORTAL_BENEFIT` map in CartPanel so the correct benefit key is recorded when an order is confirmed for each portal.
 
 ---
 
@@ -19,7 +19,7 @@ End-to-end checklist for verifying every feature on both the **admin dashboard**
 | **S1** | **Authentication** | | |
 | 1A | Admin login | — | ✅ Magic link login · session persistence confirmed · verified 2026-04-26 |
 | 1B | User signup | ✅ `profiles` trigger confirmed · 1 user in DB | ✅ Sign up confirmed · welcome email arrived |
-| 1C | Referral signup | ✅ `referrals` schema confirmed | 🟡 Referral code used · Bronze subscription created · **bug fixed**: membership tier was not showing (race condition in register() — moved processing to loadProfile()) · re-test needed |
+| 1C | Referral signup | ✅ `referrals` schema confirmed | ✅ verified 2026-04-26 — referral code applied · Bronze subscription created · membership tier shows immediately after login |
 | **S2** | **Admin: Users** | | |
 | 2A–2B | Users list + User detail | ✅ Profiles table — 2 users confirmed after tests | ✅ Admin loads new users correctly · user detail page confirmed |
 | **S3** | **Admin: Orders** | | |
@@ -42,7 +42,7 @@ End-to-end checklist for verifying every feature on both the **admin dashboard**
 | **S12** | **Admin: Audit Log** | | |
 | 12A | Audit log table | ✅ Schema confirmed · table empty (populates after admin actions) | ✅ verified 2026-04-26 — entries appear · search + filter work · row expand shows diff |
 | **S13** | **Admin: Team** | | |
-| 13A | Team list · invite | ✅ `admin_team_members` seeded with super_admin | ⬜ Your entry visible · invite a new member |
+| 13A | Team list · invite | ✅ `admin_team_members` seeded with super_admin | ✅ verified 2026-04-26 — entry visible · invite flow works · privilege management modal verified |
 | **S14** | **Admin: Analytics & Finance** | | |
 | 14A | Analytics charts | ✅ Wired to real DB | ✅ verified 2026-04-26 — charts populate with real orders/users/transactions |
 | 14B | Finance overview | ✅ Wired to real DB | ✅ verified 2026-04-26 — revenue figures and wallet activity appear |
@@ -163,14 +163,14 @@ supabase db query --linked "UPDATE profiles SET role = 'super_admin' WHERE email
 supabase db query --linked "SELECT id, name, email, referral_code, role FROM profiles ORDER BY created_at DESC LIMIT 3;"
 ```
 
-### 1C · Referral signup (browser) 🟡 partial — re-test after fix
+### 1C · Referral signup (browser) ✅ verified 2026-04-26
 
 > **Bug fixed 2026-04-25**: referral code was provided at signup but membership was not applied. Root cause: `setTimeout(2000)` in `register()` called `auth.getUser()` before email confirmation so `authUser` was null → processing silently skipped. Fixed by moving the referral processing into `loadProfile()`, which runs after the SIGNED_IN event (guaranteed live session).
 
 - [x] Copied referral code from Account page
 - [x] Signed up in incognito with referral code
-- [ ] **Re-test with fixed build**: confirm new user sees Bronze membership immediately after confirming email and logging in
-- [ ] Verify `referrals` row + `membership_subscriptions` row created:
+- [x] New user sees Bronze membership immediately after confirming email and logging in
+- [x] Verify `referrals` row + `membership_subscriptions` row created:
   - `referrals`: `referrer_id` = original user, `gifted_tier = 'bronze'`, `status = 'confirmed'`
   - New user's `profiles.membership_tier = 'bronze'`
   - New user's `membership_subscriptions` has active Bronze row
@@ -356,8 +356,8 @@ supabase db query --linked "SELECT r.id, rp.name as referrer, ep.name as referre
 - [x] Deactivate button → confirmation modal → code status changes to Inactive
 - [x] On user app: Referrals panel → enter promo code → membership tier activates matching the code's gifted tier
 - [x] Single-use code auto-deactivates after redemption; table shows all codes by default (active + inactive)
-- [ ] Re-using the same code (single-use) → "This code has reached its usage limit"
-- [ ] Entering an expired code → "This code has expired"
+- [x] Re-using the same code (single-use) → "This code has reached its usage limit"
+- [x] Entering an expired code → "This code has expired"
 
 ```bash
 supabase db query --linked "SELECT code, gifted_tier, max_uses, used_count, is_active, expires_at FROM admin_referral_codes ORDER BY created_at DESC LIMIT 10;"
@@ -453,7 +453,20 @@ supabase db query --linked "SELECT action, entity_type, entity_id, created_at FR
 
 ---
 
-## Section 13 — User App: Portals & Products
+## Section 13 — Admin Dashboard: Team ✅ verified 2026-04-26
+
+### 13A · Team list · invite (browser) ✅ verified 2026-04-26
+
+- [x] Navigate to `/team`
+- [x] Own entry visible with role **Super Admin** and status Active
+- [x] Click **Invite Member** → enter email, select role → **Send Invite** → toast confirms → magic link email received
+- [x] Invited member logs in → account gets admin access correctly (trigger sets `profiles.role = 'admin'`)
+- [x] **Privileges button** (per-row, super admin only) → modal opens with 15 page toggles
+- [x] Toggle pages off/on → save → team member's nav reflects changes immediately
+
+---
+
+## Section 13 (User App) — User App: Portals & Products
 
 ### 13A · Portal display (browser)
 
@@ -914,15 +927,16 @@ Work through these steps in order — each phase builds on the previous one (e.g
 
 ---
 
-### Phase 10 — Team
+### Phase 10 — Team ✅ verified 2026-04-26
 
-**Goal:** Your super_admin entry is visible; magic link invite flow works.
+**Goal:** Your super_admin entry is visible; magic link invite flow works; privilege management toggles work.
 
-68. [ ] Navigate to `/team`
-69. [ ] Your own entry is visible with role **Super Admin** and status Active
-70. [ ] Click **Invite Member** → enter a real email you can check → select role **Support** → click **Send Invite**
-71. [ ] Toast confirms invite sent → check that email's inbox → magic link email received
-72. [ ] *(Do not click the link yet — full access test is part of cross-app testing)*
+68. [x] Navigate to `/team`
+69. [x] Your own entry is visible with role **Super Admin** and status Active
+70. [x] Click **Invite Member** → enter a real email you can check → select role **Support** → click **Send Invite**
+71. [x] Toast confirms invite sent → magic link email received → invited member can log in without "Access Denied"
+72. [x] Click **Privileges** on a team member row → modal opens with 15 page toggles, pre-seeded from role defaults
+73. [x] Toggle pages on/off → **Save Privileges** → member's sidebar nav reflects the changes
 
 ---
 
@@ -930,13 +944,13 @@ Work through these steps in order — each phase builds on the previous one (e.g
 
 **Goal:** Charts and figures reflect the orders and transactions created in earlier phases.
 
-73. [x] Navigate to `/analytics`
-74. [x] Stat cards show real numbers (at least 1 order, 1 user)
-75. [x] Revenue by portal chart shows a bar for Groceries (the test order)
-76. [x] Monthly user growth chart has at least one data point
-77. [x] Navigate to `/finance`
-78. [x] Overview tab → total revenue and order count match the test order
-79. [x] Transactions tab → wallet transactions from Phases 4 and 7 appear
+1. [x] Navigate to `/analytics`
+2. [x] Stat cards show real numbers (at least 1 order, 1 user)
+3. [x] Revenue by portal chart shows a bar for Groceries (the test order)
+4. [x] Monthly user growth chart has at least one data point
+5. [x] Navigate to `/finance`
+6. [x] Overview tab → total revenue and order count match the test order
+7. [x] Transactions tab → wallet transactions from Phases 4 and 7 appear
 
 ---
 
@@ -944,12 +958,12 @@ Work through these steps in order — each phase builds on the previous one (e.g
 
 **Goal:** Every action taken in Phases 1–11 is captured with the correct admin name.
 
-80. [x] Navigate to `/audit`
-81. [x] Rows appear — your name shown in the Admin column for each
-82. [x] Actions visible: `profile.update`, `order.create`, `order.status_change`, `wallet.manual_adjustment`, `membership_tier.update`, `portal.toggle`, `broadcast.send`, etc.
-83. [x] Search for "order" → only order-related rows shown
-84. [x] Change the Action filter to **wallet** → only wallet rows shown
-85. [x] Click the expand icon on any row → Before/After values visible in the detail drawer
+1. [x] Navigate to `/audit`
+2. [x] Rows appear — your name shown in the Admin column for each
+3. [x] Actions visible: `profile.update`, `order.create`, `order.status_change`, `wallet.manual_adjustment`, `membership_tier.update`, `portal.toggle`, `broadcast.send`, etc.
+4. [x] Search for "order" → only order-related rows shown
+5. [x] Change the Action filter to **wallet** → only wallet rows shown
+6. [x] Click the expand icon on any row → Before/After values visible in the detail drawer
 
 ---
 
