@@ -82,7 +82,7 @@ End-to-end checklist for verifying every feature on both the **admin dashboard**
 | **S24** | **Cross-App Integration** | | |
 | 24A–24C | Admin action → user · User action → admin | — | ✅ verified 2026-04-26 |
 | **S25** | **DB Health Checks** | | |
-| 25 | Orphans · balance drift · row counts | ✅ 0 orphaned items · 0 balance drift · 36 tables healthy | — |
+| 25 | Orphans · balance drift · row counts | ✅ verified 2026-04-27 — 38 tables · RLS on all 38 · 5 cron jobs active · 25 triggers · 24 functions · 4 storage buckets · 0 orphaned records across all 7 FK checks · 0 bad prices · 0 null wallets · every active portal has products · 17 member-covered products · 16 tier benefits | — |
 
 ---
 
@@ -804,7 +804,7 @@ curl -s "https://uhrlsvnmoemrakwfrjyf.supabase.co/rest/v1/wallet_transactions?se
 
 ---
 
-## Section 22 — Database Health Checks (CLI)
+## Section 22 — Database Health Checks (CLI) ✅ verified 2026-04-27
 
 Run after testing to verify data integrity:
 
