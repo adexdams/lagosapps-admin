@@ -25,7 +25,7 @@ End-to-end checklist for verifying every feature on both the **admin dashboard**
 | **S3** | **Admin: Orders** | | |
 | 3A–3C | Orders list · detail · create | ✅ `orders` table empty (no test orders yet) | ✅ Verified 2026-04-26 — create order · status change · refund flow · SLA risk badges · fulfillment assignee + notes |
 | **S4** | **Admin: Inventory** | | |
-| 4A–4C | Product CRUD · portal tabs | ✅ 74 products across 7 portals confirmed | ✅ Verified 2026-04-26 — add/edit/toggle product · category filters · portal-specific metadata |
+| 4A–4C | Product CRUD · portal tabs | ✅ 74 products across 7 portals confirmed | ✅ Verified 2026-04-26 — add/edit/toggle product · category filters · portal-specific metadata. Re-verified 2026-04-26 — deactivate product confirmed after adding missing `member_covered` column via migration |
 | **S5** | **Admin: Membership** | | |
 | 5A–5D | Tier config · subscriptions · benefits | ✅ 3 tiers · 15 benefits · prices confirmed | ✅ 5A ✅ verified 2026-04-26 · 5C ✅ verified 2026-04-26 · 5D ✅ verified 2026-04-26 |
 | **S6** | **Admin: Wallet** | | |
@@ -259,7 +259,7 @@ supabase db query --linked "SELECT id, status, total_amount, created_at FROM ord
 - [x] Click **+ Add Product** → form opens
 - [x] Fill fields, upload image → save → product appears in grid
 - [x] Click edit on existing product → change price → save → price reflected
-- [x] Toggle product active/inactive → `is_active` updates
+- [x] Toggle product active/inactive → `is_active` updates ✅ re-verified 2026-04-26 (fixed: `member_covered` column was missing from live DB)
 
 ### 4B · Portal-specific metadata ✅
 
