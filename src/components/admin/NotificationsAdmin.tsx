@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import FilterBar, { type FilterConfig } from "./shared/FilterBar";
 import { useToast } from "../../hooks/useToast";
-import { getBroadcastsList } from "../../lib/api";
+import { getBroadcastsList, getEmailTemplates } from "../../lib/api";
 import { supabase } from "../../lib/supabase";
 import { formatDate } from "../../data/adminMockData";
 
@@ -37,14 +37,37 @@ interface BroadcastWithStats extends BroadcastRow {
   read_count: number;
 }
 
+interface EmailTemplate {
+  key: string;
+  label: string;
+  description: string | null;
+  subject: string;
+  heading: string | null;
+  body_html: string | null;
+  is_active: boolean;
+  updated_at: string | null;
+}
+
+const TEMPLATE_ICONS: Record<string, string> = {
+  welcome: "waving_hand",
+  order_confirmation: "receipt_long",
+  wallet_topup: "account_balance_wallet",
+  membership_renewal: "card_membership",
+  password_reset: "lock_reset",
+  broadcast: "campaign",
+};
+
 export default function NotificationsAdmin() {
   const navigate = useNavigate();
   const { error: toastError } = useToast();
+  const [tab, setTab] = useState<"broadcasts" | "templates">("broadcasts");
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [broadcasts, setBroadcasts] = useState<BroadcastWithStats[]>([]);
   const [loading, setLoading] = useState(true);
+  const [templates, setTemplates] = useState<EmailTemplate[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
 
   const loadBroadcasts = useCallback(async () => {
     setLoading(true);
@@ -81,6 +104,15 @@ export default function NotificationsAdmin() {
   }, [toastError]);
 
   useEffect(() => { loadBroadcasts(); }, [loadBroadcasts]);
+
+  useEffect(() => {
+    if (tab !== "templates" || templates.length > 0) return;
+    setTemplatesLoading(true);
+    getEmailTemplates().then(({ data }) => {
+      setTemplates((data as EmailTemplate[]) ?? []);
+      setTemplatesLoading(false);
+    });
+  }, [tab, templates.length]);
 
   const filtered = broadcasts.filter((b) => {
     const matchSearch = !search || b.title.toLowerCase().includes(search.toLowerCase());
@@ -121,23 +153,97 @@ export default function NotificationsAdmin() {
             {broadcasts.length} broadcasts · {sentCount} sent · {draftCount} draft
           </p>
         </div>
-        <button
-          onClick={() => navigate("/broadcast/compose")}
-          className="inline-flex items-center gap-1.5 px-2.5 sm:px-4 py-2 sm:py-2.5 bg-primary text-white text-sm font-semibold rounded-xl cursor-pointer hover:brightness-[0.92] active:scale-[0.98] transition-all"
-        >
-          <span className="material-symbols-outlined text-[18px]">add</span>
-          <span className="hidden sm:inline">New Broadcast</span>
-        </button>
+        {tab === "broadcasts" && (
+          <button
+            onClick={() => navigate("/broadcast/compose")}
+            className="inline-flex items-center gap-1.5 px-2.5 sm:px-4 py-2 sm:py-2.5 bg-primary text-white text-sm font-semibold rounded-xl cursor-pointer hover:brightness-[0.92] active:scale-[0.98] transition-all"
+          >
+            <span className="material-symbols-outlined text-[18px]">add</span>
+            <span className="hidden sm:inline">New Broadcast</span>
+          </button>
+        )}
       </div>
 
-      <FilterBar
-        onSearch={setSearch}
-        searchValue={search}
-        searchPlaceholder="Search broadcasts..."
-        filters={filters}
-      />
+      {/* Tab pills */}
+      <div className="flex gap-2 border-b border-[#E8ECF1]">
+        {(["broadcasts", "templates"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`px-4 py-2.5 text-[13px] font-semibold border-b-2 transition-colors cursor-pointer -mb-px ${
+              tab === t ? "border-primary text-primary" : "border-transparent text-[#64748B] hover:text-[#334155]"
+            }`}
+          >
+            {t === "broadcasts" ? "Broadcasts" : "Email Templates"}
+          </button>
+        ))}
+      </div>
 
-      <div className={`${card} overflow-hidden`}>
+      {tab === "broadcasts" && (
+        <FilterBar
+          onSearch={setSearch}
+          searchValue={search}
+          searchPlaceholder="Search broadcasts..."
+          filters={filters}
+        />
+      )}
+
+      {tab === "templates" && (
+        <div>
+          {templatesLoading ? (
+            <div className="py-16 flex flex-col items-center gap-3">
+              <span className="size-5 border-2 border-[#E2E8F0] border-t-primary rounded-full animate-spin" />
+              <p className="text-sm text-[#94A3B8]">Loading templates…</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {templates.map((t) => (
+                <div key={t.key} className={`${card} p-5 space-y-3`}>
+                  <div className="flex items-start gap-3">
+                    <div className="size-10 rounded-xl bg-primary/8 flex items-center justify-center flex-shrink-0">
+                      <span className="material-symbols-outlined text-primary text-[20px]">
+                        {TEMPLATE_ICONS[t.key] ?? "mail"}
+                      </span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-[#0F172A] truncate">{t.label}</p>
+                      <p className="text-[11px] text-[#94A3B8] mt-0.5">{t.description}</p>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${t.is_active ? "bg-[#ECFDF5] text-[#059669]" : "bg-[#F1F5F9] text-[#94A3B8]"}`}>
+                      {t.is_active ? "ACTIVE" : "OFF"}
+                    </span>
+                  </div>
+                  <div className="space-y-1.5 pt-1 border-t border-[#F1F5F9]">
+                    <div>
+                      <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Subject</p>
+                      <p className="text-[12px] text-[#334155] font-medium mt-0.5">{t.subject}</p>
+                    </div>
+                    {t.heading && (
+                      <div>
+                        <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Heading</p>
+                        <p className="text-[12px] text-[#334155] mt-0.5">{t.heading}</p>
+                      </div>
+                    )}
+                    {t.body_html && (
+                      <div>
+                        <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Body preview</p>
+                        <p className="text-[11px] text-[#64748B] mt-0.5 line-clamp-3"
+                          dangerouslySetInnerHTML={{ __html: t.body_html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  {t.updated_at && (
+                    <p className="text-[10px] text-[#CBD5E1]">Updated {formatDate(t.updated_at)}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "broadcasts" && <div className={`${card} overflow-hidden`}>
         <div className="overflow-x-auto">
           <table className="w-full text-xs sm:text-sm">
             <thead>
@@ -204,7 +310,7 @@ export default function NotificationsAdmin() {
             </tbody>
           </table>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

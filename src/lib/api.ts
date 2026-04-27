@@ -562,6 +562,15 @@ export async function upsertSetting(key: string, value: string, updatedBy?: stri
   return supabase.from("platform_settings").upsert({ key, value, updated_by: updatedBy }, { onConflict: "key" });
 }
 
+// ── Email Templates ──────────────────────────────────────────
+
+export async function getEmailTemplates() {
+  return supabase
+    .from("email_templates")
+    .select("key, label, description, subject, heading, body_html, is_active, updated_at")
+    .order("key");
+}
+
 // ── Storage ─────────────────────────────────────────────────
 
 export async function uploadFile(bucket: string, path: string, file: File) {

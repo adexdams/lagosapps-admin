@@ -92,8 +92,7 @@ function layout(opts: {
     <tr><td class="ec-wrap" align="center" style="padding:40px 20px;">
       <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
         <tr><td class="ec-cell" style="padding:24px 40px;border-bottom:1px solid #E8ECF1;">
-          <img src="${opts.logoUrl}" alt="" width="auto" height="36" style="height:36px;width:auto;display:none;" onload="this.style.display='block';this.nextElementSibling.style.display='none';" onerror="this.style.display='none';" />
-          <span style="font-size:22px;font-weight:800;color:#057a55;font-family:'Helvetica Neue',Arial,sans-serif;letter-spacing:-0.5px;">Lagos<span style="color:#0F172A;">Apps</span></span>
+          <img src="${opts.logoUrl}" alt="LagosApps" width="auto" height="40" style="height:40px;width:auto;display:block;max-width:180px;" />
         </td></tr>
         ${bannerBlock}
         <tr><td class="ec-cell" style="padding:32px 40px;font-size:15px;line-height:1.6;color:#334155;">
