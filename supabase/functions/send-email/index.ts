@@ -144,15 +144,25 @@ serve(async (req: Request) => {
     // the caller passes `data.email` without `data.resetUrl` (user app flow).
     if (payload.template === "password_reset" && data.email && !data.resetUrl) {
       const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
-      const redirectTo = (data.redirectTo as string | undefined) ?? SUPABASE_URL;
+      const redirectTo = (data.redirectTo as string | undefined) ?? "https://lagosapps.com";
       const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
         type: "recovery",
         email: data.email as string,
         options: { redirectTo },
       });
-      if (linkError || !linkData?.properties?.action_link) {
-        // Silently succeed if user not found — prevents email enumeration (same as resetPasswordForEmail)
-        const notFound = linkError?.message?.toLowerCase().includes("not found") || linkError?.message?.toLowerCase().includes("not exist");
+
+      // Support both SDK response formats: newer has linkData.properties.action_link,
+      // older has linkData.action_link at the root.
+      const actionLink =
+        (linkData as Record<string, unknown> | null)?.properties?.action_link as string | undefined ??
+        (linkData as Record<string, unknown> | null)?.action_link as string | undefined;
+
+      if (linkError || !actionLink) {
+        // Silently succeed if user not found — prevents email enumeration
+        const notFound =
+          linkError?.message?.toLowerCase().includes("not found") ||
+          linkError?.message?.toLowerCase().includes("not exist") ||
+          linkError?.message?.toLowerCase().includes("unable to find");
         if (notFound) {
           return new Response(JSON.stringify({ success: true, id: null }), {
             status: 200,
@@ -164,7 +174,8 @@ serve(async (req: Request) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      data.resetUrl = linkData.properties.action_link;
+
+      data.resetUrl = actionLink;
       // Also try to hydrate the user's name for a personalised email
       const { data: profile } = await admin.from("profiles").select("name").eq("email", data.email as string).maybeSingle();
       if (profile?.name) data.name = profile.name;
