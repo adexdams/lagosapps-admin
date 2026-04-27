@@ -21,7 +21,9 @@ interface DbProduct {
   low_stock_threshold: number;
   stock_status: "in_stock" | "low_stock" | "out_of_stock";
   is_active: boolean;
+  member_covered: boolean;
   image_url: string | null;
+  metadata: Record<string, unknown> | null;
   product_categories: { name: string; slug: string } | null;
 }
 
@@ -97,7 +99,9 @@ export default function InventoryPortal({ portal }: InventoryPortalProps) {
     stock: p.stock,
     low_stock_threshold: p.low_stock_threshold,
     is_active: p.is_active,
+    member_covered: p.member_covered,
     image_url: p.image_url,
+    metadata: p.metadata ?? {},
   });
 
   return (
@@ -201,6 +205,14 @@ export default function InventoryPortal({ portal }: InventoryPortalProps) {
                     {product.is_active ? "Active" : "Inactive"}
                   </span>
                 </div>
+                {product.member_covered && (
+                  <div className="mt-2">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-[#ECFDF5] text-[#059669]">
+                      <span className="material-symbols-outlined text-[11px]">verified</span>
+                      Member Covered
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           ))}
