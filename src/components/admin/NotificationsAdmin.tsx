@@ -1,10 +1,20 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import FilterBar, { type FilterConfig } from "./shared/FilterBar";
+import EmailPreviewModal from "./shared/EmailPreviewModal";
 import { useToast } from "../../hooks/useToast";
 import { getBroadcastsList, getEmailTemplates } from "../../lib/api";
 import { supabase } from "../../lib/supabase";
 import { formatDate } from "../../data/adminMockData";
+
+const TEMPLATE_SAMPLE_DATA: Record<string, Record<string, unknown>> = {
+  welcome:           { name: "Amara" },
+  order_confirmation:{ name: "Amara", orderId: "ORD-2026-001", items: "Solar Panel × 1, Inverter Battery × 1", total: "₦150,000", paymentMethod: "Wallet" },
+  wallet_topup:      { name: "Amara", amount: "₦5,000", balance: "₦12,500", reference: "TXN-20260426-001" },
+  membership_renewal:{ name: "Amara", tier: "Bronze", daysRemaining: "3", expiresAt: "29 Apr 2026", renewUrl: "https://lagosapps.com/membership" },
+  password_reset:    { name: "Amara", resetUrl: "https://lagosapps.com/reset-password?token=preview" },
+  broadcast:         { title: "Platform Update", message: "We've added new features to make your experience better. Check out the latest updates on the app.", imageBlock: "" },
+};
 
 const TYPE_CONFIG: Record<string, { bg: string; text: string; icon: string }> = {
   info: { bg: "#EFF6FF", text: "#2563EB", icon: "info" },
@@ -68,6 +78,7 @@ export default function NotificationsAdmin() {
   const [loading, setLoading] = useState(true);
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [previewKey, setPreviewKey] = useState<string | null>(null);
 
   const loadBroadcasts = useCallback(async () => {
     setLoading(true);
@@ -165,18 +176,19 @@ export default function NotificationsAdmin() {
       </div>
 
       {/* Tab pills */}
-      <div className="flex gap-2 border-b border-[#E8ECF1]">
-        {(["broadcasts", "templates"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-4 py-2.5 text-[13px] font-semibold border-b-2 transition-colors cursor-pointer -mb-px ${
-              tab === t ? "border-primary text-primary" : "border-transparent text-[#64748B] hover:text-[#334155]"
-            }`}
-          >
-            {t === "broadcasts" ? "Broadcasts" : "Email Templates"}
-          </button>
-        ))}
+      <div className="flex gap-1 bg-white rounded-xl p-1 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 w-fit">
+        <button
+          onClick={() => setTab("broadcasts")}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${tab === "broadcasts" ? "bg-primary text-white" : "text-[#64748B] hover:text-[#0F172A] hover:bg-[#F1F5F9]"}`}
+        >
+          Broadcasts
+        </button>
+        <button
+          onClick={() => setTab("templates")}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${tab === "templates" ? "bg-primary text-white" : "text-[#64748B] hover:text-[#0F172A] hover:bg-[#F1F5F9]"}`}
+        >
+          Email Templates
+        </button>
       </div>
 
       {tab === "broadcasts" && (
@@ -233,15 +245,33 @@ export default function NotificationsAdmin() {
                       </div>
                     )}
                   </div>
-                  {t.updated_at && (
-                    <p className="text-[10px] text-[#CBD5E1]">Updated {formatDate(t.updated_at)}</p>
-                  )}
+                  <div className="flex items-center justify-between pt-1">
+                    {t.updated_at
+                      ? <p className="text-[10px] text-[#CBD5E1]">Updated {formatDate(t.updated_at)}</p>
+                      : <span />
+                    }
+                    <button
+                      onClick={() => setPreviewKey(t.key)}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-primary/8 text-primary text-[12px] font-semibold rounded-lg cursor-pointer hover:bg-primary/15 transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">visibility</span>
+                      Preview
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </div>
       )}
+
+      <EmailPreviewModal
+        isOpen={previewKey !== null}
+        onClose={() => setPreviewKey(null)}
+        template={previewKey ?? "welcome"}
+        sampleData={TEMPLATE_SAMPLE_DATA[previewKey ?? "welcome"]}
+        title={`Preview — ${templates.find((t) => t.key === previewKey)?.label ?? ""}`}
+      />
 
       {tab === "broadcasts" && <div className={`${card} overflow-hidden`}>
         <div className="overflow-x-auto">
