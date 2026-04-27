@@ -464,7 +464,7 @@ export default function SettingsPage() {
                   </div>
                   {enabled && cat.thresholdKey && cat.thresholdLabel && (
                     <div className="mt-3 pl-12 flex items-center gap-2">
-                      <label className="text-[12px] text-[#64748B]">{cat.thresholdLabel}</label>
+                      <label className="text-[12px] text-[#64748B] min-w-0">{cat.thresholdLabel}</label>
                       <input
                         type="number"
                         value={currentThreshold ?? ""}
@@ -472,7 +472,7 @@ export default function SettingsPage() {
                           const n = e.target.value ? Number(e.target.value) : null;
                           saveAlertPref(cat.key, { [cat.thresholdKey as keyof NotifPref]: n } as Partial<NotifPref>);
                         }}
-                        className="w-24 border border-[#E2E8F0] rounded-lg px-2 py-1 text-sm outline-none focus:border-primary"
+                        className="w-20 sm:w-24 border border-[#E2E8F0] rounded-lg px-2 py-1 text-sm outline-none focus:border-primary"
                       />
                       <span className="text-[12px] font-semibold text-[#64748B]">{cat.thresholdUnit}</span>
                     </div>

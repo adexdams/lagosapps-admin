@@ -279,7 +279,7 @@ export default function NotificationsAdmin() {
             <thead>
               <tr className="bg-[#F8FAFC]">
                 <th className="px-2.5 sm:px-4 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left">Title</th>
-                <th className="px-2.5 sm:px-4 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-center">Type</th>
+                <th className="px-2.5 sm:px-4 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-center hidden sm:table-cell">Type</th>
                 <th className="px-2.5 sm:px-4 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-center">Status</th>
                 <th className="px-2.5 sm:px-4 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-center hidden sm:table-cell">User Read Rate</th>
                 <th className="px-2.5 sm:px-4 py-3 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left hidden md:table-cell">Date</th>
@@ -301,11 +301,11 @@ export default function NotificationsAdmin() {
                       onClick={() => navigate(`/broadcast/${b.id}`)}
                       className="hover:bg-[#F8FAFC] transition-colors cursor-pointer"
                     >
-                      <td className="px-2.5 sm:px-4 py-3">
-                        <p className="text-sm font-semibold text-[#0F172A] truncate max-w-[250px] sm:max-w-none">{b.title}</p>
-                        <p className="text-[12px] text-[#64748B] truncate max-w-[250px] sm:max-w-[400px] mt-0.5">{b.message}</p>
+                      <td className="px-2.5 sm:px-4 py-3 min-w-0">
+                        <p className="text-sm font-semibold text-[#0F172A] truncate">{b.title}</p>
+                        <p className="text-[12px] text-[#64748B] truncate mt-0.5">{b.message}</p>
                       </td>
-                      <td className="px-2.5 sm:px-4 py-3 text-center">
+                      <td className="px-2.5 sm:px-4 py-3 text-center hidden sm:table-cell">
                         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg" style={{ backgroundColor: tc.bg }}>
                           <span className="material-symbols-outlined text-[14px]" style={{ color: tc.text }}>{tc.icon}</span>
                           <span className="text-[11px] font-semibold uppercase" style={{ color: tc.text }}>{b.type}</span>

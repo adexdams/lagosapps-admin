@@ -410,7 +410,7 @@ export default function OrderDetailAdmin() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           {/* Items */}
           <div className="bg-white rounded-xl sm:rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 overflow-hidden">
@@ -423,15 +423,15 @@ export default function OrderDetailAdmin() {
               ) : (
                 order.order_items.map((item) => (
                   <div key={item.id} className="flex items-center justify-between py-3 border-b border-[#F1F5F9] last:border-0">
-                    <div>
-                      <p className="text-sm font-semibold text-[#0F172A]">{item.name}</p>
-                      {item.description && <p className="text-[12px] text-[#64748B]">{item.description}</p>}
+                    <div className="min-w-0 flex-1 mr-3">
+                      <p className="text-sm font-semibold text-[#0F172A] truncate">{item.name}</p>
+                      {item.description && <p className="text-[12px] text-[#64748B] truncate">{item.description}</p>}
                       <p className="text-[12px] text-[#64748B]">
                         Qty: {item.quantity} · Unit: {formatNaira(item.price)}
-                        {item.member_covered && <span className="ml-2 text-[10px] font-bold text-[#059669]">MEMBER COVERED</span>}
+                        {item.member_covered && <span className="ml-2 text-[10px] font-bold text-[#059669] flex-shrink-0">MEMBER COVERED</span>}
                       </p>
                     </div>
-                    <span className="text-sm font-bold text-[#0F172A]">{formatNaira(item.price * item.quantity)}</span>
+                    <span className="text-sm font-bold text-[#0F172A] flex-shrink-0">{formatNaira(item.price * item.quantity)}</span>
                   </div>
                 ))
               )}

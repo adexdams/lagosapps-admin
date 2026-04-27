@@ -326,14 +326,14 @@ export default function UserDetail() {
             <div className="px-5 py-4 border-b border-[#E8ECF1]/60">
               <h3 className="text-sm font-bold text-[#0F172A]">Order History</h3>
             </div>
-            <div className="overflow-x-auto">
+            <div className="overflow-hidden">
               <table className="w-full text-xs sm:text-sm">
                 <thead>
                   <tr className="bg-[#F8FAFC]">
                     <th className="px-2.5 sm:px-4 py-2.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left">Order</th>
                     <th className="px-2.5 sm:px-4 py-2.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left hidden sm:table-cell">Portal</th>
                     <th className="px-2.5 sm:px-4 py-2.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-right">Amount</th>
-                    <th className="px-2.5 sm:px-4 py-2.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-center">Status</th>
+                    <th className="px-2.5 sm:px-4 py-2.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-center hidden sm:table-cell">Status</th>
                     <th className="px-2.5 sm:px-4 py-2.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left hidden md:table-cell">Date</th>
                   </tr>
                 </thead>
@@ -345,7 +345,7 @@ export default function UserDetail() {
                       <td className="px-2.5 sm:px-4 py-3 font-semibold text-primary">{o.id}</td>
                       <td className="px-2.5 sm:px-4 py-3 text-[#334155] hidden sm:table-cell capitalize">{PORTAL_LABELS[o.portal_id as Portal] ?? o.portal_id}</td>
                       <td className="px-2.5 sm:px-4 py-3 text-right font-semibold text-[#0F172A]">{o.total_amount === 0 ? "Free" : formatNaira(o.total_amount)}</td>
-                      <td className="px-2.5 sm:px-4 py-3 text-center"><StatusBadge status={o.status} /></td>
+                      <td className="px-2.5 sm:px-4 py-3 text-center hidden sm:table-cell"><StatusBadge status={o.status} /></td>
                       <td className="px-2.5 sm:px-4 py-3 text-[#64748B] hidden md:table-cell whitespace-nowrap">{formatDate(o.created_at)}</td>
                     </tr>
                   ))}
@@ -359,12 +359,12 @@ export default function UserDetail() {
             <div className="px-5 py-4 border-b border-[#E8ECF1]/60">
               <h3 className="text-sm font-bold text-[#0F172A]">Wallet Transactions</h3>
             </div>
-            <div className="overflow-x-auto">
+            <div className="overflow-hidden">
               <table className="w-full text-xs sm:text-sm">
                 <thead>
                   <tr className="bg-[#F8FAFC]">
                     <th className="px-2.5 sm:px-4 py-2.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left">Description</th>
-                    <th className="px-2.5 sm:px-4 py-2.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-center">Type</th>
+                    <th className="px-2.5 sm:px-4 py-2.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-center hidden sm:table-cell">Type</th>
                     <th className="px-2.5 sm:px-4 py-2.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-right">Amount</th>
                     <th className="px-2.5 sm:px-4 py-2.5 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider text-left hidden md:table-cell">Date</th>
                   </tr>
@@ -375,7 +375,7 @@ export default function UserDetail() {
                   ) : txns.map((t) => (
                     <tr key={t.id} className="hover:bg-[#F8FAFC] transition-colors">
                       <td className="px-2.5 sm:px-4 py-3 text-[#334155]">{t.description}</td>
-                      <td className="px-2.5 sm:px-4 py-3 text-center"><StatusBadge status={t.type} /></td>
+                      <td className="px-2.5 sm:px-4 py-3 text-center hidden sm:table-cell"><StatusBadge status={t.type} /></td>
                       <td className={`px-2.5 sm:px-4 py-3 text-right font-semibold ${t.type === "credit" ? "text-[#059669]" : "text-[#DC2626]"}`}>
                         {t.type === "credit" ? "+" : "-"}{formatNaira(t.amount)}
                       </td>

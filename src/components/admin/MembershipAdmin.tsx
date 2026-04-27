@@ -304,7 +304,7 @@ export default function MembershipAdmin() {
                   <tbody className="divide-y divide-[#F1F5F9]">
                     {benefitStats.map((b) => (
                       <tr key={b.key} className="hover:bg-[#F8FAFC] transition-colors">
-                        <td className="px-4 py-3 font-medium text-[#0F172A]">{b.label}</td>
+                        <td className="px-4 py-3 font-medium text-[#0F172A] truncate max-w-[160px]">{b.label}</td>
                         <td className="px-4 py-3 text-center text-[#64748B] hidden sm:table-cell">
                           {b.limit ? `${b.limit}/${b.period}` : "Unlimited"}
                         </td>
