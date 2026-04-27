@@ -281,11 +281,11 @@ export default function OrdersPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-[#F1F5F9] p-1 rounded-xl w-fit">
-        <button onClick={() => setActiveTab("orders")} className={`px-4 py-2 text-[13px] font-semibold rounded-lg transition-all cursor-pointer ${activeTab === "orders" ? "bg-white text-[#0F172A] shadow-sm" : "text-[#64748B] hover:text-[#334155]"}`}>
+      <div className="flex gap-1 bg-white rounded-xl p-1 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-[#E8ECF1]/60 w-fit">
+        <button onClick={() => setActiveTab("orders")} className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${activeTab === "orders" ? "bg-primary text-white" : "text-[#64748B] hover:text-[#0F172A] hover:bg-[#F1F5F9]"}`}>
           Orders
         </button>
-        <button onClick={() => setActiveTab("custom_requests")} className={`px-4 py-2 text-[13px] font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-2 ${activeTab === "custom_requests" ? "bg-white text-[#0F172A] shadow-sm" : "text-[#64748B] hover:text-[#334155]"}`}>
+        <button onClick={() => setActiveTab("custom_requests")} className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer flex items-center gap-2 ${activeTab === "custom_requests" ? "bg-primary text-white" : "text-[#64748B] hover:text-[#0F172A] hover:bg-[#F1F5F9]"}`}>
           Custom Requests
           {pendingCRCount > 0 && (
             <span className="size-5 bg-[#6366F1] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
