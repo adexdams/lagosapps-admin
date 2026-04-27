@@ -9,6 +9,7 @@ import { supabase } from "../../lib/supabase";
 import {
   formatNaira,
   formatDate,
+  formatDateTime,
   PORTAL_LABELS,
   PORTAL_COLORS,
   type Portal,
@@ -492,7 +493,7 @@ export default function OrderDetailAdmin() {
                       <p className={`text-sm font-semibold ${step.completed ? "text-[#0F172A]" : "text-[#94A3B8]"}`}>{step.label}</p>
                       <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                         {step.occurred_at && (
-                          <span className="text-[12px] text-[#64748B]">{formatDate(step.occurred_at)}</span>
+                          <span className="text-[12px] text-[#64748B]">{formatDateTime(step.occurred_at)}</span>
                         )}
                         {step.profiles && (
                           <>
