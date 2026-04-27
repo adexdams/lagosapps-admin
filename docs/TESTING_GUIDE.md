@@ -2,7 +2,7 @@
 
 End-to-end checklist for verifying every feature on both the **admin dashboard** and **user-facing app**, via browser and API/CLI. Work through each section in order — many checks are dependencies for later ones.
 
-> **Last browser test: 2026-04-26. All admin portal browser tests confirmed complete (S1–S15, S1C referral signup re-tested and verified, S13 team invite + privilege management verified). S16 (User App: Portals), S17 (User App: Cart & Checkout), S18 (User App: Wallet), S19 (User App: Membership), S20 (User App: Notifications), S21 (Paystack Webhook), S24 (Cross-App Integration) confirmed 2026-04-26. S10 (email templates UI) and S11 (fulfillment page) removed — both features removed from admin nav. S8 test steps updated to reflect correct routes: broadcast list/compose/detail at `/broadcast`, admin inbox at `/notifications`.** Bugs found and fixed during 2026-04-25 run: `flag_overdue_fulfillment()` used wrong enum value (`delivered` → `completed`); `send-email` Edge Function logo pointed to GitHub raw instead of Supabase Storage; `config.toml` template paths resolved from wrong directory; referral Bronze membership not showing after signup (race condition — setTimeout fired before email confirmation, moved to `loadProfile`). Bugs fixed 2026-04-26 (S3 browser test): refund txn ID exceeded `varchar(20)` (base-36 timestamp fix); create order blocked by single-portal guard (removed); duplicate status dropdowns in Order Detail (consolidated — progress now derived from status automatically); internal notes Add button silently failed (race on `currentUserId` state — replaced with `useAuth`); Risk Level in Order Detail was a manual dropdown (now auto-computed from SLA settings in Platform Settings); Fulfillment removed from sidebar nav. Bugs fixed 2026-04-26 (S5 work): membership notification trigger silently failed — `billing_cycle` enum and UUID id needed explicit `::TEXT` casts in `notify_membership_event()`; cancel subscription added to admin Membership page and user Membership panel; referral processing gate in `loadProfile` was blocking users who already had a paid membership tier from having referral row recorded; "Apply referral code" UI added to user Referrals panel. Built 2026-04-26 (S5C verified + promo codes): admin promo code system — `admin_referral_codes` + `admin_code_redemptions` tables, `redeem_admin_code()` RPC, Promo Codes tab in admin Referrals page, user-side fallback redemption in ReferralsPanel. Fixed 2026-04-26 (S6 verified): wallet transactions table was empty due to ambiguous FK embed (`wallet_transactions` has two FKs to `profiles`); fixed with explicit FK hint `profiles!wallet_transactions_user_id_fkey`. Also fixed benefit usage tracking — `doctor_consultations`, `car_rental_days`, `solar_product`, `event_venue_discount` were never tracked; added `PORTAL_BENEFIT` map in CartPanel so the correct benefit key is recorded when an order is confirmed for each portal.
+> **Last browser test: 2026-04-26. All admin portal browser tests confirmed complete (S1–S15, S1C referral signup re-tested and verified, S13 team invite + privilege management verified). S16 (User App: Portals), S17 (User App: Cart & Checkout), S18 (User App: Wallet), S19 (User App: Membership), S20 (User App: Notifications), S21 (Paystack Webhook), S24 (Cross-App Integration) confirmed 2026-04-26. Admin Dashboard Testing Sequence (Phases 1–13) fully re-verified 2026-04-26. Additional fixes applied and re-verified 2026-04-26: order timeline now shows date + time; product deactivation fixed (missing `member_covered` column added via migration); benefit limit enforcement fixed (`limitCount` was always null — now loaded from `membership_tier_benefits`); wallet now auto-applied at checkout (no toggle) so Paystack is only charged the minimum. S10 (email templates UI) and S11 (fulfillment page) removed — both features removed from admin nav. S8 test steps updated to reflect correct routes: broadcast list/compose/detail at `/broadcast`, admin inbox at `/notifications`.** Bugs found and fixed during 2026-04-25 run: `flag_overdue_fulfillment()` used wrong enum value (`delivered` → `completed`); `send-email` Edge Function logo pointed to GitHub raw instead of Supabase Storage; `config.toml` template paths resolved from wrong directory; referral Bronze membership not showing after signup (race condition — setTimeout fired before email confirmation, moved to `loadProfile`). Bugs fixed 2026-04-26 (S3 browser test): refund txn ID exceeded `varchar(20)` (base-36 timestamp fix); create order blocked by single-portal guard (removed); duplicate status dropdowns in Order Detail (consolidated — progress now derived from status automatically); internal notes Add button silently failed (race on `currentUserId` state — replaced with `useAuth`); Risk Level in Order Detail was a manual dropdown (now auto-computed from SLA settings in Platform Settings); Fulfillment removed from sidebar nav. Bugs fixed 2026-04-26 (S5 work): membership notification trigger silently failed — `billing_cycle` enum and UUID id needed explicit `::TEXT` casts in `notify_membership_event()`; cancel subscription added to admin Membership page and user Membership panel; referral processing gate in `loadProfile` was blocking users who already had a paid membership tier from having referral row recorded; "Apply referral code" UI added to user Referrals panel. Built 2026-04-26 (S5C verified + promo codes): admin promo code system — `admin_referral_codes` + `admin_code_redemptions` tables, `redeem_admin_code()` RPC, Promo Codes tab in admin Referrals page, user-side fallback redemption in ReferralsPanel. Fixed 2026-04-26 (S6 verified): wallet transactions table was empty due to ambiguous FK embed (`wallet_transactions` has two FKs to `profiles`); fixed with explicit FK hint `profiles!wallet_transactions_user_id_fkey`. Also fixed benefit usage tracking — `doctor_consultations`, `car_rental_days`, `solar_product`, `event_venue_discount` were never tracked; added `PORTAL_BENEFIT` map in CartPanel so the correct benefit key is recorded when an order is confirmed for each portal.
 
 ---
 
@@ -59,14 +59,14 @@ End-to-end checklist for verifying every feature on both the **admin dashboard**
 | 16H | Transport portal | ✅ 6 transport products seeded | ✅ verified 2026-04-26 |
 | **S17** | **User App: Cart & Checkout** | | |
 | 17A | Cart operations | ✅ `carts` + `cart_items` schema ready | ✅ verified 2026-04-26 |
-| 17B | Card payment | ✅ `orders` schema + payment fields confirmed | ✅ verified 2026-04-26 |
+| 17B | Card payment | ✅ `orders` schema + payment fields confirmed | ✅ verified 2026-04-26; re-verified 2026-04-26 — wallet auto-applied, Paystack charged minimum |
 | 17C | Wallet-only payment | ✅ Schema confirmed | ✅ verified 2026-04-26 |
-| 17D | Hybrid (wallet + card) | ✅ `wallet_deduction` + `payment_amount` fields confirmed | ✅ verified 2026-04-26 |
+| 17D | Hybrid (wallet + card) | ✅ `wallet_deduction` + `payment_amount` fields confirmed | ✅ re-verified 2026-04-26 — wallet auto-covers benefit-exhausted items; Paystack handles remainder |
 | 17E | Failed payment | ✅ Schema confirmed | ✅ verified 2026-04-26 |
 | **S18** | **User App: Wallet** | | |
 | 18A–18B | Top-up · history | ✅ `wallet_transactions` schema ready | ✅ verified 2026-04-26 |
 | **S19** | **User App: Membership** | | |
-| 19A–19B | Subscribe · admin view | ✅ 3 tiers + 15 benefits · `membership_subscriptions` ready | ✅ verified 2026-04-26 |
+| 19A–19B | Subscribe · admin view | ✅ 3 tiers + 15 benefits · `membership_subscriptions` ready | ✅ verified 2026-04-26; re-verified 2026-04-26 — benefit limits now enforced at checkout (limit_count loaded from tier benefits); usage counters update correctly per order |
 | **S20** | **User App: Notifications** | | |
 | 20A–20B | Broadcast inbox · order status | ✅ `user_notifications` in realtime publication | ✅ verified 2026-04-26 |
 | **S21** | **Paystack Webhook** | | |
@@ -516,7 +516,7 @@ supabase db query --linked "SELECT action, entity_type, entity_id, created_at FR
 
 ---
 
-## Section 14 — User App: Cart & Checkout ✅ verified 2026-04-26
+## Section 14 — User App: Cart & Checkout ✅ verified 2026-04-26 · re-verified 2026-04-26
 
 ### 14A · Cart operations (browser) ✅
 
@@ -592,7 +592,7 @@ supabase db query --linked "SELECT description, amount, type, running_balance FR
 
 ---
 
-## Section 16 — User App: Membership ✅ verified 2026-04-26
+## Section 16 — User App: Membership ✅ verified 2026-04-26 · re-verified 2026-04-26
 
 ### 16A · Subscribe (browser)
 
