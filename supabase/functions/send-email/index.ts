@@ -140,6 +140,38 @@ serve(async (req: Request) => {
     let html: string;
     const data: Record<string, unknown> = { ...(payload.data ?? {}) };
 
+    // For password_reset: use admin SDK to generate the Supabase recovery link when
+    // the caller passes `data.email` without `data.resetUrl` (user app flow).
+    if (payload.template === "password_reset" && data.email && !data.resetUrl) {
+      const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+      const redirectTo = (data.redirectTo as string | undefined) ?? SUPABASE_URL;
+      const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+        type: "recovery",
+        email: data.email as string,
+        options: { redirectTo },
+      });
+      if (linkError || !linkData?.properties?.action_link) {
+        // Silently succeed if user not found — prevents email enumeration (same as resetPasswordForEmail)
+        const notFound = linkError?.message?.toLowerCase().includes("not found") || linkError?.message?.toLowerCase().includes("not exist");
+        if (notFound) {
+          return new Response(JSON.stringify({ success: true, id: null }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        return new Response(JSON.stringify({ error: linkError?.message ?? "Could not generate recovery link" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      data.resetUrl = linkData.properties.action_link;
+      // Also try to hydrate the user's name for a personalised email
+      const { data: profile } = await admin.from("profiles").select("name").eq("email", data.email as string).maybeSingle();
+      if (profile?.name) data.name = profile.name;
+      // Ensure `to` is set if caller only passed data.email
+      if (!payload.to) payload.to = data.email as string;
+    }
+
     // Pre-build imageBlock for broadcast (interpolate has no conditional support)
     if (payload.template === "broadcast") {
       const imgUrl = data.imageUrl as string | undefined;
